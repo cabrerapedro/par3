@@ -91,32 +91,42 @@
 
 /* ─── Light mode ────────────────────────────────────────────────────────── */
 .light {
-  --background:               #ffffff;
-  --foreground:               #09090b;
-  --card:                     #f9f9fa;
-  --card-foreground:          #09090b;
+  --background:               #F8FAF9;  /* off-white warm with green tint */
+  --foreground:               #0F172A;
+  --card:                     #ffffff;
+  --card-foreground:          #0F172A;
   --popover:                  #ffffff;
-  --popover-foreground:       #09090b;
-  --primary:                  #16a34a;
+  --popover-foreground:       #0F172A;
+  --primary:                  #059669;  /* darker green for contrast on white */
   --primary-foreground:       #ffffff;
-  --secondary:                #f0f0f2;
-  --secondary-foreground:     #09090b;
-  --muted:                    #f0f0f2;
-  --muted-foreground:         #52525b;
-  --accent:                   #f0f0f2;
-  --accent-foreground:        #09090b;
+  --secondary:                #EFF5F2;
+  --secondary-foreground:     #0F172A;
+  --muted:                    #EFF5F2;
+  --muted-foreground:         #475569;  /* more contrast */
+  --accent:                   #EFF5F2;
+  --accent-foreground:        #0F172A;
   --destructive:              #dc2626;
-  --border:                   #e4e4e7;
-  --input:                    #f0f0f2;
-  --ring:                     #16a34a;
-  --color-bg:                 #ffffff;
-  --color-s1:                 #f9f9fa;
-  --color-s2:                 #f0f0f2;
-  --color-s3:                 #e4e4e7;
-  --color-border:             #e2e2e8;
-  --color-txt:                #09090b;
-  --color-muted:              #52525b;
-  --color-dim:                #71717a;
+  --border:                   rgba(15, 23, 42, 0.1);
+  --input:                    #EFF5F2;
+  --ring:                     #059669;
+  --sidebar:                  #ffffff;
+  --sidebar-foreground:       #0F172A;
+  --sidebar-primary:          #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent:           #EFF5F2;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border:           rgba(15, 23, 42, 0.1);
+  --sidebar-ring:             #059669;
+  --color-bg:                 #F8FAF9;
+  --color-s1:                 #ffffff;
+  --color-s2:                 #EFF5F2;
+  --color-s3:                 #e2ece7;
+  --color-border:             rgba(15, 23, 42, 0.1);
+  --color-txt:                #0F172A;
+  --color-muted:              #475569;
+  --color-dim:                #64748B;
+  --color-ok:                 #059669;  /* darker green for light mode */
+  --color-blue:               #2563EB;  /* darker blue for light mode */
 }
 
 /* ─── Keyframes ─────────────────────────────────────────────────────────── */
@@ -140,4 +150,16 @@ body {
   transition: background 0.4s, color 0.4s;
 }
 
-/* ─── Light mode token overrides ────────────────────────────────────────── */
+/* ─── Landing page utilities ────────────────────────────────────────────── */
+.logo-icon-glow {
+  box-shadow: 0 0 40px rgba(52, 209, 120, 0.15), 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.light .logo-icon-glow {
+  box-shadow: 0 0 30px rgba(5, 150, 105, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.landing-card-shadow {
+  box-shadow: none;
+}
+.light .landing-card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
