@@ -1,0 +1,79 @@
+/*
+ * par3 — Design Tokens (reference, not imported directly)
+ * Source of truth for the design system.
+ * These values are reflected in app/globals.css.
+ *
+ * Last updated: 2026-03-04
+ */
+
+:root {
+  /* ── Colors — Dark (default) ────────────────────────────────────────── */
+  --color-bg:         #09090b;   /* Page background */
+  --color-s1:         #111113;   /* Card / surface */
+  --color-s2:         #1c1c1f;   /* Secondary surface / input */
+  --color-s3:         #28282c;   /* Hover state */
+  --color-border:     #2e2e32;   /* Default border */
+
+  --color-txt:        #f4f4f5;   /* Body text */
+  --color-muted:      #a1a1aa;   /* Secondary text */
+  --color-dim:        #71717a;   /* Disabled / placeholder */
+
+  /* Brand accent — instructor identity */
+  --color-ok:         #34d178;   /* Green — instructor, success, CTA */
+
+  /* Status */
+  --color-warn:       #f59e0b;   /* Amber — warning */
+  --color-bad:        #ef4444;   /* Red — error */
+
+  /* Student identity */
+  --color-blue:       #60a5fa;   /* Blue — student, info */
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --font-display:     var(--font-dm-serif), Georgia, serif;
+  --font-sans:        var(--font-dm-sans), ui-sans-serif, system-ui;
+  --font-mono:        var(--font-jb-mono), ui-monospace, monospace;
+
+  /* Type scale */
+  --text-display:     42px;   /* DM Serif Display — hero headings only */
+  --text-heading:     22px;   /* DM Sans 700 — section headers */
+  --text-title:       18px;   /* DM Sans 600 — card titles */
+  --text-body:        16px;   /* DM Sans 400 — body text */
+  --text-caption:     13px;   /* DM Sans 400 — labels, captions (minimum) */
+
+  /* ── Spacing ─────────────────────────────────────────────────────────── */
+  --space-card-pad:   24px;   /* Min card inner padding */
+  --space-section:    48px;   /* Between major sections */
+  --touch-min:        48px;   /* Minimum touch target height */
+
+  /* ── Radius ──────────────────────────────────────────────────────────── */
+  --radius-card:      20px;   /* Cards */
+  --radius-btn:       12px;   /* Buttons */
+  --radius-pill:      999px;  /* Pills / badges */
+  --radius-input:     10px;   /* Form inputs */
+
+  /* ── Shadows (light mode) ────────────────────────────────────────────── */
+  --shadow-card:      0 1px 3px rgba(0,0,0,.07), 0 4px 12px rgba(0,0,0,.05);
+  --shadow-card-hover: 0 2px 8px rgba(0,0,0,.10), 0 8px 24px rgba(0,0,0,.08);
+
+  /* ── Animations ──────────────────────────────────────────────────────── */
+  --anim-page:        0.8s ease-out;     /* Page entry — fade up */
+  --anim-stagger:     150ms;             /* Between staggered card items */
+  --anim-hover:       300ms ease;        /* Hover transitions */
+  --anim-theme:       400ms;            /* Theme toggle */
+}
+
+/* ── Light mode overrides ─────────────────────────────────────────────── */
+.light {
+  --color-bg:         #ffffff;
+  --color-s1:         #f9f9fa;
+  --color-s2:         #f0f0f2;
+  --color-s3:         #e4e4e7;
+  --color-border:     #e2e2e8;
+
+  --color-txt:        #09090b;
+  --color-muted:      #52525b;
+  --color-dim:        #71717a;
+
+  --color-ok:         #16a34a;   /* Darker green for contrast on white */
+  --color-blue:       #2563eb;   /* Darker blue for contrast on white */
+}
