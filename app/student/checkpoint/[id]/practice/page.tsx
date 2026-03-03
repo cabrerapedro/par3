@@ -50,7 +50,7 @@ export default function StudentPractice() {
 
   async function loadCheckpoint() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
-    if (!data?.baseline) { setError('Checkpoint sin baseline.'); return }
+    if (!data?.baseline) { setError('Este ejercicio aún no tiene referencia.'); return }
     setCheckpoint(data)
   }
 
@@ -111,7 +111,7 @@ export default function StudentPractice() {
   }
 
   async function analyzeVideoBlob(blob: Blob) {
-    if (!checkpoint?.baseline) { setError('Sin baseline.'); return }
+    if (!checkpoint?.baseline) { setError('Sin referencia personal.'); return }
     setStage('processing')
     setProgress(0)
 
@@ -249,7 +249,7 @@ export default function StudentPractice() {
       {/* INPUT stage */}
       {stage === 'input' && (
         <div className="max-w-md mx-auto px-5 py-8 flex flex-col gap-4">
-          <h1 className="text-xl font-bold text-foreground mb-4">Grabar Práctica</h1>
+          <h1 className="text-xl font-bold text-foreground mb-4">Grabar práctica</h1>
 
           <button
             onClick={startRecording}
@@ -322,7 +322,7 @@ export default function StudentPractice() {
               <div className="h-full bg-ok rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <p className="text-muted-foreground text-sm text-center">Comparando con tu baseline personal...</p>
+          <p className="text-muted-foreground text-sm text-center">Comparando con tu referencia personal...</p>
         </div>
       )}
 
@@ -385,7 +385,7 @@ export default function StudentPractice() {
                 </button>
                 <Link href={`/student/checkpoint/${cpId}`} className="flex-1">
                   <button className="w-full bg-ok text-black font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
-                    Ver checkpoint
+                    Ver ejercicio
                   </button>
                 </Link>
               </div>

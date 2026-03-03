@@ -43,7 +43,7 @@ export default function StudentMirror() {
 
   async function init() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
-    if (!data?.baseline || Object.keys(data.baseline).length === 0) { setError('Este checkpoint no tiene baseline. Pide a tu instructor que calibre primero.'); return }
+    if (!data?.baseline || Object.keys(data.baseline).length === 0) { setError('Este ejercicio aún no tiene referencia. Pide a tu instructor que calibre primero.'); return }
     setCheckpoint(data)
     checkpointRef.current = data
     await initMediaPipe()
@@ -173,7 +173,7 @@ export default function StudentMirror() {
       {/* Panel */}
       <div className="flex-shrink-0 lg:w-72 bg-card border-t lg:border-t-0 lg:border-l border-border overflow-y-auto" style={{ maxHeight: '50vh', minHeight: '120px' }}>
         <div className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Comparación con tu baseline</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Comparación con tu referencia</p>
 
           {checks.length === 0 ? (
             <div className="text-center py-8">
