@@ -53,7 +53,7 @@ export default function CalibratePage() {
 
   async function loadCheckpoint() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
-    if (!data) { setError('Checkpoint no encontrado.'); return }
+    if (!data) { setError('Ejercicio no encontrado.'); return }
     setCheckpoint(data)
     setSaveNote(data.instructor_note ?? '')
     if (data.calibration_marks?.length) {
@@ -256,15 +256,22 @@ export default function CalibratePage() {
     <main className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
-        <Link href={`/instructor/students/${studentId}`} className="text-muted-foreground text-sm hover:text-muted-foreground">
-          ← {checkpoint?.name ?? 'Calibración'}
+        <Link href={`/instructor/students/${studentId}`} className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {checkpoint?.name ?? 'Calibración'}
         </Link>
-        <div className="flex items-center gap-3">
-          {!poseDetected && stage !== 'loading' && (
-            <span className="text-warn text-xs">Buscando pose...</span>
-          )}
-          {poseDetected && (
-            <span className="text-ok text-xs">● Pose detectada</span>
+        <div className="flex items-center gap-2">
+          {stage !== 'loading' && (
+            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${
+              poseDetected
+                ? 'text-ok border-ok/30 bg-ok/10'
+                : 'text-warn border-warn/30 bg-warn/10'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${poseDetected ? 'bg-ok' : 'bg-warn animate-pulse'}`} />
+              {poseDetected ? 'Pose detectada' : 'Sin persona en cámara'}
+            </div>
           )}
         </div>
       </header>
@@ -311,16 +318,12 @@ export default function CalibratePage() {
             >
               ✓ Bien
             </button>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <div className="flex-1 bg-card border border-border rounded-xl px-3 py-2.5 text-center">
-                <p className="text-muted-foreground text-xs">Marcas mínimas: 2</p>
-                <p className="text-muted-foreground text-xs">recomendadas: 3-5</p>
+                <p className="text-muted-foreground text-xs leading-snug">Mín. 2 marcas<br/>Ideal: 3–5</p>
               </div>
               <button
-                onClick={() => {
-                  if (marks.length === 0) { setStageSync('ready'); return }
-                  setStageSync('ready')
-                }}
+                onClick={() => setStageSync('ready')}
                 className="bg-card border border-border text-muted-foreground text-sm rounded-xl px-4 py-2.5 hover:border-bad/40 hover:text-bad transition-all"
               >
                 Cancelar
@@ -339,7 +342,7 @@ export default function CalibratePage() {
             {marks.length > 0 && (
               <div className="bg-card border border-ok/20 rounded-xl px-4 py-3 text-center">
                 <p className="text-ok text-sm font-semibold">{marks.length} marca{marks.length !== 1 ? 's' : ''} guardada{marks.length !== 1 ? 's' : ''}</p>
-                <p className="text-muted-foreground text-xs mt-0.5">Puedes añadir más o guardar el checkpoint</p>
+                <p className="text-muted-foreground text-xs mt-0.5">Puedes añadir más marcas o guardar el ejercicio</p>
               </div>
             )}
 
@@ -393,7 +396,7 @@ export default function CalibratePage() {
                 onClick={handleSave}
                 className="w-full bg-card border border-ok/30 text-ok font-semibold rounded-xl py-3.5 hover:bg-ok/10 transition-all"
               >
-                Guardar baseline ({marks.length} marca{marks.length !== 1 ? 's' : ''})
+                Guardar referencia ({marks.length} marca{marks.length !== 1 ? 's' : ''})
               </button>
             )}
           </div>
@@ -411,16 +414,31 @@ function SavedScreen({ studentId, marks, checkpoint }: {
   const router = useRouter()
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center">
-      <div className="text-ok text-5xl mb-4">✓</div>
-      <h1 className="text-2xl font-bold text-foreground mb-2">Checkpoint calibrado</h1>
-      <p className="text-muted-foreground mb-1">{marks.length} momento{marks.length !== 1 ? 's' : ''} buenos capturado{marks.length !== 1 ? 's' : ''}</p>
-      <p className="text-muted-foreground text-sm mb-8">El baseline personal de este alumno está guardado</p>
-      <div className="flex flex-col gap-3 w-full max-w-xs">
+      <div
+        className="w-20 h-20 rounded-[20px] bg-ok/10 border border-ok/20 flex items-center justify-center mb-6"
+        style={{ animation: 'fade-up 0.8s ease-out both' }}
+      >
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round" className="text-ok">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <div style={{ animation: 'fade-up 0.8s ease-out 100ms both' }}>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Ejercicio calibrado</h1>
+        <p className="text-muted-foreground mb-1">
+          {marks.length} posición{marks.length !== 1 ? 'es' : ''} buena{marks.length !== 1 ? 's' : ''} capturada{marks.length !== 1 ? 's' : ''}
+        </p>
+        <p className="text-muted-foreground text-sm mb-8">La referencia personal de este alumno está guardada</p>
+      </div>
+      <div
+        className="flex flex-col gap-3 w-full max-w-xs"
+        style={{ animation: 'fade-up 0.8s ease-out 200ms both' }}
+      >
         <button
           onClick={() => router.push(`/instructor/students/${studentId}`)}
-          className="bg-ok text-black font-semibold rounded-xl py-3.5 hover:opacity-90 transition-all"
+          className="h-12 bg-ok text-black font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300"
         >
-          Ver journey del alumno
+          Ver ejercicios del alumno
         </button>
       </div>
     </main>
