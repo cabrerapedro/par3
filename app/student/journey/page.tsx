@@ -38,9 +38,17 @@ export default function StudentJourney() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-lg mx-auto px-5 h-14 flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-foreground tracking-tight">
-            par<span className="text-ok">3</span>
-          </span>
+          <Link href="/" className="flex items-center gap-1.5 shrink-0">
+            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
+              strokeLinecap="round" strokeLinejoin="round" className="text-ok">
+              <line x1="18" y1="5" x2="18" y2="28" />
+              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.3" stroke="currentColor" />
+              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.5" />
+            </svg>
+            <span className="text-sm font-bold text-foreground tracking-tight">
+              par<span className="text-ok">3</span>
+            </span>
+          </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <UserMenu
@@ -58,7 +66,7 @@ export default function StudentJourney() {
         {/* Header */}
         <div className="mb-8">
           <p className="text-sm text-muted-foreground mb-1">Hola, {student.name.split(' ')[0]}</p>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">Mi Journey</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">Mis Ejercicios</h1>
           <p className="text-muted-foreground text-sm">Técnicas calibradas por tu instructor</p>
         </div>
 
@@ -66,7 +74,7 @@ export default function StudentJourney() {
         {checkpoints.length > 0 && !fetching && (
           <div className="bg-card border border-border rounded-xl px-5 py-4 mb-8">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-foreground">Progreso de calibración</p>
+              <p className="text-sm font-medium text-foreground">Ejercicios calibrados</p>
               <span className="text-sm font-bold text-ok">{calibrated}/{checkpoints.length}</span>
             </div>
             <Progress value={progress} className="h-2 bg-secondary [&>div]:bg-ok" />
@@ -88,7 +96,7 @@ export default function StudentJourney() {
         ) : checkpoints.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl text-center">
             <div className="text-5xl mb-4">⛳</div>
-            <p className="text-foreground font-semibold mb-1">Tu instructor aún no creó checkpoints</p>
+            <p className="text-foreground font-semibold mb-1">Tu instructor aún no creó ejercicios</p>
             <p className="text-muted-foreground text-sm max-w-xs">Cuando tu instructor calibre tu técnica, aparecerán aquí listos para practicar</p>
           </div>
         ) : (

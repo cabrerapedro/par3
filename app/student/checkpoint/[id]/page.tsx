@@ -21,7 +21,7 @@ const ACTIONS = [
         <path d="M8 21h8M12 17v4" />
       </svg>
     ),
-    title: 'Espejo Inteligente',
+    title: 'Espejo inteligente',
     desc: 'Revisa tu postura en tiempo real antes de cada swing',
     tag: 'Tiempo real',
   },
@@ -34,8 +34,8 @@ const ACTIONS = [
         <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
       </svg>
     ),
-    title: 'Grabar Práctica',
-    desc: 'Graba tu swing y compara cuadro a cuadro con tu baseline',
+    title: 'Grabar práctica',
+    desc: 'Graba tu swing y compara cuadro a cuadro con tu referencia',
     tag: 'Análisis post-swing',
   },
   {
@@ -71,7 +71,7 @@ export default function CheckpointDetail() {
   if (loading) return <LoadingScreen />
   if (!cp) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <p className="text-muted-foreground">Checkpoint no encontrado.</p>
+      <p className="text-muted-foreground">Ejercicio no encontrado.</p>
     </div>
   )
 
@@ -81,7 +81,7 @@ export default function CheckpointDetail() {
         <div className="max-w-lg mx-auto px-5 h-14 flex items-center gap-3">
           <Link href="/student/journey" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Mi journey
+            Mis ejercicios
           </Link>
         </div>
       </header>
@@ -100,7 +100,7 @@ export default function CheckpointDetail() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{cp.name}</h1>
           {cp.baseline && (
             <p className="text-muted-foreground text-sm mt-1">
-              {cp.calibration_marks?.length ?? 0} momentos calibrados · baseline personal activo
+              {cp.calibration_marks?.length ?? 0} posiciones calibradas · referencia personal activa
             </p>
           )}
         </div>
@@ -128,7 +128,7 @@ export default function CheckpointDetail() {
         {/* Baseline summary */}
         {cp.baseline && (
           <div className="bg-card border border-border rounded-xl px-4 py-4 mb-8">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu baseline personal</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu referencia personal</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(cp.baseline).map(([key, val]) => (
                 <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
@@ -162,8 +162,8 @@ export default function CheckpointDetail() {
                   {action.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{action.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{action.desc}</p>
+                  <p className="text-base font-semibold text-foreground">{action.title}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{action.desc}</p>
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1.5">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50">

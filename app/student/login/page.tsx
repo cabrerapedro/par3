@@ -3,10 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 
 export default function StudentLogin() {
@@ -32,30 +29,40 @@ export default function StudentLogin() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 py-10">
-      <Link href="/" className="text-muted-foreground text-sm hover:text-foreground transition-colors mb-8 flex items-center gap-1.5">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        par<span className="text-ok">3</span>
-      </Link>
 
-      <Card className="w-full max-w-sm border-border bg-card shadow-none gap-0 py-0">
-        <CardHeader className="px-6 pt-6 pb-5 text-center">
-          <div className="w-12 h-12 bg-blue/10 border border-blue/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-blue">
-              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" />
+      {/* Brand */}
+      <div className="mb-8 text-center" style={{ animation: 'fade-up 0.8s ease-out both' }}>
+        <Link href="/" className="inline-flex flex-col items-center gap-3 group">
+          <div className="w-14 h-14 rounded-[20px] bg-blue/10 border border-blue/20 flex items-center justify-center group-hover:bg-blue/20 transition-colors duration-300">
+            <svg width="26" height="26" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
+              strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+              <line x1="18" y1="5" x2="18" y2="28" />
+              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.3" stroke="currentColor" />
+              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.5" />
             </svg>
           </div>
-          <CardTitle className="text-xl text-foreground">Ingresa tu código</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Tu instructor te dio un código de 6 caracteres
-          </CardDescription>
-        </CardHeader>
+          <span className="text-sm font-bold text-foreground tracking-tight">
+            par<span className="text-ok">3</span>
+          </span>
+        </Link>
+      </div>
 
-        <Separator className="bg-border" />
+      {/* Card */}
+      <div
+        className="w-full max-w-sm bg-card border border-border rounded-[20px] overflow-hidden"
+        style={{ animation: 'fade-up 0.8s ease-out 100ms both' }}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-5 border-b border-border text-center">
+          <h1 className="text-xl font-bold text-foreground">Ingresa tu código</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Escribe el código de 6 letras que te dio tu instructor
+          </p>
+        </div>
 
-        <CardContent className="px-6 py-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* Form */}
+        <div className="px-6 py-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <Input
               type="text"
               value={code}
@@ -64,27 +71,29 @@ export default function StudentLogin() {
               maxLength={6}
               required
               autoFocus
-              className="bg-secondary border-border text-foreground text-center text-3xl font-mono tracking-[0.4em] placeholder:text-muted-foreground/40 placeholder:text-xl placeholder:tracking-normal h-16 focus-visible:border-blue/50 focus-visible:ring-0"
+              className="bg-secondary border-border text-foreground text-center text-3xl font-mono tracking-[0.4em] placeholder:text-muted-foreground/40 placeholder:text-xl placeholder:tracking-normal h-16 focus-visible:border-blue/50 focus-visible:ring-blue/10"
             />
 
             {error && (
-              <p className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3">{error}</p>
+              <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3 leading-snug">
+                {error}
+              </div>
             )}
 
-            <Button
+            <button
               type="submit"
               disabled={loading || code.length < 4}
-              className="h-11 bg-ok text-background font-semibold hover:bg-ok/90"
+              className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
             >
-              {loading ? 'Verificando...' : 'Entrar a mi journey'}
-            </Button>
+              {loading ? 'Verificando...' : 'Entrar a mis ejercicios'}
+            </button>
           </form>
 
-          <p className="text-muted-foreground text-xs text-center mt-5">
+          <p className="text-muted-foreground text-sm text-center mt-6 leading-relaxed">
             Si no tienes código, pídele a tu instructor que cree tu perfil.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
