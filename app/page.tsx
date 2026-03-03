@@ -1,65 +1,58 @@
-import Image from "next/image";
+import Link from 'next/link'
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    <main className="min-h-screen bg-bg flex flex-col items-center justify-center px-5 py-8">
+      {/* Golfer logo */}
+      <div className="mb-3 sm:mb-4">
+        <svg width="44" height="44" viewBox="0 0 52 52" fill="none" aria-hidden="true" className="sm:w-[52px] sm:h-[52px]">
+          <circle cx="26" cy="9" r="6" fill="#34d178" />
+          <line x1="26" y1="15" x2="26" y2="34" stroke="#e4ebe6" strokeWidth="3" strokeLinecap="round" />
+          <line x1="26" y1="34" x2="17" y2="47" stroke="#e4ebe6" strokeWidth="3" strokeLinecap="round" />
+          <line x1="26" y1="34" x2="35" y2="47" stroke="#e4ebe6" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      {/* Brand */}
+      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-2">
+        par<span className="text-ok">3</span>
+      </h1>
+      <p className="text-muted text-base sm:text-lg mb-10 sm:mb-14">Tu copiloto de practica</p>
+
+      {/* Mode cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full max-w-lg mb-10 sm:mb-16">
+        <Link href="/mirror">
+          <div className="bg-s1 border border-border rounded-2xl p-5 sm:p-7 hover:border-ok/50 hover:bg-s2 transition-all duration-200 cursor-pointer">
+            <div className="text-ok mb-4">
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="sm:w-8 sm:h-8">
+                <rect x="3" y="7" width="26" height="19" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                <circle cx="16" cy="16" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M12 7l2-3h4l2 3" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h2 className="text-txt font-semibold text-base sm:text-lg mb-1">Espejo Inteligente</h2>
+            <p className="text-dim text-xs sm:text-sm leading-relaxed">Análisis en tiempo real con tu cámara</p>
+          </div>
+        </Link>
+
+        <Link href="/analysis">
+          <div className="bg-s1 border border-border rounded-2xl p-5 sm:p-7 hover:border-blue/50 hover:bg-s2 transition-all duration-200 cursor-pointer">
+            <div className="text-blue mb-4">
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="sm:w-8 sm:h-8">
+                <rect x="3" y="3" width="26" height="26" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 22l5-8 4 6 3-4 4 6H8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h2 className="text-txt font-semibold text-base sm:text-lg mb-1">Análisis de Video</h2>
+            <p className="text-dim text-xs sm:text-sm leading-relaxed">Sube o graba un vídeo para analizar</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Footer */}
+      <p className="font-mono text-xs text-dim text-center leading-relaxed">
+        par3.app — MediaPipe Pose Detection<br className="sm:hidden" /> para postura de principiantes
+      </p>
+    </main>
+  )
 }
