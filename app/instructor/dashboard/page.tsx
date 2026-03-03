@@ -71,9 +71,17 @@ export default function InstructorDashboard() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-2xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-foreground tracking-tight shrink-0">
-            par<span className="text-ok">3</span>
-          </span>
+          <Link href="/" className="flex items-center gap-1.5 shrink-0">
+            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
+              strokeLinecap="round" strokeLinejoin="round" className="text-ok">
+              <line x1="18" y1="5" x2="18" y2="28" />
+              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.3" stroke="currentColor" />
+              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.5" />
+            </svg>
+            <span className="text-sm font-bold text-foreground tracking-tight">
+              par<span className="text-ok">3</span>
+            </span>
+          </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <UserMenu
@@ -93,14 +101,15 @@ export default function InstructorDashboard() {
           <p className="text-sm text-muted-foreground mb-1">Hola, {instructor.name.split(' ')[0]}</p>
           <div className="flex items-end justify-between gap-4">
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Mis Alumnos</h1>
-            <Button asChild size="sm" className="bg-ok text-background hover:bg-ok/90 font-semibold shrink-0">
-              <Link href="/instructor/students/new">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Nuevo alumno
-              </Link>
-            </Button>
+            <Link
+              href="/instructor/students/new"
+              className="inline-flex items-center gap-1.5 h-10 px-4 bg-ok text-black font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300 shrink-0"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nuevo alumno
+            </Link>
           </div>
         </div>
 
@@ -109,7 +118,7 @@ export default function InstructorDashboard() {
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[
               { label: 'Alumnos', value: students.length },
-              { label: 'Checkpoints', value: totalCheckpoints },
+              { label: 'Ejercicios', value: totalCheckpoints },
               { label: 'Calibrados', value: totalCalibrated },
             ].map(stat => (
               <div key={stat.label} className="bg-card border border-border rounded-xl px-4 py-3 text-center">
@@ -159,9 +168,12 @@ export default function InstructorDashboard() {
             <p className="text-muted-foreground text-sm mb-6 max-w-xs">
               Crea el primer perfil para empezar a calibrar su técnica
             </p>
-            <Button asChild size="sm" className="bg-ok text-background hover:bg-ok/90 font-semibold">
-              <Link href="/instructor/students/new">Crear primer alumno</Link>
-            </Button>
+            <Link
+              href="/instructor/students/new"
+              className="inline-flex items-center h-11 px-5 bg-ok text-black font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300"
+            >
+              Crear primer alumno
+            </Link>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground text-sm">
@@ -185,8 +197,8 @@ export default function InstructorDashboard() {
                       <p className="text-sm font-semibold text-foreground truncate">{s.name}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {total === 0
-                          ? 'Sin checkpoints aún'
-                          : `${cal} de ${total} checkpoint${total !== 1 ? 's' : ''} calibrado${cal !== 1 ? 's' : ''}`}
+                          ? 'Sin ejercicios aún'
+                          : `${cal} de ${total} ejercicio${total !== 1 ? 's' : ''} calibrado${cal !== 1 ? 's' : ''}`}
                       </p>
                     </div>
 
