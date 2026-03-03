@@ -79,15 +79,15 @@ export default function EditCheckpoint() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Journey del alumno
+            Ejercicios del alumno
           </Link>
-          <span className="text-sm font-medium text-muted-foreground">Editar checkpoint</span>
+          <span className="text-sm font-medium text-muted-foreground">Editar ejercicio</span>
         </div>
       </header>
 
       <div className="max-w-sm mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Editar Checkpoint</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Editar ejercicio</h1>
           <p className="text-muted-foreground text-sm">Nombre, ángulo y nota del instructor</p>
         </div>
 
@@ -159,8 +159,8 @@ export default function EditCheckpoint() {
 
         {confirmDelete ? (
           <div className="bg-bad/5 border border-bad/20 rounded-xl px-4 py-4">
-            <p className="text-foreground text-sm font-medium mb-1">¿Eliminar este checkpoint?</p>
-            <p className="text-muted-foreground text-xs mb-4">Se eliminará el baseline y todas las sesiones de práctica. Esta acción no se puede deshacer.</p>
+            <p className="text-foreground text-sm font-medium mb-1">¿Eliminar este ejercicio?</p>
+            <p className="text-muted-foreground text-xs mb-4">Se eliminará la referencia y todas las sesiones de práctica. Esta acción no se puede deshacer.</p>
             <div className="flex gap-2">
               <Button
                 onClick={deleteCheckpoint}
@@ -168,7 +168,7 @@ export default function EditCheckpoint() {
                 variant="destructive"
                 className="flex-1 h-10 text-sm"
               >
-                {deleting ? 'Eliminando...' : 'Eliminar checkpoint'}
+                {deleting ? 'Eliminando...' : 'Eliminar ejercicio'}
               </Button>
               <Button
                 onClick={() => setConfirmDelete(false)}
@@ -184,7 +184,7 @@ export default function EditCheckpoint() {
             onClick={() => setConfirmDelete(true)}
             className="text-muted-foreground text-sm hover:text-bad transition-colors"
           >
-            Eliminar checkpoint
+            Eliminar ejercicio
           </button>
         )}
       </div>

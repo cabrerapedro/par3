@@ -301,7 +301,7 @@ export default function CalibratePage() {
         {stage === 'saving' && (
           <div className="absolute inset-0 bg-background/70 flex flex-col items-center justify-center gap-3">
             <div className="w-6 h-6 rounded-full border-2 border-ok border-t-transparent animate-spin" />
-            <p className="text-foreground">Calculando baseline...</p>
+            <p className="text-foreground">Calculando referencia personal...</p>
           </div>
         )}
       </div>
