@@ -6,8 +6,6 @@ import { useAuth } from '@/lib/auth'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import Link from 'next/link'
 
-const GRAIN_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
-
 export default function Home() {
   const { instructor, student, loading } = useAuth()
   const router = useRouter()
@@ -26,18 +24,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
-
-      {/* Radial gradient background glow */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(52, 209, 120, 0.04) 0%, transparent 60%)' }}
-      />
-
-      {/* Grain texture overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.025]"
-        style={{ backgroundImage: GRAIN_SVG }}
-      />
 
       {/* Top bar */}
       <div className="relative z-10 flex items-center justify-between px-6 py-4">

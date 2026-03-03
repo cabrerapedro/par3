@@ -36,15 +36,26 @@ export default function InstructorLogin() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 py-10">
 
+      {/* Back link */}
+      <div className="relative z-10 w-full max-w-sm mb-4">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          Volver
+        </Link>
+      </div>
+
       {/* Brand */}
-      <div className="mb-8 text-center" style={{ animation: 'fade-up 0.8s ease-out both' }}>
+      <div className="relative z-10 mb-8 text-center" style={{ animation: 'fade-up 0.8s ease-out both' }}>
         <Link href="/" className="inline-flex flex-col items-center gap-3 group">
-          <div className="w-14 h-14 rounded-[20px] bg-ok/10 border border-ok/20 flex items-center justify-center group-hover:bg-ok/20 transition-colors duration-300">
+          <div
+            className="logo-icon-glow w-14 h-14 rounded-[18px] flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #34d178, #22c55e)' }}
+          >
             <svg width="26" height="26" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
-              strokeLinecap="round" strokeLinejoin="round" className="text-ok">
+              strokeLinecap="round" strokeLinejoin="round" className="text-background">
               <line x1="18" y1="5" x2="18" y2="28" />
-              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.3" stroke="currentColor" />
-              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.5" />
+              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.6" stroke="currentColor" />
+              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.7" />
             </svg>
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
@@ -55,7 +66,7 @@ export default function InstructorLogin() {
 
       {/* Card */}
       <div
-        className="w-full max-w-sm bg-card border border-border rounded-[20px] overflow-hidden"
+        className="relative z-10 w-full max-w-sm bg-card border border-border rounded-[20px] overflow-hidden"
         style={{ animation: 'fade-up 0.8s ease-out 100ms both' }}
       >
         {/* Header */}
