@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import { DM_Sans, JetBrains_Mono } from 'next/font/google'
+import { AuthProvider } from '@/lib/auth'
+import { ThemeProvider } from '@/lib/theme'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -13,14 +16,27 @@ const jbMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'par3 — Tu copiloto de practica',
-  description: 'Análisis de postura para golf con MediaPipe Pose',
+  title: 'par3 — Tu copiloto de práctica',
+  description: 'Copiloto digital para instructores y alumnos de golf',
+  manifest: '/manifest.json',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${dmSans.variable} ${jbMono.variable}`}>
-      <body>{children}</body>
+    <html lang="es" className={`${dmSans.variable} ${jbMono.variable}`} suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#09090b" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
+      <body>
+        <ThemeProvider>
+          <TooltipProvider delayDuration={300}>
+            <AuthProvider>{children}</AuthProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

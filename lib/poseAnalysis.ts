@@ -1,5 +1,5 @@
 // MediaPipe landmark type (normalized coordinates)
-type LM = { x: number; y: number; z: number; visibility?: number }
+export type LM = { x: number; y: number; z: number; visibility?: number }
 
 export type Status = 'ok' | 'warn' | 'bad' | 'off'
 
@@ -17,7 +17,7 @@ export interface AggregatedCheck extends Check {
 }
 
 // Angle at vertex b formed by rays b→a and b→c (degrees)
-function angleBetween(a: LM, b: LM, c: LM): number {
+export function angleBetween(a: LM, b: LM, c: LM): number {
   const ab = { x: a.x - b.x, y: a.y - b.y }
   const cb = { x: c.x - b.x, y: c.y - b.y }
   const dot = ab.x * cb.x + ab.y * cb.y

@@ -1,58 +1,109 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 export default function Home() {
+  const { instructor, student, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (loading) return
+    if (instructor) router.replace('/instructor/dashboard')
+    else if (student) router.replace('/student/journey')
+  }, [instructor, student, loading, router])
+
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  )
+
   return (
-    <main className="min-h-screen bg-bg flex flex-col items-center justify-center px-5 py-8">
-      {/* Golfer logo */}
-      <div className="mb-3 sm:mb-4">
-        <svg width="44" height="44" viewBox="0 0 52 52" fill="none" aria-hidden="true" className="sm:w-[52px] sm:h-[52px]">
-          <circle cx="26" cy="9" r="6" fill="#34d178" />
-          <line x1="26" y1="15" x2="26" y2="34" stroke="#e4ebe6" strokeWidth="3" strokeLinecap="round" />
-          <line x1="26" y1="34" x2="17" y2="47" stroke="#e4ebe6" strokeWidth="3" strokeLinecap="round" />
-          <line x1="26" y1="34" x2="35" y2="47" stroke="#e4ebe6" strokeWidth="3" strokeLinecap="round" />
-        </svg>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <span className="text-sm font-bold text-foreground tracking-tight">
+          par<span className="text-ok">3</span>
+        </span>
+        <ThemeToggle />
       </div>
 
-      {/* Brand */}
-      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-2">
-        par<span className="text-ok">3</span>
-      </h1>
-      <p className="text-muted text-base sm:text-lg mb-10 sm:mb-14">Tu copiloto de practica</p>
-
-      {/* Mode cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full max-w-lg mb-10 sm:mb-16">
-        <Link href="/mirror">
-          <div className="bg-s1 border border-border rounded-2xl p-5 sm:p-7 hover:border-ok/50 hover:bg-s2 transition-all duration-200 cursor-pointer">
-            <div className="text-ok mb-4">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="sm:w-8 sm:h-8">
-                <rect x="3" y="7" width="26" height="19" rx="3" stroke="currentColor" strokeWidth="1.5" />
-                <circle cx="16" cy="16" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M12 7l2-3h4l2 3" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <h2 className="text-txt font-semibold text-base sm:text-lg mb-1">Espejo Inteligente</h2>
-            <p className="text-dim text-xs sm:text-sm leading-relaxed">Análisis en tiempo real con tu cámara</p>
+      {/* Hero */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+        {/* Logo mark */}
+        <div className="mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-ok/10 border border-ok/20 flex items-center justify-center mx-auto">
+            <svg width="28" height="28" viewBox="0 0 52 52" fill="none">
+              <circle cx="26" cy="9" r="6" fill="#34d178" />
+              <line x1="26" y1="15" x2="26" y2="34" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-foreground" />
+              <line x1="26" y1="34" x2="17" y2="47" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              <line x1="26" y1="34" x2="35" y2="47" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
           </div>
-        </Link>
+        </div>
 
-        <Link href="/analysis">
-          <div className="bg-s1 border border-border rounded-2xl p-5 sm:p-7 hover:border-blue/50 hover:bg-s2 transition-all duration-200 cursor-pointer">
-            <div className="text-blue mb-4">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="sm:w-8 sm:h-8">
-                <rect x="3" y="3" width="26" height="26" rx="3" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 22l5-8 4 6 3-4 4 6H8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-              </svg>
+        <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-foreground mb-3">
+          par<span className="text-ok">3</span>
+        </h1>
+        <p className="text-lg text-muted-foreground mb-2 max-w-xs">
+          Tu copiloto de práctica
+        </p>
+        <p className="text-sm text-muted-foreground/70 max-w-sm mb-12">
+          El instructor calibra. El alumno practica con su referencia personal.
+        </p>
+
+        {/* Role cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md">
+          <Link href="/instructor/login" className="group">
+            <div className="h-full bg-card border border-border rounded-2xl p-6 text-left hover:border-ok/40 hover:bg-secondary/50 transition-all duration-200">
+              <div className="w-10 h-10 rounded-xl bg-ok/10 border border-ok/20 flex items-center justify-center mb-4 group-hover:bg-ok/20 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-ok">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
+                  <path d="M19 8v6M22 11h-6" strokeLinecap="round" />
+                </svg>
+              </div>
+              <p className="text-foreground font-semibold text-base mb-1">Soy Instructor</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">Calibra alumnos y crea su referencia personal</p>
+              <p className="text-ok text-xs mt-3 font-medium flex items-center gap-1">
+                Iniciar sesión
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </p>
             </div>
-            <h2 className="text-txt font-semibold text-base sm:text-lg mb-1">Análisis de Video</h2>
-            <p className="text-dim text-xs sm:text-sm leading-relaxed">Sube o graba un vídeo para analizar</p>
-          </div>
-        </Link>
+          </Link>
+
+          <Link href="/student/login" className="group">
+            <div className="h-full bg-card border border-border rounded-2xl p-6 text-left hover:border-blue/40 hover:bg-secondary/50 transition-all duration-200">
+              <div className="w-10 h-10 rounded-xl bg-blue/10 border border-blue/20 flex items-center justify-center mb-4 group-hover:bg-blue/20 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-blue">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
+                </svg>
+              </div>
+              <p className="text-foreground font-semibold text-base mb-1">Soy Alumno</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">Practica con tu referencia personal de técnica</p>
+              <p className="text-blue text-xs mt-3 font-medium flex items-center gap-1">
+                Ingresar con código
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </p>
+            </div>
+          </Link>
+        </div>
       </div>
 
       {/* Footer */}
-      <p className="font-mono text-xs text-dim text-center leading-relaxed">
-        par3.app — MediaPipe Pose Detection<br className="sm:hidden" /> para postura de principiantes
-      </p>
-    </main>
+      <div className="px-6 py-6 text-center">
+        <p className="text-xs text-muted-foreground/50 font-mono">par3.app</p>
+      </div>
+    </div>
   )
 }

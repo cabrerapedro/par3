@@ -1,31 +1,132 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ─── shadcn token → Tailwind utility bridge ───────────────────────────── */
+/* --color-muted and --color-border excluded — par3 owns those names        */
 @theme inline {
-  /* par3 design tokens */
-  --color-bg:     #060a08;
-  --color-s1:     #0e1410;
-  --color-s2:     #141c17;
-  --color-s3:     #1a241e;
-  --color-border: #1e2b23;
-  --color-txt:    #e4ebe6;
-  --color-muted:  #a3b5a8;
-  --color-dim:    #5e7464;
-  --color-ok:     #34d178;
-  --color-warn:   #e8b930;
-  --color-bad:    #f04848;
-  --color-blue:   #6888ff;
+  --radius-sm:     calc(var(--radius) - 4px);
+  --radius-md:     calc(var(--radius) - 2px);
+  --radius-lg:     var(--radius);
+  --radius-xl:     calc(var(--radius) + 4px);
+  --color-background:                    var(--background);
+  --color-foreground:                    var(--foreground);
+  --color-card:                          var(--card);
+  --color-card-foreground:               var(--card-foreground);
+  --color-popover:                       var(--popover);
+  --color-popover-foreground:            var(--popover-foreground);
+  --color-primary:                       var(--primary);
+  --color-primary-foreground:            var(--primary-foreground);
+  --color-secondary:                     var(--secondary);
+  --color-secondary-foreground:          var(--secondary-foreground);
+  --color-muted-foreground:              var(--muted-foreground);
+  --color-accent:                        var(--accent);
+  --color-accent-foreground:             var(--accent-foreground);
+  --color-destructive:                   var(--destructive);
+  --color-input:                         var(--input);
+  --color-ring:                          var(--ring);
+  --color-sidebar:                       var(--sidebar);
+  --color-sidebar-foreground:            var(--sidebar-foreground);
+  --color-sidebar-primary:               var(--sidebar-primary);
+  --color-sidebar-primary-foreground:    var(--sidebar-primary-foreground);
+  --color-sidebar-accent:                var(--sidebar-accent);
+  --color-sidebar-accent-foreground:     var(--sidebar-accent-foreground);
+  --color-sidebar-border:                var(--sidebar-border);
+  --color-sidebar-ring:                  var(--sidebar-ring);
+}
 
+/* ─── par3 design tokens (after @theme inline so they win on conflicts) ── */
+@theme {
+  --color-bg:     #09090b;
+  --color-s1:     #111113;
+  --color-s2:     #1c1c1f;
+  --color-s3:     #28282c;
+  --color-border: #2e2e32;
+  --color-txt:    #f4f4f5;
+  --color-muted:  #a1a1aa;
+  --color-dim:    #71717a;
+  --color-ok:     #34d178;
+  --color-warn:   #f59e0b;
+  --color-bad:    #ef4444;
+  --color-blue:   #60a5fa;
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui;
   --font-mono: var(--font-jb-mono), ui-monospace, monospace;
 }
 
+/* ─── shadcn CSS variables — dark (default for par3) ───────────────────── */
+:root {
+  --radius:                   0.625rem;
+  --background:               #09090b;
+  --foreground:               #f4f4f5;
+  --card:                     #111113;
+  --card-foreground:          #f4f4f5;
+  --popover:                  #111113;
+  --popover-foreground:       #f4f4f5;
+  --primary:                  #34d178;
+  --primary-foreground:       #09090b;
+  --secondary:                #1c1c1f;
+  --secondary-foreground:     #f4f4f5;
+  --muted:                    #1c1c1f;
+  --muted-foreground:         #a1a1aa;
+  --accent:                   #1c1c1f;
+  --accent-foreground:        #f4f4f5;
+  --destructive:              #ef4444;
+  --border:                   #2e2e32;
+  --input:                    #1c1c1f;
+  --ring:                     #34d178;
+  --sidebar:                  #111113;
+  --sidebar-foreground:       #f4f4f5;
+  --sidebar-primary:          #34d178;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent:           #1c1c1f;
+  --sidebar-accent-foreground: #f4f4f5;
+  --sidebar-border:           #2e2e32;
+  --sidebar-ring:             #34d178;
+}
+
+/* ─── Light mode ────────────────────────────────────────────────────────── */
+.light {
+  --background:               #ffffff;
+  --foreground:               #09090b;
+  --card:                     #f9f9fa;
+  --card-foreground:          #09090b;
+  --popover:                  #ffffff;
+  --popover-foreground:       #09090b;
+  --primary:                  #16a34a;
+  --primary-foreground:       #ffffff;
+  --secondary:                #f0f0f2;
+  --secondary-foreground:     #09090b;
+  --muted:                    #f0f0f2;
+  --muted-foreground:         #52525b;
+  --accent:                   #f0f0f2;
+  --accent-foreground:        #09090b;
+  --destructive:              #dc2626;
+  --border:                   #e4e4e7;
+  --input:                    #f0f0f2;
+  --ring:                     #16a34a;
+  --color-bg:                 #ffffff;
+  --color-s1:                 #f9f9fa;
+  --color-s2:                 #f0f0f2;
+  --color-s3:                 #e4e4e7;
+  --color-border:             #e2e2e8;
+  --color-txt:                #09090b;
+  --color-muted:              #52525b;
+  --color-dim:                #71717a;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
 
 body {
-  background: #060a08;
-  color: #e4ebe6;
+  background: var(--color-bg);
+  color: var(--color-txt);
   font-family: var(--font-dm-sans), ui-sans-serif, system-ui;
+  font-size: 15px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.15s, color 0.15s;
 }
