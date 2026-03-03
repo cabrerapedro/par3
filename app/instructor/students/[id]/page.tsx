@@ -134,15 +134,16 @@ export default function StudentProfile() {
 
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Journey de práctica</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{checkpoints.length === 0 ? 'Crea el primer checkpoint para comenzar' : `${checkpoints.length} técnica${checkpoints.length !== 1 ? 's' : ''}`}</p>
+            <h2 className="text-sm font-semibold text-foreground">Ejercicios de práctica</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{checkpoints.length === 0 ? 'Crea el primer ejercicio para comenzar' : `${checkpoints.length} técnica${checkpoints.length !== 1 ? 's' : ''}`}</p>
           </div>
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs font-semibold border-border hover:border-ok/40 hover:bg-ok/5">
-            <Link href={`/instructor/students/${studentId}/checkpoints/new`}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              Checkpoint
-            </Link>
-          </Button>
+          <Link
+            href={`/instructor/students/${studentId}/checkpoints/new`}
+            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold border border-border rounded-lg hover:border-ok/40 hover:bg-ok/5 text-foreground transition-all duration-300"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            Ejercicio
+          </Link>
         </div>
 
         {checkpoints.length === 0 ? (
@@ -150,9 +151,9 @@ export default function StudentProfile() {
             <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center mb-3">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 8v8M8 12h8" strokeLinecap="round" /></svg>
             </div>
-            <p className="text-sm font-medium text-foreground mb-1">Sin checkpoints todavía</p>
+            <p className="text-sm font-medium text-foreground mb-1">Sin ejercicios todavía</p>
             <p className="text-xs text-muted-foreground mb-4">Empieza calibrando la primera técnica de {student.name.split(' ')[0]}</p>
-            <Button asChild variant="outline" size="sm" className="text-xs border-border hover:border-ok/40"><Link href={`/instructor/students/${studentId}/checkpoints/new`}>Crear primer checkpoint</Link></Button>
+            <Link href={`/instructor/students/${studentId}/checkpoints/new`} className="inline-flex h-8 px-3 text-xs border border-border rounded-lg hover:border-ok/40 items-center transition-all">Crear primer ejercicio</Link>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -197,7 +198,7 @@ export default function StudentProfile() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar a {student.name}</DialogTitle>
-            <DialogDescription>Se eliminarán todos sus checkpoints, baselines y sesiones de práctica. Esta acción no se puede deshacer.</DialogDescription>
+            <DialogDescription>Se eliminarán todos sus ejercicios, referencias y sesiones de práctica. Esta acción no se puede deshacer.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialog(false)}>Cancelar</Button>
@@ -210,11 +211,11 @@ export default function StudentProfile() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar "{deleteCpDialog?.name}"</DialogTitle>
-            <DialogDescription>Se eliminará el baseline y todas las sesiones de práctica de este checkpoint. Esta acción no se puede deshacer.</DialogDescription>
+            <DialogDescription>Se eliminará la referencia y todas las sesiones de práctica de este ejercicio. Esta acción no se puede deshacer.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteCpDialog(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => deleteCpDialog && deleteCheckpoint(deleteCpDialog)}>Eliminar checkpoint</Button>
+            <Button variant="destructive" onClick={() => deleteCpDialog && deleteCheckpoint(deleteCpDialog)}>Eliminar ejercicio</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

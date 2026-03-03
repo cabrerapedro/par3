@@ -4,11 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 
 function generateCode(): string {
@@ -55,20 +52,23 @@ export default function NewStudent() {
       </header>
 
       <div className="flex-1 flex items-start justify-center px-5 py-10">
-        <Card className="w-full max-w-sm border-border bg-card shadow-none gap-0 py-0">
-          <CardHeader className="px-6 pt-6 pb-5">
-            <CardTitle className="text-xl text-foreground">Nuevo Alumno</CardTitle>
-            <CardDescription className="text-muted-foreground">
+        <div
+          className="w-full max-w-sm bg-card border border-border rounded-[20px] overflow-hidden"
+          style={{ animation: 'fade-up 0.8s ease-out both' }}
+        >
+          <div className="px-6 pt-6 pb-5 border-b border-border">
+            <h1 className="text-xl font-bold text-foreground">Nuevo alumno</h1>
+            <p className="text-muted-foreground text-sm mt-1">
               El código de acceso se genera automáticamente
-            </CardDescription>
-          </CardHeader>
+            </p>
+          </div>
 
-          <Separator className="bg-border" />
-
-          <CardContent className="px-6 py-6">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="px-6 py-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
+                <Label htmlFor="name" className="text-sm font-medium text-foreground">
+                  Nombre
+                </Label>
                 <Input
                   id="name"
                   type="text"
@@ -76,13 +76,13 @@ export default function NewStudent() {
                   onChange={e => setName(e.target.value)}
                   placeholder="Nombre del alumno"
                   required
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="email" className="text-muted-foreground text-xs uppercase tracking-wide">
-                  Correo <span className="normal-case font-normal text-muted-foreground/60">(opcional)</span>
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                  Correo <span className="font-normal text-muted-foreground">(opcional)</span>
                 </Label>
                 <Input
                   id="email"
@@ -90,24 +90,26 @@ export default function NewStudent() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="alumno@correo.com"
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
                 />
               </div>
 
               {error && (
-                <p className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3">{error}</p>
+                <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3 leading-snug">
+                  {error}
+                </div>
               )}
 
-              <Button
+              <button
                 type="submit"
                 disabled={loading || !name.trim()}
-                className="h-11 bg-ok text-background font-semibold hover:bg-ok/90 mt-1"
+                className="h-12 bg-ok text-black font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
               >
-                {loading ? 'Creando...' : 'Crear Alumno'}
-              </Button>
+                {loading ? 'Creando...' : 'Crear alumno'}
+              </button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
