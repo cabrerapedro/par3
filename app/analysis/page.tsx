@@ -79,19 +79,31 @@ export default function AnalysisPage() {
       vid.src = url
       vid.muted = true
       vid.preload = 'auto'
+      vid.playsInline = true  // required for iOS to allow offscreen seek
 
       await new Promise<void>((resolve, reject) => {
         vid.onloadedmetadata = () => resolve()
         vid.onerror = () => reject(new Error('Error al cargar el vídeo'))
+        // Trigger load on iOS (doesn't start loading until appended or played)
+        vid.load()
       })
 
       const duration = vid.duration
       const FPS = 10
       const totalFrames = Math.floor(duration * FPS)
 
+      // Helper: seek with a 600ms timeout fallback (iOS seeked can be slow)
+      function seekTo(t: number): Promise<void> {
+        return new Promise(r => {
+          const done = () => { clearTimeout(timer); r() }
+          const timer = setTimeout(done, 600)
+          vid.addEventListener('seeked', done, { once: true })
+          vid.currentTime = t
+        })
+      }
+
       for (let i = 0; i < totalFrames; i++) {
-        vid.currentTime = i / FPS
-        await new Promise<void>(r => vid.addEventListener('seeked', () => r(), { once: true }))
+        await seekTo(i / FPS)
         await pose.send({ image: vid })
         setProgress(Math.round((i + 1) / totalFrames * 100))
       }
@@ -111,25 +123,62 @@ export default function AnalysisPage() {
   }
 
   async function startRecording() {
+    // Check API availability (missing on some old iOS/Android browsers)
+    if (typeof MediaRecorder === 'undefined') {
+      setError('Tu navegador no soporta grabación. Sube un vídeo directamente.')
+      return
+    }
+
+    // Pick the first MIME type the browser accepts (iOS needs mp4, desktop works with webm)
+    const mimeType = [
+      'video/mp4',
+      'video/mp4;codecs=h264',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ].find(t => MediaRecorder.isTypeSupported(t)) ?? ''
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      })
+
       if (previewVideoRef.current) {
         previewVideoRef.current.srcObject = stream
-        previewVideoRef.current.play()
+        // play() can throw on mobile if called outside user-gesture context
+        previewVideoRef.current.play().catch(() => {})
       }
+
       chunksRef.current = []
-      const recorder = new MediaRecorder(stream)
-      recorder.ondataavailable = e => chunksRef.current.push(e.data)
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+
+      // timeslice=250ms is required on iOS: without it ondataavailable never fires
+      recorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
+      }
       recorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop())
         if (previewVideoRef.current) previewVideoRef.current.srcObject = null
-        processVideo(new Blob(chunksRef.current, { type: 'video/webm' }))
+        const blob = new Blob(chunksRef.current, { type: mimeType || 'video/mp4' })
+        processVideo(blob)
       }
-      recorder.start()
+      recorder.onerror = () => {
+        setError('Error durante la grabación. Intenta subir un vídeo.')
+        setRecording(false)
+      }
+
+      recorder.start(250)
       mediaRecorderRef.current = recorder
       setRecording(true)
-    } catch {
-      setError('No se pudo acceder a la cámara')
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        if (e.name === 'NotAllowedError') setError('Permiso de cámara denegado.')
+        else if (e.name === 'NotFoundError') setError('No se encontró ninguna cámara.')
+        else setError(`Error de cámara: ${e.message}`)
+      } else {
+        setError('No se pudo acceder a la cámara.')
+      }
     }
   }
 
