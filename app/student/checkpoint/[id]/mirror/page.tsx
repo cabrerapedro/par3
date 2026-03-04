@@ -38,7 +38,7 @@ export default function StudentMirror() {
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
     init()
-    return () => poseRef.current?.close?.()
+    return () => { /* pose is a singleton — don't close */ }
   }, [])
 
   async function init() {
@@ -84,7 +84,7 @@ export default function StudentMirror() {
 
     setPoseDetected(true)
     const metrics = calculateMetrics(lm, cp.camera_angle)
-    const rawChecks = compareToBaseline(metrics, cp.baseline as Baseline)
+    const rawChecks = compareToBaseline(metrics, cp.baseline as Baseline, cp.selected_metrics)
 
     // 6-frame majority vote smoothing
     smoothRef.current.push(rawChecks.map(c => ({ id: c.id, status: c.status })))

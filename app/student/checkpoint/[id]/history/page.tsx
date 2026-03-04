@@ -26,7 +26,7 @@ export default function PracticeHistory() {
 
   async function loadData() {
     const [{ data: cp }, { data: ss }] = await Promise.all([
-      supabase.from('checkpoints').select('name, camera_angle').eq('id', cpId).single(),
+      supabase.from('checkpoints').select('name, camera_angle, selected_metrics').eq('id', cpId).single(),
       supabase.from('practice_sessions')
         .select('*')
         .eq('checkpoint_id', cpId)
@@ -63,13 +63,15 @@ export default function PracticeHistory() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b border-border px-5 py-4">
-        <Link href={`/student/checkpoint/${cpId}`} className="text-muted-foreground text-sm hover:text-muted-foreground">
-          ← {checkpoint?.name}
-        </Link>
+      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b border-border">
+        <div className="max-w-4xl mx-auto px-5 py-4">
+          <Link href={`/student/checkpoint/${cpId}`} className="text-muted-foreground text-sm hover:text-muted-foreground">
+            ← {checkpoint?.name}
+          </Link>
+        </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-5 py-8">
+      <div className="max-w-4xl mx-auto px-5 py-8">
 
         {/* Header stats */}
         <div className="flex items-start justify-between mb-6">
@@ -122,7 +124,7 @@ export default function PracticeHistory() {
             <p className="text-muted-foreground mb-1">Sin sesiones todavía</p>
             <p className="text-sm">Graba tu primera práctica para empezar a ver tu progreso</p>
             <Link href={`/student/checkpoint/${cpId}/practice`} className="inline-block mt-4">
-              <button className="bg-ok text-black text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
+              <button className="bg-ok text-on-ok text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
                 Grabar práctica
               </button>
             </Link>
@@ -130,9 +132,10 @@ export default function PracticeHistory() {
         ) : (
           <>
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Sesiones</p>
-            <ul className="flex flex-col gap-3">
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {[...sessions].reverse().map((session, i) => {
                 const metricEntries = Object.entries(session.results ?? {})
+                  .filter(([key]) => !checkpoint?.selected_metrics?.length || checkpoint.selected_metrics.includes(key))
                 const okCount = metricEntries.filter(([, v]) => (v as any).status === 'ok').length
                 const isLatest = i === 0
                 const prevSession = i < sessions.length - 1 ? [...sessions].reverse()[i + 1] : null

@@ -22,8 +22,10 @@ export interface Baseline {
 
 export interface CalibrationMark {
   timestamp_ms: number
+  relative_ms?: number  // ms since recording started, for timeline mapping
   landmarks: Landmark[]
   metrics: Record<string, number>
+  note?: string
 }
 
 export interface Instructor {
@@ -60,6 +62,7 @@ export interface Checkpoint {
   calibration_skeleton_url?: string
   calibration_marks: CalibrationMark[]
   baseline: Baseline | null
+  selected_metrics: string[]
   status: CheckpointStatus
   created_at: string
 }

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { CameraAngle } from '@/lib/types'
+import { METRICS_BY_ANGLE, METRIC_LABELS } from '@/lib/baseline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -26,6 +27,7 @@ export default function EditCheckpoint() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -37,6 +39,7 @@ export default function EditCheckpoint() {
           setName(data.name)
           setCameraAngle(data.camera_angle)
           setNote(data.instructor_note ?? '')
+          setSelectedMetrics(data.selected_metrics ?? METRICS_BY_ANGLE[data.camera_angle as CameraAngle])
         }
         setLoading(false)
       })
@@ -51,12 +54,13 @@ export default function EditCheckpoint() {
       .update({
         name: name.trim(),
         camera_angle: cameraAngle,
+        selected_metrics: selectedMetrics,
         instructor_note: note.trim() || null,
       })
       .eq('id', checkpointId)
     setSaving(false)
     if (updateErr) { setError('Error al guardar los cambios.'); return }
-    router.push(`/instructor/students/${studentId}`)
+    router.push(`/instructor/students/${studentId}/checkpoints/${checkpointId}`)
   }
 
   async function deleteCheckpoint() {
@@ -74,18 +78,18 @@ export default function EditCheckpoint() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-sm mx-auto px-5 h-14 flex items-center justify-between">
-          <Link href={`/instructor/students/${studentId}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5">
+        <div className="max-w-sm lg:max-w-lg mx-auto px-5 h-14 flex items-center justify-between">
+          <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Ejercicios del alumno
+            Detalle del ejercicio
           </Link>
           <span className="text-sm font-medium text-muted-foreground">Editar ejercicio</span>
         </div>
       </header>
 
-      <div className="max-w-sm mx-auto px-5 py-10">
+      <div className="max-w-sm lg:max-w-lg mx-auto px-5 py-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Editar ejercicio</h1>
           <p className="text-muted-foreground text-sm">Nombre, ángulo y nota del instructor</p>
@@ -130,6 +134,35 @@ export default function EditCheckpoint() {
           </div>
 
           <div className="flex flex-col gap-2">
+            <Label className="text-muted-foreground text-xs uppercase tracking-wide">Métricas a evaluar</Label>
+            <div className="flex flex-wrap gap-2">
+              {METRICS_BY_ANGLE[cameraAngle].map(key => {
+                const selected = selectedMetrics.includes(key)
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedMetrics(prev =>
+                      selected ? prev.filter(k => k !== key) : [...prev, key]
+                    )}
+                    className={cn(
+                      "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
+                      selected
+                        ? "bg-ok/10 border-ok/40 text-ok"
+                        : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
+                    )}
+                  >
+                    {METRIC_LABELS[key]}
+                  </button>
+                )
+              })}
+            </div>
+            {selectedMetrics.length === 0 && (
+              <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
             <Label className="text-muted-foreground text-xs uppercase tracking-wide">
               Nota para el alumno <span className="normal-case font-normal text-muted-foreground/60">(opcional)</span>
             </Label>
@@ -149,7 +182,7 @@ export default function EditCheckpoint() {
           <Button
             type="submit"
             disabled={saving || !name.trim()}
-            className="h-11 bg-ok text-background font-semibold hover:bg-ok/90"
+            className="h-11 bg-ok text-on-ok font-semibold hover:bg-ok/90"
           >
             {saving ? 'Guardando...' : 'Guardar cambios'}
           </Button>

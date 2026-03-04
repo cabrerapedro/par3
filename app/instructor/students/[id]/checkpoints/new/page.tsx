@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { CameraAngle } from '@/lib/types'
+import { METRICS_BY_ANGLE, METRIC_LABELS } from '@/lib/baseline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -38,6 +39,7 @@ export default function NewCheckpoint() {
   const [loading, setLoading] = useState(false)
   const [isVoiceRecording, setIsVoiceRecording] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(METRICS_BY_ANGLE['face_on'])
 
   useEffect(() => {
     if (!instructor) { router.replace('/instructor/login'); return }
@@ -45,6 +47,11 @@ export default function NewCheckpoint() {
       .then(({ count }) => setOrder((count ?? 0) + 1))
     return () => recognitionRef.current?.stop()
   }, [instructor])
+
+  // Reset metric selection when camera angle changes
+  useEffect(() => {
+    setSelectedMetrics(METRICS_BY_ANGLE[cameraAngle])
+  }, [cameraAngle])
 
   function pickPreset(preset: typeof PRESETS[0]) {
     setName(preset.label)
@@ -95,6 +102,7 @@ export default function NewCheckpoint() {
         camera_angle: cameraAngle,
         display_order: order,
         instructor_note: note || null,
+        selected_metrics: selectedMetrics,
         calibration_marks: [],
         baseline: null,
         status: 'pending',
@@ -104,14 +112,14 @@ export default function NewCheckpoint() {
 
     setLoading(false)
 
-    if (insertErr) { setError('Error al crear checkpoint.'); return }
+    if (insertErr) { setError('Error al crear ejercicio.'); return }
     router.push(`/instructor/students/${studentId}/checkpoints/${data.id}/calibrate`)
   }
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-lg mx-auto px-5 h-14 flex items-center justify-between">
+        <div className="max-w-lg lg:max-w-2xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link
             href={`/instructor/students/${studentId}`}
             className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5"
@@ -121,13 +129,13 @@ export default function NewCheckpoint() {
             </svg>
             Perfil del alumno
           </Link>
-          <span className="text-sm font-medium text-muted-foreground">Nuevo Checkpoint</span>
+          <span className="text-sm font-medium text-muted-foreground">Nuevo ejercicio</span>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-5 py-10">
+      <div className="max-w-lg lg:max-w-2xl mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">Nuevo Checkpoint</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">Nuevo ejercicio</h1>
           <p className="text-muted-foreground text-sm">Define la técnica que vas a calibrar</p>
         </div>
 
@@ -205,6 +213,36 @@ export default function NewCheckpoint() {
             </div>
           </div>
 
+          {/* Metrics to track */}
+          <div className="flex flex-col gap-3">
+            <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Métricas a evaluar</Label>
+            <div className="flex flex-wrap gap-2">
+              {METRICS_BY_ANGLE[cameraAngle].map(key => {
+                const selected = selectedMetrics.includes(key)
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedMetrics(prev =>
+                      selected ? prev.filter(k => k !== key) : [...prev, key]
+                    )}
+                    className={cn(
+                      "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
+                      selected
+                        ? "bg-ok/10 border-ok/40 text-ok"
+                        : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
+                    )}
+                  >
+                    {METRIC_LABELS[key]}
+                  </button>
+                )
+              })}
+            </div>
+            {selectedMetrics.length === 0 && (
+              <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
+            )}
+          </div>
+
           {/* Note with voice dictation */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
@@ -255,9 +293,9 @@ export default function NewCheckpoint() {
             <Button
               type="submit"
               disabled={loading || !name.trim()}
-              className="h-12 bg-ok text-background hover:bg-ok/90 font-semibold text-base"
+              className="h-12 bg-ok text-on-ok hover:bg-ok/90 font-semibold text-base"
             >
-              {loading ? 'Creando checkpoint...' : (
+              {loading ? 'Creando ejercicio...' : (
                 <span className="flex items-center gap-2">
                   Crear y calibrar
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -268,7 +306,7 @@ export default function NewCheckpoint() {
               )}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              Después de crear el checkpoint, podrás iniciar la sesión de calibración
+              Después de crear el ejercicio, podrás iniciar la sesión de calibración
             </p>
           </div>
 

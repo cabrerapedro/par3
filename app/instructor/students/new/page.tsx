@@ -103,7 +103,7 @@ export default function NewStudent() {
               <button
                 type="submit"
                 disabled={loading || !name.trim()}
-                className="h-12 bg-ok text-black font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
+                className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
               >
                 {loading ? 'Creando...' : 'Crear alumno'}
               </button>

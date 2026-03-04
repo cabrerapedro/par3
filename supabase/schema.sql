@@ -1,4 +1,4 @@
--- par3 — Schema SQL
+-- Sweep — Schema SQL
 -- Ejecutar en Supabase > SQL Editor
 
 -- ============================================================
@@ -35,6 +35,7 @@ create table if not exists checkpoints (
   calibration_skeleton_url text,
   calibration_marks    jsonb       not null default '[]',
   baseline             jsonb,
+  selected_metrics     text[]      not null default '{}',
   status               text        not null default 'pending' check (status in ('calibrated', 'pending')),
   created_at           timestamptz default now()
 );
@@ -193,9 +194,32 @@ create trigger on_auth_user_created
   for each row execute function handle_new_instructor();
 
 
+-- Student OTPs (email-based login)
+create table if not exists student_otps (
+  id          uuid primary key default gen_random_uuid(),
+  student_id  uuid        not null references students(id) on delete cascade,
+  code        char(6)     not null,
+  expires_at  timestamptz not null,
+  used        boolean     default false,
+  created_at  timestamptz default now()
+);
+
+alter table student_otps enable row level security;
+
+create policy "student_otps_anon_all"
+  on student_otps for all
+  to anon
+  using (true)
+  with check (true);
+
 -- ============================================================
 -- MIGRATIONS
 -- ============================================================
 
 -- Run this if the table already exists (adds the skeleton video column):
 -- ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS calibration_skeleton_url text;
+
+-- Add selected_metrics column + backfill from existing baselines:
+-- ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS selected_metrics text[] NOT NULL DEFAULT '{}';
+-- UPDATE checkpoints SET selected_metrics = ARRAY(SELECT jsonb_object_keys(baseline))
+--   WHERE baseline IS NOT NULL AND baseline != 'null'::jsonb AND selected_metrics = '{}';

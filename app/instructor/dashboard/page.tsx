@@ -54,6 +54,23 @@ export default function InstructorDashboard() {
     setTimeout(() => setCopied(null), 1500)
   }
 
+  async function shareLink(s: StudentWithCps, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const url = `${window.location.origin}/student/login?code=${s.access_code}`
+    const shareData = {
+      title: 'Sweep - Acceso de práctica',
+      text: `${s.name}, usa este enlace para acceder a tus ejercicios de práctica en Sweep`,
+      url,
+    }
+    if (navigator.share) {
+      try { await navigator.share(shareData); return } catch {}
+    }
+    await navigator.clipboard.writeText(url)
+    setCopied(`link-${s.access_code}`)
+    setTimeout(() => setCopied(null), 1500)
+  }
+
   const filtered = useMemo(() =>
     students.filter(s =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -70,16 +87,15 @@ export default function InstructorDashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-2xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-1.5 shrink-0">
-            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
-              strokeLinecap="round" strokeLinejoin="round" className="text-ok">
-              <line x1="18" y1="5" x2="18" y2="28" />
-              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.3" stroke="currentColor" />
-              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.5" />
+            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" className="text-ok">
+              <path d="M6 30 Q6 6 30 6" />
+              <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
             </svg>
             <span className="text-sm font-bold text-foreground tracking-tight">
-              par<span className="text-ok">3</span>
+              Sweep
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -95,7 +111,7 @@ export default function InstructorDashboard() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-5 py-10">
+      <div className="max-w-4xl mx-auto px-5 py-10">
         {/* Page header */}
         <div className="mb-8">
           <p className="text-sm text-muted-foreground mb-1">Hola, {instructor.name.split(' ')[0]}</p>
@@ -103,7 +119,7 @@ export default function InstructorDashboard() {
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Mis Alumnos</h1>
             <Link
               href="/instructor/students/new"
-              className="inline-flex items-center gap-1.5 h-10 px-4 bg-ok text-black font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300 shrink-0"
+              className="inline-flex items-center gap-1.5 h-10 px-4 bg-ok text-on-ok font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300 shrink-0"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -170,7 +186,7 @@ export default function InstructorDashboard() {
             </p>
             <Link
               href="/instructor/students/new"
-              className="inline-flex items-center h-11 px-5 bg-ok text-black font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300"
+              className="inline-flex items-center h-11 px-5 bg-ok text-on-ok font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300"
             >
               Crear primer alumno
             </Link>
@@ -180,13 +196,13 @@ export default function InstructorDashboard() {
             No se encontró ningún alumno con "{search}"
           </div>
         ) : (
-          <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {filtered.map(s => {
               const total = s.checkpoints.length
               const cal = s.checkpoints.filter(c => c.status === 'calibrated').length
               return (
                 <Link key={s.id} href={`/instructor/students/${s.id}`}>
-                  <div className="group flex items-center gap-4 px-4 py-3.5 hover:bg-secondary/50 transition-colors cursor-pointer">
+                  <div className="group flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors cursor-pointer">
                     <Avatar className="size-9 shrink-0">
                       <AvatarFallback className="bg-secondary text-muted-foreground text-xs font-semibold group-hover:bg-ok/10 group-hover:text-ok transition-colors">
                         {initials(s.name)}
@@ -219,6 +235,29 @@ export default function InstructorDashboard() {
                         </TooltipTrigger>
                         <TooltipContent side="left" className="text-xs">
                           Copiar código de acceso
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={e => shareLink(s, e)}
+                            className={cn(
+                              "size-7 rounded-md border flex items-center justify-center transition-all",
+                              copied === `link-${s.access_code}`
+                                ? "bg-ok/10 border-ok/30 text-ok"
+                                : "bg-secondary border-border text-muted-foreground hover:border-blue/30 hover:text-foreground"
+                            )}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              {copied === `link-${s.access_code}`
+                                ? <polyline points="20 6 9 17 4 12" />
+                                : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>
+                              }
+                            </svg>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="text-xs">
+                          Compartir enlace de acceso
                         </TooltipContent>
                       </Tooltip>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50">

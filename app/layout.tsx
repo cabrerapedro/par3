@@ -22,7 +22,7 @@ const jbMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'par3 — Tu copiloto de práctica',
+  title: 'Sweep — Tu copiloto de práctica',
   description: 'Copiloto digital para instructores y alumnos de golf',
   manifest: '/manifest.json',
 }

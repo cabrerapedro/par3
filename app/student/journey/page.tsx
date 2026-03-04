@@ -37,16 +37,15 @@ export default function StudentJourney() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-lg mx-auto px-5 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-1.5 shrink-0">
-            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
-              strokeLinecap="round" strokeLinejoin="round" className="text-ok">
-              <line x1="18" y1="5" x2="18" y2="28" />
-              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.3" stroke="currentColor" />
-              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.5" />
+            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" className="text-ok">
+              <path d="M6 30 Q6 6 30 6" />
+              <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
             </svg>
             <span className="text-sm font-bold text-foreground tracking-tight">
-              par<span className="text-ok">3</span>
+              Sweep
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -62,7 +61,7 @@ export default function StudentJourney() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-5 py-10">
+      <div className="max-w-4xl mx-auto px-5 py-10">
         {/* Header */}
         <div className="mb-8">
           <p className="text-sm text-muted-foreground mb-1">Hola, {student.name.split(' ')[0]}</p>
@@ -95,12 +94,12 @@ export default function StudentJourney() {
           </div>
         ) : checkpoints.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl text-center">
-            <div className="text-5xl mb-4">⛳</div>
+            <div className="text-5xl mb-4">🏌️</div>
             <p className="text-foreground font-semibold mb-1">Tu instructor aún no creó ejercicios</p>
             <p className="text-muted-foreground text-sm max-w-xs">Cuando tu instructor calibre tu técnica, aparecerán aquí listos para practicar</p>
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative max-w-xl">
             {/* Timeline line */}
             <div className="absolute left-[19px] top-8 bottom-8 w-px bg-border" />
 

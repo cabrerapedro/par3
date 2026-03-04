@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { METRIC_LABELS } from '@/lib/baseline'
-import { VideoTogglePlayer } from '@/components/VideoTogglePlayer'
+import { MarkGallery } from '@/components/MarkGallery'
 import Link from 'next/link'
 
 const ACTIONS = [
@@ -79,7 +79,7 @@ export default function CheckpointDetail() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-lg mx-auto px-5 h-14 flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center gap-3">
           <Link href="/student/journey" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Mis ejercicios
@@ -87,7 +87,7 @@ export default function CheckpointDetail() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-5 py-10">
+      <div className="max-w-4xl mx-auto px-5 py-10">
         {/* Checkpoint title */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
@@ -126,14 +126,16 @@ export default function CheckpointDetail() {
           </div>
         )}
 
-        {/* Reference video */}
-        {(cp.calibration_video_url || cp.calibration_skeleton_url) && (
+        {/* Reference marks from instructor */}
+        {cp.calibration_marks?.length > 0 && (
           <div className="mb-8">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
-            <VideoTogglePlayer
+            <MarkGallery
               videoUrl={cp.calibration_video_url}
               skeletonUrl={cp.calibration_skeleton_url}
-              className="bg-card border border-border rounded-xl overflow-hidden p-3"
+              marks={cp.calibration_marks}
+              cameraAngle={cp.camera_angle}
+              selectedMetrics={cp.selected_metrics}
             />
           </div>
         )}
@@ -143,7 +145,9 @@ export default function CheckpointDetail() {
           <div className="bg-card border border-border rounded-xl px-4 py-4 mb-8">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu referencia personal</p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(cp.baseline).map(([key, val]) => (
+              {Object.entries(cp.baseline)
+                .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                .map(([key, val]) => (
                 <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
                   <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}: </span>
                   <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
@@ -157,7 +161,7 @@ export default function CheckpointDetail() {
 
         {/* Action cards */}
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">¿Qué quieres hacer?</p>
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {ACTIONS.map(action => (
             <Link key={action.title} href={action.href(cpId)}>
               <div className={cn(

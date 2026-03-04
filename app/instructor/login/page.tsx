@@ -51,15 +51,14 @@ export default function InstructorLogin() {
             className="logo-icon-glow w-14 h-14 rounded-[18px] flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg, #34d178, #22c55e)' }}
           >
-            <svg width="26" height="26" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.4"
-              strokeLinecap="round" strokeLinejoin="round" className="text-background">
-              <line x1="18" y1="5" x2="18" y2="28" />
-              <polygon points="18,5 28,10 18,15" fill="currentColor" opacity="0.6" stroke="currentColor" />
-              <ellipse cx="18" cy="30" rx="7" ry="2.5" opacity="0.7" />
+            <svg width="26" height="26" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" className="text-background">
+              <path d="M6 30 Q6 6 30 6" />
+              <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
             </svg>
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            par<span className="text-ok">3</span>
+            Sweep
           </span>
         </Link>
       </div>
@@ -141,7 +140,7 @@ export default function InstructorLogin() {
             <button
               type="submit"
               disabled={loading}
-              className="h-12 bg-ok text-black font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
+              className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
             >
               {loading
                 ? 'Cargando...'

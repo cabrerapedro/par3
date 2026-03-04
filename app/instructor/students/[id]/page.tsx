@@ -28,6 +28,7 @@ export default function StudentProfile() {
   const [deleteCpDialog, setDeleteCpDialog] = useState<Checkpoint | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [shared, setShared] = useState(false)
 
   useEffect(() => {
     if (!instructor) { router.replace('/instructor/login'); return }
@@ -50,6 +51,22 @@ export default function StudentProfile() {
     await navigator.clipboard.writeText(student.access_code)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
+  }
+
+  async function shareLink() {
+    if (!student) return
+    const url = `${window.location.origin}/student/login?code=${student.access_code}`
+    const shareData = {
+      title: 'Sweep - Acceso de práctica',
+      text: `${student.name}, usa este enlace para acceder a tus ejercicios de práctica en Sweep`,
+      url,
+    }
+    if (navigator.share) {
+      try { await navigator.share(shareData); return } catch {}
+    }
+    await navigator.clipboard.writeText(url)
+    setShared(true)
+    setTimeout(() => setShared(false), 1500)
   }
 
   async function deleteStudent() {
@@ -76,7 +93,7 @@ export default function StudentProfile() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-2xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
           <Link href="/instructor/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Mis alumnos
@@ -99,7 +116,7 @@ export default function StudentProfile() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-5 py-10">
+      <div className="max-w-4xl mx-auto px-5 py-10">
         <div className="flex items-start gap-5 mb-10">
           <Avatar className="size-16 shrink-0">
             <AvatarFallback className="bg-secondary text-muted-foreground text-xl font-semibold">
@@ -120,6 +137,17 @@ export default function StudentProfile() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="text-xs">Copiar código de acceso del alumno</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all", shared ? "bg-ok/10 border-ok/30 text-ok" : "bg-secondary border-border text-muted-foreground hover:border-blue/30 hover:text-foreground")}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {shared ? <polyline points="20 6 9 17 4 12" /> : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>}
+                    </svg>
+                    {shared ? 'Copiado!' : 'Compartir enlace'}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs">Enviar enlace de acceso al alumno</TooltipContent>
               </Tooltip>
               {checkpoints.length > 0 && (
                 <Badge variant="outline" className={cn("text-xs", calibrated === checkpoints.length && calibrated > 0 ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
@@ -156,13 +184,13 @@ export default function StudentProfile() {
             <Link href={`/instructor/students/${studentId}/checkpoints/new`} className="inline-flex h-8 px-3 text-xs border border-border rounded-lg hover:border-ok/40 items-center transition-all">Crear primer ejercicio</Link>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {checkpoints.map((cp, i) => (
               <div key={cp.id} className="group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:border-ok/30 hover:bg-secondary/40 transition-all">
                 <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0", cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" : "bg-secondary border-border text-muted-foreground")}>
                   {i + 1}
                 </div>
-                <Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate`} className="flex-1 min-w-0">
+                <Link href={cp.status === 'calibrated' ? `/instructor/students/${studentId}/checkpoints/${cp.id}` : `/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate`} className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{cp.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
@@ -180,7 +208,10 @@ export default function StudentProfile() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate`}>Calibrar</Link></DropdownMenuItem>
+                      {cp.status === 'calibrated' && (
+                        <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}`}>Ver detalle</Link></DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate`}>{cp.status === 'calibrated' ? 'Recalibrar' : 'Calibrar'}</Link></DropdownMenuItem>
                       <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}/edit`}>Editar</Link></DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteCpDialog(cp)}>Eliminar</DropdownMenuItem>

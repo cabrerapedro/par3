@@ -27,7 +27,7 @@ export function VideoTogglePlayer({ videoUrl, skeletonUrl, className }: VideoTog
                 : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
             }`}
           >
-            Esqueleto
+            Video + Ejes
           </button>
           <button
             onClick={() => setActive('video')}

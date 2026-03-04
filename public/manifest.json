@@ -1,6 +1,6 @@
 {
-  "name": "par3 — Tu copiloto de practica",
-  "short_name": "par3",
+  "name": "Sweep — Tu copiloto de practica",
+  "short_name": "Sweep",
   "description": "Copiloto digital para instructores y alumnos de golf",
   "start_url": "/",
   "display": "standalone",

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { supabase } from './supabase'
+import { supabase, authClient } from './supabase'
 import type { Instructor, Student } from './types'
 
 type StudentUpdates = Partial<Pick<Student, 'name' | 'email' | 'avatar_url' | 'handicap' | 'dominant_hand' | 'years_playing' | 'home_course' | 'bio'>>
@@ -14,6 +14,8 @@ interface AuthState {
   instructorSignup: (email: string, password: string, name: string) => Promise<{ error?: string }>
   updateInstructor: (name: string) => Promise<{ error?: string }>
   studentLogin: (code: string) => Promise<{ error?: string }>
+  studentOtpRequest: (email: string) => Promise<{ error?: string }>
+  studentOtpVerify: (email: string, code: string) => Promise<{ error?: string }>
   updateStudent: (updates: StudentUpdates) => Promise<{ error?: string }>
   logout: () => void
 }
@@ -26,85 +28,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Load student from localStorage
+    // 1. Instant hydration from localStorage — no network.
     try {
-      const stored = localStorage.getItem('par3_student')
-      if (stored) setStudent(JSON.parse(stored))
+      const s = localStorage.getItem('sweep_student')
+      if (s) setStudent(JSON.parse(s))
     } catch {}
+    try {
+      const i = localStorage.getItem('sweep_instructor')
+      if (i) setInstructor(JSON.parse(i))
+    } catch {}
+    setLoading(false)
 
-    // Load instructor from Supabase session
-    supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
-        if (session?.user) {
-          try { await loadInstructor(session.user.id) } catch {}
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        await loadInstructor(session.user.id)
-      } else {
+    // 2. Background sync — onAuthStateChange fires after Supabase init.
+    let mounted = true
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return
+      if (event === 'SIGNED_OUT') {
         setInstructor(null)
+        localStorage.removeItem('sweep_instructor')
+        return
+      }
+      if (session?.user && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        // Must use setTimeout — awaiting Supabase calls inside this callback deadlocks.
+        // See: https://supabase.com/docs/reference/javascript/auth-onauthstatechange
+        const userId = session.user.id
+        setTimeout(async () => {
+          if (!mounted) return
+          try {
+            const { data } = await supabase.from('instructors').select('*').eq('id', userId).single()
+            if (data && mounted) cacheInstructor(data)
+          } catch {}
+        }, 0)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => { mounted = false; subscription.unsubscribe() }
   }, [])
 
-  async function loadInstructor(userId: string) {
-    try {
-      const { data } = await supabase.from('instructors').select('*').eq('id', userId).single()
-      if (data) { setInstructor(data); return data }
-
-      // No record yet — create it using auth user metadata
-      const { data: authData } = await supabase.auth.getUser()
-      const user = authData?.user
-      if (!user) return null
-
-      const name = (user.user_metadata?.name as string) || user.email?.split('@')[0] || 'Instructor'
-      const email = user.email || ''
-      const { data: created } = await supabase
-        .from('instructors')
-        .insert({ id: userId, name, email })
-        .select()
-        .single()
-
-      if (created) { setInstructor(created); return created }
-    } catch (e) {
-      console.error('loadInstructor:', e)
-    }
-    return null
+  function cacheInstructor(data: Instructor) {
+    setInstructor(data)
+    localStorage.setItem('sweep_instructor', JSON.stringify(data))
   }
 
   async function instructorLogin(email: string, password: string): Promise<{ error?: string }> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    // authClient has no persisted session → no blocking on stale token refresh.
+    const { data, error } = await authClient.auth.signInWithPassword({ email, password })
     if (error) return { error: 'Correo o contraseña incorrectos.' }
+
+    // Fetch instructor using authClient (it has the fresh session in memory).
+    if (data.user) {
+      try {
+        const { data: inst } = await authClient.from('instructors').select('*').eq('id', data.user.id).single()
+        if (inst) cacheInstructor(inst)
+      } catch {}
+    }
+
+    // Transfer session to main client in background (for RLS on subsequent pages).
+    if (data.session) {
+      supabase.auth.setSession(data.session).catch(() => {})
+    }
+
     return {}
   }
 
   async function instructorSignup(email: string, password: string, name: string): Promise<{ error?: string }> {
-    // Pass name as metadata — the DB trigger uses it to auto-create the instructor record
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await authClient.auth.signUp({
       email,
       password,
       options: { data: { name } },
     })
     if (error) return { error: error.message }
     if (!data.user) return { error: 'Error al crear cuenta.' }
-
-    // If Supabase requires email confirmation, session is null until confirmed
     if (!data.session) {
       return { error: 'Revisa tu correo para confirmar la cuenta. Después iniciá sesión normalmente.' }
     }
 
-    // Trigger may have already created the record; try to load, otherwise insert manually
-    const existing = await loadInstructor(data.user.id)
-    if (!existing) {
-      await supabase.from('instructors').insert({ id: data.user.id, name, email })
-      setInstructor({ id: data.user.id, name, email, created_at: new Date().toISOString() })
+    // Fetch or create instructor record using authClient.
+    const userId = data.user.id
+    let inst = null
+    try {
+      const { data: found } = await authClient.from('instructors').select('*').eq('id', userId).single()
+      inst = found
+    } catch {}
+
+    if (!inst) {
+      try {
+        await authClient.from('instructors').insert({ id: userId, name, email })
+      } catch {}
+      inst = { id: userId, name, email, created_at: new Date().toISOString() }
     }
+    cacheInstructor(inst as Instructor)
+
+    // Transfer session to main client in background.
+    supabase.auth.setSession(data.session).catch(() => {})
+
     return {}
   }
 
@@ -117,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select()
       .single()
     if (error) return { error: 'Error al actualizar el perfil.' }
-    if (data) setInstructor(data)
+    if (data) cacheInstructor(data)
     return {}
   }
 
@@ -131,9 +148,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error || !data) return { error: 'Código incorrecto. Verifica con tu instructor.' }
 
-    localStorage.setItem('par3_student', JSON.stringify(data))
+    localStorage.setItem('sweep_student', JSON.stringify(data))
     setStudent(data)
     return {}
+  }
+
+  async function studentOtpRequest(email: string): Promise<{ error?: string }> {
+    try {
+      const res = await fetch('/api/student/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      })
+      if (!res.ok) return { error: 'Error al enviar el código.' }
+      return {}
+    } catch {
+      return { error: 'Error de conexión.' }
+    }
+  }
+
+  async function studentOtpVerify(email: string, code: string): Promise<{ error?: string }> {
+    try {
+      const res = await fetch('/api/student/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) return { error: data.error || 'Código incorrecto o expirado.' }
+      if (data.student) {
+        localStorage.setItem('sweep_student', JSON.stringify(data.student))
+        setStudent(data.student)
+      }
+      return {}
+    } catch {
+      return { error: 'Error de conexión.' }
+    }
   }
 
   async function updateStudent(updates: StudentUpdates): Promise<{ error?: string }> {
@@ -147,21 +197,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: 'Error al actualizar el perfil.' }
     if (data) {
       const updated = { ...student, ...data }
-      localStorage.setItem('par3_student', JSON.stringify(updated))
+      localStorage.setItem('sweep_student', JSON.stringify(updated))
       setStudent(updated)
     }
     return {}
   }
 
   function logout() {
-    supabase.auth.signOut()
-    localStorage.removeItem('par3_student')
+    localStorage.removeItem('sweep_student')
+    localStorage.removeItem('sweep_instructor')
     setInstructor(null)
     setStudent(null)
+    supabase.auth.signOut().catch(() => {})
   }
 
   return (
-    <AuthContext.Provider value={{ instructor, student, loading, instructorLogin, instructorSignup, updateInstructor, studentLogin, updateStudent, logout }}>
+    <AuthContext.Provider value={{ instructor, student, loading, instructorLogin, instructorSignup, updateInstructor, studentLogin, studentOtpRequest, studentOtpVerify, updateStudent, logout }}>
       {children}
     </AuthContext.Provider>
   )

@@ -11,6 +11,39 @@ function angleBetween(a: LM, b: LM, c: LM): number {
   return Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI
 }
 
+// Available metrics per camera angle (source of truth for forms)
+export const METRICS_BY_ANGLE: Record<CameraAngle, string[]> = {
+  face_on: ['head_lateral', 'arm_angle', 'shoulder_level', 'hip_sway', 'stance_width', 'weight_shift'],
+  dtl: ['spine_angle', 'knee_flex', 'head_forward', 'hip_hinge', 'trail_arm', 'head_height'],
+}
+
+// Rich metric info for UI display
+export interface MetricInfo {
+  label: string
+  description: string
+  unit: string
+}
+
+export const METRIC_INFO: Record<string, MetricInfo> = {
+  head_lateral:   { label: 'Posición de cabeza', description: 'Posición lateral de la cabeza respecto a las caderas', unit: 'distancia' },
+  arm_angle:      { label: 'Extensión de brazos', description: 'Ángulo promedio de extensión de ambos brazos', unit: 'grados' },
+  shoulder_level: { label: 'Nivel de hombros', description: 'Diferencia de altura entre hombros', unit: 'distancia' },
+  hip_sway:       { label: 'Balanceo de cadera', description: 'Desplazamiento lateral de las caderas respecto a los pies', unit: 'distancia' },
+  stance_width:   { label: 'Ancho de stance', description: 'Distancia entre tobillos relativa al ancho de hombros', unit: 'ratio' },
+  weight_shift:   { label: 'Distribución de peso', description: 'Posición de hombros respecto a los pies', unit: 'distancia' },
+  spine_angle:    { label: 'Inclinación de columna', description: 'Ángulo de inclinación del torso respecto a la vertical', unit: 'grados' },
+  knee_flex:      { label: 'Flexión de rodillas', description: 'Ángulo promedio de flexión de ambas rodillas', unit: 'grados' },
+  head_forward:   { label: 'Cabeza adelante', description: 'Distancia horizontal de la cabeza respecto a los hombros', unit: 'distancia' },
+  hip_hinge:      { label: 'Bisagra de cadera', description: 'Ángulo de la articulación de cadera (hombro-cadera-rodilla)', unit: 'grados' },
+  trail_arm:      { label: 'Brazo trasero', description: 'Ángulo del brazo más alejado de la cámara', unit: 'grados' },
+  head_height:    { label: 'Altura de cabeza', description: 'Posición vertical de la cabeza respecto a las caderas', unit: 'distancia' },
+}
+
+// Backward-compatible: derived from METRIC_INFO
+export const METRIC_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(METRIC_INFO).map(([k, v]) => [k, v.label])
+)
+
 // Raw metric values from landmarks (no thresholds)
 export function calculateMetrics(lm: LM[], cameraAngle: CameraAngle): Record<string, number> {
   if (cameraAngle === 'face_on') {
@@ -19,39 +52,70 @@ export function calculateMetrics(lm: LM[], cameraAngle: CameraAngle): Record<str
     const lElbow = lm[13], rElbow = lm[14]
     const lWrist = lm[15], rWrist = lm[16]
     const lHip = lm[23], rHip = lm[24]
+    const lAnkle = lm[27], rAnkle = lm[28]
 
     const hipMidX = (lHip.x + rHip.x) / 2
     const head_lateral = Math.abs(nose.x - hipMidX)
+
     const lArm = angleBetween(lShoulder, lElbow, lWrist)
     const rArm = angleBetween(rShoulder, rElbow, rWrist)
     const arm_angle = (lArm + rArm) / 2
+
     const shoulder_level = Math.abs(lShoulder.y - rShoulder.y)
 
-    return { head_lateral, arm_angle, shoulder_level }
+    const ankleMidX = (lAnkle.x + rAnkle.x) / 2
+    const hip_sway = Math.abs(hipMidX - ankleMidX)
+
+    const shoulderWidth = Math.abs(lShoulder.x - rShoulder.x)
+    const ankleWidth = Math.abs(lAnkle.x - rAnkle.x)
+    const stance_width = shoulderWidth > 0.001 ? ankleWidth / shoulderWidth : 0
+
+    const shoulderMidX = (lShoulder.x + rShoulder.x) / 2
+    const weight_shift = Math.abs(shoulderMidX - ankleMidX)
+
+    return { head_lateral, arm_angle, shoulder_level, hip_sway, stance_width, weight_shift }
   } else {
     const nose = lm[0]
     const lShoulder = lm[11], rShoulder = lm[12]
+    const lElbow = lm[13], rElbow = lm[14]
+    const lWrist = lm[15], rWrist = lm[16]
     const lHip = lm[23], rHip = lm[24]
     const lKnee = lm[25], rKnee = lm[26]
     const lAnkle = lm[27], rAnkle = lm[28]
 
     const sMid = { x: (lShoulder.x + rShoulder.x) / 2, y: (lShoulder.y + rShoulder.y) / 2, z: 0 }
     const hMid = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2, z: 0 }
+    const kMid = { x: (lKnee.x + rKnee.x) / 2, y: (lKnee.y + rKnee.y) / 2, z: 0 }
+
     const spine_angle = Math.abs(Math.atan2(Math.abs(hMid.x - sMid.x), hMid.y - sMid.y) * 180 / Math.PI)
+
     const lKneeAngle = angleBetween(lHip, lKnee, lAnkle)
     const rKneeAngle = angleBetween(rHip, rKnee, rAnkle)
     const knee_flex = (lKneeAngle + rKneeAngle) / 2
+
     const head_forward = Math.abs(nose.x - sMid.x)
 
-    return { spine_angle, knee_flex, head_forward }
+    const hip_hinge = angleBetween(sMid, hMid, kMid)
+
+    // Trail arm: the arm whose shoulder has larger x (further right in frame)
+    const trailIsLeft = lShoulder.x > rShoulder.x
+    const trailShoulder = trailIsLeft ? lShoulder : rShoulder
+    const trailElbow = trailIsLeft ? lElbow : rElbow
+    const trailWrist = trailIsLeft ? lWrist : rWrist
+    const trail_arm = angleBetween(trailShoulder, trailElbow, trailWrist)
+
+    const head_height = Math.abs(hMid.y - nose.y)
+
+    return { spine_angle, knee_flex, head_forward, hip_hinge, trail_arm, head_height }
   }
 }
 
 // Calculate baseline statistics from an array of calibration marks
-export function calculateBaseline(marks: CalibrationMark[]): Baseline {
+export function calculateBaseline(marks: CalibrationMark[], selectedMetrics?: string[]): Baseline {
   if (!marks.length) return {}
 
   const keys = Object.keys(marks[0].metrics)
+    .filter(k => !selectedMetrics?.length || selectedMetrics.includes(k))
   const baseline: Baseline = {}
 
   for (const key of keys) {
@@ -70,24 +134,21 @@ export function calculateBaseline(marks: CalibrationMark[]): Baseline {
   return baseline
 }
 
-export const METRIC_LABELS: Record<string, string> = {
-  head_lateral: 'Cabeza',
-  arm_angle: 'Brazos',
-  shoulder_level: 'Hombros',
-  spine_angle: 'Columna',
-  knee_flex: 'Rodillas',
-  head_forward: 'Cabeza adelante',
-}
-
 function baselineMessage(key: string, value: number, mean: number, status: string): string {
   if (status === 'ok') {
     const msgs: Record<string, string> = {
       head_lateral: 'Cabeza centrada, igual que en tu calibración.',
       arm_angle: 'Extensión de brazos correcta.',
       shoulder_level: 'Hombros nivelados correctamente.',
+      hip_sway: 'Caderas centradas, sin balanceo lateral.',
+      stance_width: 'Ancho de stance correcto.',
+      weight_shift: 'Peso bien distribuido.',
       spine_angle: 'Inclinación de columna perfecta.',
       knee_flex: 'Flexión de rodillas en tu rango.',
       head_forward: 'Posición de cabeza correcta.',
+      hip_hinge: 'Bisagra de cadera correcta.',
+      trail_arm: 'Brazo trasero en buena posición.',
+      head_height: 'Altura de cabeza consistente.',
     }
     return msgs[key] || 'Correcto'
   }
@@ -97,6 +158,9 @@ function baselineMessage(key: string, value: number, mean: number, status: strin
     head_lateral: () => 'Centra un poco más la cabeza sobre las caderas.',
     arm_angle: (d) => d > 0 ? 'Brazos demasiado extendidos, relaja un poco.' : 'Extiende más los brazos.',
     shoulder_level: () => 'Nivelar los hombros, igual que en tu calibración.',
+    hip_sway: () => 'Mantén las caderas centradas sobre los pies.',
+    stance_width: (d) => d > 0 ? 'Tu stance es muy ancho. Junta un poco los pies.' : 'Tu stance es muy estrecho. Separa un poco los pies.',
+    weight_shift: () => 'Centra el peso sobre los pies.',
     spine_angle: (d) => d > 0
       ? 'Tu columna está más erguida que tu referencia. Inclínate más desde las caderas.'
       : 'Tu columna está muy inclinada. Endereza ligeramente.',
@@ -106,6 +170,15 @@ function baselineMessage(key: string, value: number, mean: number, status: strin
     head_forward: (d) => d > 0
       ? 'La cabeza está muy adelantada. Llévala hacia atrás.'
       : 'La cabeza está muy atrás. Adelántala ligeramente.',
+    hip_hinge: (d) => d > 0
+      ? 'Estás doblando demasiado desde las caderas. Flexiona un poco menos.'
+      : 'Necesitas más bisagra de cadera. Inclínate desde las caderas.',
+    trail_arm: (d) => d > 0
+      ? 'El brazo trasero está muy extendido. Relaja un poco.'
+      : 'Extiende más el brazo trasero.',
+    head_height: (d) => d > 0
+      ? 'Estás bajando demasiado. Mantén la altura de cabeza.'
+      : 'Te estás levantando. Mantén la altura de cabeza.',
   }
 
   return msgs[key]?.(diff) || (status === 'bad' ? 'Corregir posición.' : 'Ajustar ligeramente.')
@@ -121,9 +194,14 @@ export interface BaselineCheck {
 // Compare current metrics against a personal baseline
 export function compareToBaseline(
   metrics: Record<string, number>,
-  baseline: Baseline
+  baseline: Baseline,
+  selectedMetrics?: string[]
 ): BaselineCheck[] {
-  return Object.entries(metrics).map(([key, value]) => {
+  const entries = selectedMetrics?.length
+    ? Object.entries(metrics).filter(([key]) => selectedMetrics.includes(key))
+    : Object.entries(metrics)
+
+  return entries.map(([key, value]) => {
     const b = baseline[key]
     if (!b) return { id: key, label: METRIC_LABELS[key] || key, status: 'ok' as const, message: 'Correcto' }
 

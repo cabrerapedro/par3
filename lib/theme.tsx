@@ -11,14 +11,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark')
 
   useEffect(() => {
-    const saved = (localStorage.getItem('par3_theme') as Theme) ?? 'dark'
+    const saved = (localStorage.getItem('sweep_theme') as Theme) ?? 'dark'
     apply(saved)
   }, [])
 
   function apply(t: Theme) {
     setTheme(t)
     document.documentElement.classList.toggle('light', t === 'light')
-    localStorage.setItem('par3_theme', t)
+    localStorage.setItem('sweep_theme', t)
   }
 
   return (

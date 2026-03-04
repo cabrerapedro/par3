@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── shadcn token → Tailwind utility bridge ───────────────────────────── */
-/* --color-muted and --color-border excluded — par3 owns those names        */
+/* --color-muted and --color-border excluded — sweep owns those names        */
 @theme inline {
   --radius-sm:     calc(var(--radius) - 4px);
   --radius-md:     calc(var(--radius) - 2px);
@@ -37,7 +37,7 @@
   --color-sidebar-ring:                  var(--sidebar-ring);
 }
 
-/* ─── par3 design tokens (after @theme inline so they win on conflicts) ── */
+/* ─── sweep design tokens (after @theme inline so they win on conflicts) ── */
 @theme {
   --color-bg:     #09090b;
   --color-s1:     #111113;
@@ -48,6 +48,7 @@
   --color-muted:  #a1a1aa;
   --color-dim:    #71717a;
   --color-ok:     #34d178;
+  --color-on-ok:  #000000;  /* text color on bg-ok buttons */
   --color-warn:   #f59e0b;
   --color-bad:    #ef4444;
   --color-blue:   #60a5fa;
@@ -58,7 +59,7 @@
   --animate-fade-up: fade-up 0.8s ease-out both;
 }
 
-/* ─── shadcn CSS variables — dark (default for par3) ───────────────────── */
+/* ─── shadcn CSS variables — dark (default for sweep) ───────────────────── */
 :root {
   --radius:                   0.625rem;
   --background:               #09090b;
@@ -89,44 +90,47 @@
   --sidebar-ring:             #34d178;
 }
 
-/* ─── Light mode ────────────────────────────────────────────────────────── */
+/* ─── Light mode — optimized for outdoor / bright sunlight readability ──── */
 .light {
-  --background:               #F8FAF9;  /* off-white warm with green tint */
-  --foreground:               #0F172A;
-  --card:                     #ffffff;
-  --card-foreground:          #0F172A;
-  --popover:                  #ffffff;
-  --popover-foreground:       #0F172A;
-  --primary:                  #059669;  /* darker green for contrast on white */
+  --background:               #F0F4F2;  /* tinted off-white, less glare than pure white */
+  --foreground:               #0C1318;  /* near-black for max contrast */
+  --card:                     #FAFCFB;  /* distinct from background */
+  --card-foreground:          #0C1318;
+  --popover:                  #FAFCFB;
+  --popover-foreground:       #0C1318;
+  --primary:                  #16a34a;  /* vibrant green, matches logo */
   --primary-foreground:       #ffffff;
-  --secondary:                #EFF5F2;
-  --secondary-foreground:     #0F172A;
-  --muted:                    #EFF5F2;
-  --muted-foreground:         #475569;  /* more contrast */
-  --accent:                   #EFF5F2;
-  --accent-foreground:        #0F172A;
-  --destructive:              #dc2626;
-  --border:                   rgba(15, 23, 42, 0.1);
-  --input:                    #EFF5F2;
-  --ring:                     #059669;
-  --sidebar:                  #ffffff;
-  --sidebar-foreground:       #0F172A;
-  --sidebar-primary:          #059669;
+  --secondary:                #E2EBE6;  /* visible separation from card */
+  --secondary-foreground:     #0C1318;
+  --muted:                    #E2EBE6;
+  --muted-foreground:         #334155;  /* darker for outdoor readability */
+  --accent:                   #E2EBE6;
+  --accent-foreground:        #0C1318;
+  --destructive:              #b91c1c;  /* darker red */
+  --border:                   rgba(12, 19, 24, 0.18);  /* visible borders */
+  --input:                    #E8EEEb;
+  --ring:                     #16a34a;
+  --sidebar:                  #FAFCFB;
+  --sidebar-foreground:       #0C1318;
+  --sidebar-primary:          #16a34a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent:           #EFF5F2;
-  --sidebar-accent-foreground: #0F172A;
-  --sidebar-border:           rgba(15, 23, 42, 0.1);
-  --sidebar-ring:             #059669;
-  --color-bg:                 #F8FAF9;
-  --color-s1:                 #ffffff;
-  --color-s2:                 #EFF5F2;
-  --color-s3:                 #e2ece7;
-  --color-border:             rgba(15, 23, 42, 0.1);
-  --color-txt:                #0F172A;
-  --color-muted:              #475569;
-  --color-dim:                #64748B;
-  --color-ok:                 #059669;  /* darker green for light mode */
-  --color-blue:               #2563EB;  /* darker blue for light mode */
+  --sidebar-accent:           #E2EBE6;
+  --sidebar-accent-foreground: #0C1318;
+  --sidebar-border:           rgba(12, 19, 24, 0.18);
+  --sidebar-ring:             #16a34a;
+  --color-bg:                 #F0F4F2;
+  --color-s1:                 #FAFCFB;
+  --color-s2:                 #E2EBE6;
+  --color-s3:                 #D0DDD6;
+  --color-border:             rgba(12, 19, 24, 0.18);
+  --color-txt:                #0C1318;
+  --color-muted:              #334155;  /* readable outdoors */
+  --color-dim:                #475569;
+  --color-ok:                 #16a34a;  /* green-600, vibrant like logo */
+  --color-on-ok:              #ffffff;  /* white text on dark green */
+  --color-warn:               #d97706;  /* amber-600, darker for light bg */
+  --color-bad:                #b91c1c;  /* red-700, darker for light bg */
+  --color-blue:               #1d4ed8;  /* blue-700, high contrast */
 }
 
 /* ─── Keyframes ─────────────────────────────────────────────────────────── */
@@ -155,11 +159,11 @@ body {
   box-shadow: 0 0 40px rgba(52, 209, 120, 0.15), 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 .light .logo-icon-glow {
-  box-shadow: 0 0 30px rgba(5, 150, 105, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 30px rgba(22, 163, 74, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 .landing-card-shadow {
   box-shadow: none;
 }
 .light .landing-card-shadow {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }

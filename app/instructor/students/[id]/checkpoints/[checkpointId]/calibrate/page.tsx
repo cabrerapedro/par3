@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import { calculateMetrics, averageLandmarks, calculateBaseline } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { Checkpoint, CalibrationMark, Landmark } from '@/lib/types'
-import { VideoTogglePlayer } from '@/components/VideoTogglePlayer'
 import Link from 'next/link'
 
 type Stage = 'loading' | 'ready' | 'recording' | 'saving' | 'done'
@@ -38,6 +37,7 @@ export default function CalibratePage() {
   const videoChunksRef = useRef<Blob[]>([])
   const skeletonChunksRef = useRef<Blob[]>([])
   const recordingStartedRef = useRef(false)
+  const recordingStartTimeRef = useRef<number>(0)
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [stage, setStage] = useState<Stage>('loading')
@@ -48,6 +48,11 @@ export default function CalibratePage() {
   const [isVoiceRecording, setIsVoiceRecording] = useState(false)
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [error, setError] = useState('')
+  const [markNoteIndex, setMarkNoteIndex] = useState<number | null>(null)
+  const [markDictating, setMarkDictating] = useState(false)
+  const [markNoteText, setMarkNoteText] = useState('')
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
+  const markRecognitionRef = useRef<any>(null)
 
   // Sync stage to ref for use in callbacks
   const setStageSync = (s: Stage) => { stageRef.current = s; setStage(s) }
@@ -56,8 +61,21 @@ export default function CalibratePage() {
   useEffect(() => {
     if (!instructor) { router.replace('/instructor/login'); return }
     loadCheckpoint()
-    return () => { stopCamera(); recognitionRef.current?.stop(); audioStreamRef.current?.getTracks().forEach(t => t.stop()) }
+    navigator.mediaDevices?.enumerateDevices().then(devices => {
+      const cameras = devices.filter(d => d.kind === 'videoinput')
+      setHasMultipleCameras(cameras.length > 1)
+    }).catch(() => {})
+    return () => { stopCamera(); recognitionRef.current?.stop(); markRecognitionRef.current?.stop(); audioStreamRef.current?.getTracks().forEach(t => t.stop()) }
   }, [])
+
+  // Warn before leaving with unsaved marks
+  useEffect(() => {
+    const hasUnsavedWork = marks.length > 0 && stage !== 'done' && stage !== 'saving'
+    if (!hasUnsavedWork) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [marks.length, stage])
 
   async function loadCheckpoint() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
@@ -74,11 +92,14 @@ export default function CalibratePage() {
   async function initMediaPipe(facing: 'user' | 'environment' = 'environment') {
     try {
       await loadMediaPipe()
-      if (!poseRef.current) {
-        poseRef.current = createPose(onResults)
-      }
+      // createPose is a singleton — safe to call multiple times (HMR, re-mount)
+      poseRef.current = createPose(onResults)
       await startCamera(facing)
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message === 'RELOAD_REQUIRED') {
+        setError('RELOAD_REQUIRED')
+        return
+      }
       setError('Error al iniciar la cámara. Verifica los permisos.')
     }
   }
@@ -87,13 +108,26 @@ export default function CalibratePage() {
     if (!videoRef.current) return
     cameraRef.current?.stop()
     recordingStartedRef.current = false
-    const cam = createCamera(videoRef.current, async () => {
+    const onFrame = async () => {
       if (poseRef.current && videoRef.current) {
         await poseRef.current.send({ image: videoRef.current })
       }
-    }, facing)
-    cameraRef.current = cam
-    await cam.start()
+    }
+    try {
+      const cam = createCamera(videoRef.current, onFrame, facing)
+      cameraRef.current = cam
+      await cam.start()
+    } catch {
+      // Fallback: environment camera not available (e.g. desktop) → try user
+      if (facing === 'environment') {
+        setFacingMode('user')
+        const cam = createCamera(videoRef.current, onFrame, 'user')
+        cameraRef.current = cam
+        await cam.start()
+      } else {
+        throw new Error('No camera available')
+      }
+    }
   }
 
   async function flipCamera() {
@@ -132,6 +166,7 @@ export default function CalibratePage() {
     // Start recording on first frame after camera is confirmed running
     if (!recordingStartedRef.current) {
       recordingStartedRef.current = true
+      recordingStartTimeRef.current = Date.now()
       const rawStream = video.srcObject as MediaStream
       if (rawStream) tryStartRecording(rawStream, videoRecorderRef, videoChunksRef)
       try {
@@ -146,6 +181,7 @@ export default function CalibratePage() {
     if (!ctx) return
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     const lm = results.poseLandmarks
     if (lm) {
@@ -218,6 +254,59 @@ export default function CalibratePage() {
     audioStreamRef.current?.getTracks().forEach(t => t.stop())
   }
 
+  // Per-mark dictation
+  function saveMarkNote() {
+    if (markNoteIndex === null) return
+    const text = markNoteText.trim()
+    if (text) {
+      const updated = [...marksRef.current]
+      if (updated[markNoteIndex]) {
+        updated[markNoteIndex] = { ...updated[markNoteIndex], note: text }
+        setMarksSync(updated)
+      }
+    }
+  }
+
+  function stopMarkDictation() {
+    markRecognitionRef.current?.stop()
+    markRecognitionRef.current = null
+    setMarkDictating(false)
+  }
+
+  function startMarkDictation() {
+    stopMarkDictation()
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+
+    const r = new SR()
+    r.lang = 'es-MX'
+    r.continuous = true
+    r.interimResults = false
+    r.onresult = (e: any) => {
+      const transcript = Array.from(e.results as any[])
+        .filter((res: any) => res.isFinal)
+        .map((res: any) => res[0].transcript)
+        .join(' ')
+      if (transcript) setMarkNoteText(prev => prev ? `${prev} ${transcript}` : transcript)
+    }
+    r.onend = () => setMarkDictating(false)
+    markRecognitionRef.current = r
+    r.start()
+    setMarkDictating(true)
+  }
+
+  function toggleMarkDictation() {
+    if (markDictating) stopMarkDictation()
+    else startMarkDictation()
+  }
+
+  function dismissMarkNote() {
+    stopMarkDictation()
+    saveMarkNote()
+    setMarkNoteIndex(null)
+    setMarkNoteText('')
+  }
+
   function stopCamera() {
     stopVideoRecording()
     cameraRef.current?.stop()
@@ -226,6 +315,12 @@ export default function CalibratePage() {
   function handleBien() {
     if (!checkpoint || landmarkBufferRef.current.length === 0) return
 
+    // Save note from previous mark if active
+    if (markNoteIndex !== null) {
+      stopMarkDictation()
+      saveMarkNote()
+    }
+
     // Average last up to 6 frames
     const frames = landmarkBufferRef.current.slice(-6)
     const avgLandmarks = averageLandmarks(frames)
@@ -233,12 +328,19 @@ export default function CalibratePage() {
 
     const mark: CalibrationMark = {
       timestamp_ms: Date.now(),
+      relative_ms: recordingStartTimeRef.current > 0
+        ? Date.now() - recordingStartTimeRef.current
+        : undefined,
       landmarks: avgLandmarks,
       metrics,
     }
 
     const newMarks = [...marksRef.current, mark]
     setMarksSync(newMarks)
+
+    // Show note input for this new mark
+    setMarkNoteIndex(newMarks.length - 1)
+    setMarkNoteText('')
 
     // Brief visual flash
     const canvas = canvasRef.current
@@ -254,9 +356,15 @@ export default function CalibratePage() {
 
   async function handleSave() {
     if (!checkpoint || marks.length === 0) return
+    // Save any pending mark note
+    if (markNoteIndex !== null) {
+      stopMarkDictation()
+      saveMarkNote()
+      setMarkNoteIndex(null)
+    }
     setStageSync('saving')
 
-    const baseline = calculateBaseline(marks)
+    const baseline = calculateBaseline(marks, checkpoint.selected_metrics)
 
     // Stop video recordings and collect blobs
     stopVideoRecording()
@@ -331,21 +439,33 @@ export default function CalibratePage() {
   }
 
   if (error) return (
-    <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4">
-      <p className="text-bad">{error}</p>
-      <Link href={`/instructor/students/${studentId}`} className="text-ok hover:underline text-sm">
-        ← Volver al alumno
-      </Link>
+    <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
+      {error === 'RELOAD_REQUIRED' ? (
+        <>
+          <p className="text-foreground font-semibold">La cámara necesita reiniciarse</p>
+          <p className="text-muted-foreground text-sm max-w-xs">Esto puede pasar después de una actualización. Recarga la página para continuar.</p>
+          <button onClick={() => window.location.reload()} className="bg-ok text-on-ok font-semibold text-sm rounded-xl px-5 py-2.5 hover:bg-ok/90 transition-all">
+            Recargar página
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-bad">{error}</p>
+          <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}`} className="text-ok hover:underline text-sm">
+            ← Volver al ejercicio
+          </Link>
+        </>
+      )}
     </main>
   )
 
-  if (stage === 'done') return <SavedScreen studentId={studentId} marks={marks} checkpoint={checkpoint} />
+  if (stage === 'done') return <SavedScreen studentId={studentId} checkpointId={checkpointId} marks={marks} checkpoint={checkpoint} />
 
   return (
     <main className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
-        <Link href={`/instructor/students/${studentId}`} className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
+        <Link href={checkpoint?.status === 'calibrated' ? `/instructor/students/${studentId}/checkpoints/${checkpointId}` : `/instructor/students/${studentId}`} className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
@@ -362,7 +482,7 @@ export default function CalibratePage() {
               {poseDetected ? 'Pose detectada' : 'Sin persona en cámara'}
             </div>
           )}
-          {stage !== 'loading' && (
+          {stage !== 'loading' && hasMultipleCameras && (
             <button
               onClick={flipCamera}
               title="Cambiar cámara"
@@ -379,6 +499,9 @@ export default function CalibratePage() {
           )}
         </div>
       </header>
+
+      {/* Camera + Controls wrapper — stacked on mobile, side-by-side on desktop */}
+      <div className="flex-1 flex flex-col lg:flex-row" style={{ minHeight: 0 }}>
 
       {/* Camera + Canvas */}
       <div className="relative flex-1 bg-black overflow-hidden" style={{ minHeight: 0 }}>
@@ -411,13 +534,50 @@ export default function CalibratePage() {
       </div>
 
       {/* Controls */}
-      <div className="flex-shrink-0 bg-background border-t border-border px-4 py-4">
+      <div className="flex-shrink-0 bg-background border-t lg:border-t-0 lg:border-l border-border px-4 py-4 lg:w-80 lg:overflow-y-auto">
         {stage === 'recording' ? (
           <div className="flex flex-col gap-3">
+            {/* Per-mark note strip */}
+            {markNoteIndex !== null && (
+              <div className="flex items-center gap-2 bg-card border border-ok/20 rounded-xl px-3 py-2">
+                <span className="text-xs font-mono text-ok shrink-0">#{markNoteIndex + 1}</span>
+                <input
+                  type="text"
+                  value={markNoteText}
+                  onChange={e => setMarkNoteText(e.target.value)}
+                  placeholder="Nota para esta marca..."
+                  className="flex-1 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/40 focus:outline-none min-w-0"
+                />
+                <button
+                  onClick={toggleMarkDictation}
+                  className={`shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
+                    markDictating
+                      ? 'bg-bad/20 border-bad/40 text-bad animate-pulse'
+                      : 'bg-secondary border-border text-muted-foreground hover:border-ok/40 hover:text-ok'
+                  }`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="2" width="6" height="11" rx="3" />
+                    <path d="M5 10a7 7 0 0 0 14 0" />
+                    <line x1="12" y1="19" x2="12" y2="22" />
+                    <line x1="8" y1="22" x2="16" y2="22" />
+                  </svg>
+                </button>
+                <button
+                  onClick={dismissMarkNote}
+                  className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
             {/* BIEN button */}
             <button
               onPointerDown={handleBien}
-              className="w-full bg-ok text-black font-bold text-xl rounded-2xl active:scale-[0.96] transition-transform select-none"
+              className="w-full bg-ok text-on-ok font-bold text-xl rounded-2xl active:scale-[0.96] transition-transform select-none"
               style={{ minHeight: 88 }}
             >
               ✓ Bien
@@ -427,7 +587,7 @@ export default function CalibratePage() {
                 <p className="text-muted-foreground text-xs leading-snug">Mín. 2 marcas<br/>Ideal: 3–5</p>
               </div>
               <button
-                onClick={() => setStageSync('ready')}
+                onClick={() => { dismissMarkNote(); setStageSync('ready') }}
                 className="bg-card border border-border text-muted-foreground text-sm rounded-xl px-4 py-2.5 hover:border-bad/40 hover:text-bad transition-all"
               >
                 Cancelar
@@ -443,17 +603,6 @@ export default function CalibratePage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {(checkpoint?.calibration_video_url || checkpoint?.calibration_skeleton_url) && (
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <p className="text-xs text-muted-foreground px-3 pt-2.5 pb-1.5">Grabación anterior</p>
-                <div className="px-3 pb-3">
-                  <VideoTogglePlayer
-                    videoUrl={checkpoint.calibration_video_url}
-                    skeletonUrl={checkpoint.calibration_skeleton_url}
-                  />
-                </div>
-              </div>
-            )}
             {marks.length > 0 && (
               <div className="bg-card border border-ok/20 rounded-xl px-4 py-3 text-center">
                 <p className="text-ok text-sm font-semibold">{marks.length} marca{marks.length !== 1 ? 's' : ''} guardada{marks.length !== 1 ? 's' : ''}</p>
@@ -502,7 +651,7 @@ export default function CalibratePage() {
             <button
               onClick={() => setStageSync('recording')}
               disabled={!poseDetected || stage === 'loading'}
-              className="w-full bg-ok text-black font-bold text-lg rounded-2xl py-5 active:scale-[0.98] transition-all disabled:opacity-40"
+              className="w-full bg-ok text-on-ok font-bold text-lg rounded-2xl py-5 active:scale-[0.98] transition-all disabled:opacity-40"
             >
               {stage === 'loading' ? 'Iniciando cámara...' : marks.length > 0 ? '+ Añadir más marcas' : 'Iniciar calibración'}
             </button>
@@ -517,12 +666,15 @@ export default function CalibratePage() {
           </div>
         )}
       </div>
+
+      </div>{/* end Camera + Controls wrapper */}
     </main>
   )
 }
 
-function SavedScreen({ studentId, marks, checkpoint }: {
+function SavedScreen({ studentId, checkpointId, marks, checkpoint }: {
   studentId: string
+  checkpointId: string
   marks: CalibrationMark[]
   checkpoint: Checkpoint | null
 }) {
@@ -550,10 +702,16 @@ function SavedScreen({ studentId, marks, checkpoint }: {
         style={{ animation: 'fade-up 0.8s ease-out 200ms both' }}
       >
         <button
-          onClick={() => router.push(`/instructor/students/${studentId}`)}
-          className="h-12 bg-ok text-black font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300"
+          onClick={() => router.replace(`/instructor/students/${studentId}/checkpoints/${checkpointId}`)}
+          className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300"
         >
-          Ver ejercicios del alumno
+          Ver ejercicio
+        </button>
+        <button
+          onClick={() => router.replace(`/instructor/students/${studentId}`)}
+          className="h-12 bg-card border border-border text-foreground font-medium rounded-xl hover:bg-secondary transition-all duration-300"
+        >
+          Ver todos los ejercicios
         </button>
       </div>
     </main>

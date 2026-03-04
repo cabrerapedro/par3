@@ -206,7 +206,7 @@ export default function AnalysisPage() {
             <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
-        <span className="font-bold text-lg">par<span className="text-ok">3</span></span>
+        <span className="font-bold text-lg">Sweep</span>
         {stage === 'results' ? (
           <button onClick={reset} className="font-mono text-xs text-dim hover:text-txt transition-colors">
             Nuevo vídeo
@@ -372,7 +372,7 @@ export default function AnalysisPage() {
                 <div className="relative border border-blue/25 bg-blue/5 rounded-xl overflow-hidden">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue" />
                   <div className="pl-5 pr-4 py-4">
-                    <p className="font-mono text-xs text-blue uppercase tracking-widest mb-2">Copiloto par3</p>
+                    <p className="font-mono text-xs text-blue uppercase tracking-widest mb-2">Copiloto Sweep</p>
                     <p className="text-sm text-txt leading-relaxed">{summary}</p>
                   </div>
                 </div>
