@@ -26,7 +26,6 @@ export default function StudentPractice() {
   const cpId = params.id as string
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const previewRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const pendingStreamRef = useRef<MediaStream | null>(null)
@@ -40,6 +39,7 @@ export default function StudentPractice() {
   const [progress, setProgress] = useState(0)
   const [frameResults, setFrameResults] = useState<FrameResult[]>([])
   const [summary, setSummary] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [error, setError] = useState('')
@@ -275,11 +275,7 @@ export default function StudentPractice() {
 
     const aggregated = aggregateFrameResults(results)
 
-    const previewUrl = URL.createObjectURL(blob)
-    if (previewRef.current) {
-      previewRef.current.src = previewUrl
-    }
-
+    setPreviewUrl(URL.createObjectURL(blob))
     setFrameResults(results)
     setSummary(generateBaselineSummary(aggregated))
 
@@ -480,7 +476,7 @@ export default function StudentPractice() {
 
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-64 flex-shrink-0">
-              <video ref={previewRef} controls playsInline className="w-full rounded-2xl bg-black" />
+              {previewUrl && <video src={previewUrl} controls playsInline className="w-full rounded-2xl bg-black" />}
             </div>
 
             <div className="flex-1">
@@ -516,14 +512,14 @@ export default function StudentPractice() {
 
               {summary && (
                 <div className="bg-blue/10 border border-blue/20 rounded-2xl px-4 py-4">
-                  <p className="text-xs text-blue/80 uppercase tracking-wide mb-2">Tu copiloto dice</p>
+                  <p className="text-xs text-blue/80 uppercase tracking-wide mb-2">Recomendación</p>
                   <p className="text-muted-foreground text-sm leading-relaxed">{summary}</p>
                 </div>
               )}
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => { setStage('input'); setFrameResults([]); setSummary('') }}
+                  onClick={() => { setStage('input'); setFrameResults([]); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
                   className="flex-1 bg-card border border-border text-muted-foreground font-semibold rounded-xl py-3 hover:bg-secondary transition-all text-sm"
                 >
                   Volver a grabar

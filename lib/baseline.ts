@@ -245,17 +245,21 @@ export function averageLandmarks(frames: LM[][]): LM[] {
   }))
 }
 
-// Generate copilot summary for practice results
+// Generate summary for practice results (template-based, no AI)
 export function generateBaselineSummary(checks: BaselineCheck[]): string {
   const good = checks.filter(c => c.status === 'ok')
   const issues = checks.filter(c => c.status !== 'ok')
 
   if (!issues.length) {
-    return 'Postura excelente en general. Tu consistencia está mejorando. Mantén este nivel en tus próximas prácticas.'
+    return 'Todas las métricas dentro de tu rango personal. Excelente consistencia.'
   }
 
-  const goodStr = good.length ? `${good.map(c => c.label.toLowerCase()).join(' y ')} están dentro de tu rango. ` : ''
-  const worst = issues.reduce((a, b) => (a.status === 'bad' ? a : b))
+  const parts: string[] = []
+  if (good.length) {
+    parts.push(`${good.map(c => c.label).join(', ')} ${good.length === 1 ? 'está' : 'están'} dentro de tu rango.`)
+  }
+  const worst = issues.find(c => c.status === 'bad') || issues[0]
+  parts.push(`Enfócate en mejorar: ${worst.label.toLowerCase()}.`)
 
-  return `${goodStr}Trabaja principalmente en: ${worst.label.toLowerCase()}. ${worst.message}`
+  return parts.join(' ')
 }
