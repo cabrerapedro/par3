@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
   calculateMetrics, compareToBaseline, baselineOverallStatus,
-  generateBaselineSummary
+  generateBaselineSummary, METRICS_BY_ANGLE
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import type { Checkpoint, Baseline } from '@/lib/types'
@@ -384,7 +384,7 @@ export default function StudentPractice() {
           />
 
           <p className="text-muted-foreground text-xs text-center mt-2">
-            Ángulo recomendado: {checkpoint?.camera_angle === 'face_on' ? 'de frente' : 'de perfil'}
+            Ángulo: {checkpoint?.camera_angle === 'face_on' ? 'de frente' : 'de perfil'} · Captura todo el cuerpo
           </p>
         </div>
       )}
@@ -491,6 +491,25 @@ export default function StudentPractice() {
             </div>
 
             <div className="flex-1">
+              {/* Warning if some metrics are missing */}
+              {frameResults.length > 0 && (() => {
+                const expected = checkpoint.selected_metrics?.length
+                  ? checkpoint.selected_metrics
+                  : METRICS_BY_ANGLE[checkpoint.camera_angle] ?? []
+                const detected = aggregateFrameResults(frameResults).map(c => c.id)
+                const missing = expected.filter(k => !detected.includes(k))
+                if (missing.length > 0) return (
+                  <div className="bg-warn/10 border border-warn/20 rounded-xl px-4 py-3 mb-4">
+                    <p className="text-warn text-sm font-medium">
+                      {detected.length}/{expected.length} métricas detectadas
+                    </p>
+                    <p className="text-muted-foreground text-xs mt-1">
+                      Asegúrate de que la cámara capture todo el cuerpo para un análisis completo.
+                    </p>
+                  </div>
+                )
+                return null
+              })()}
               {frameResults.length > 0 && (
                 <div className="flex flex-col gap-2 mb-6">
                   {aggregateFrameResults(frameResults).map(check => {

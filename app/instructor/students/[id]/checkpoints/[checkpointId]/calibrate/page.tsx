@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { calculateMetrics, averageLandmarks, calculateBaseline } from '@/lib/baseline'
+import { calculateMetrics, averageLandmarks, calculateBaseline, METRICS_BY_ANGLE } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { Checkpoint, CalibrationMark, Landmark } from '@/lib/types'
 import Link from 'next/link'
@@ -39,6 +39,7 @@ export default function CalibratePage() {
   const recordingStartedRef = useRef(false)
   const recordingStartTimeRef = useRef<number>(0)
 
+  const checkpointRef = useRef<Checkpoint | null>(null)
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [stage, setStage] = useState<Stage>('loading')
   const [marks, setMarks] = useState<CalibrationMark[]>([])
@@ -52,6 +53,7 @@ export default function CalibratePage() {
   const [markDictating, setMarkDictating] = useState(false)
   const [markNoteText, setMarkNoteText] = useState('')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
+  const [visibleMetricCount, setVisibleMetricCount] = useState(0)
   const markRecognitionRef = useRef<any>(null)
 
   // Sync stage to ref for use in callbacks
@@ -81,6 +83,7 @@ export default function CalibratePage() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
     if (!data) { setError('Ejercicio no encontrado.'); return }
     setCheckpoint(data)
+    checkpointRef.current = data
     setSaveNote(data.instructor_note ?? '')
     if (data.calibration_marks?.length) {
       setMarksSync(data.calibration_marks)
@@ -188,6 +191,16 @@ export default function CalibratePage() {
       setPoseDetected(true)
       landmarkBufferRef.current.push(lm)
       if (landmarkBufferRef.current.length > 30) landmarkBufferRef.current.shift()
+
+      // Track how many metrics are currently visible
+      const cp = checkpointRef.current
+      if (cp) {
+        const metrics = calculateMetrics(lm, cp.camera_angle)
+        const expected = cp.selected_metrics?.length
+          ? cp.selected_metrics
+          : METRICS_BY_ANGLE[cp.camera_angle] ?? []
+        setVisibleMetricCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
+      }
 
       const drawConnectors = (window as any).drawConnectors
       const drawLandmarks = (window as any).drawLandmarks
@@ -523,6 +536,21 @@ export default function CalibratePage() {
             <p className="text-muted-foreground text-xs mt-0.5">marcas</p>
           </div>
         )}
+
+        {/* Visibility warning */}
+        {poseDetected && checkpoint && (() => {
+          const expected = checkpoint.selected_metrics?.length
+            ? checkpoint.selected_metrics
+            : METRICS_BY_ANGLE[checkpoint.camera_angle] ?? []
+          if (expected.length > 0 && visibleMetricCount < expected.length) return (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
+              <span className="text-black text-sm font-medium">
+                Cuerpo parcial — {visibleMetricCount}/{expected.length} métricas
+              </span>
+            </div>
+          )
+          return null
+        })()}
 
         {/* Saving overlay */}
         {stage === 'saving' && (

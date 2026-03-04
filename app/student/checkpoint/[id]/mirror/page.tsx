@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { calculateMetrics, compareToBaseline, baselineOverallStatus } from '@/lib/baseline'
+import { calculateMetrics, compareToBaseline, baselineOverallStatus, METRICS_BY_ANGLE } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { Checkpoint, Baseline } from '@/lib/types'
 import type { BaselineCheck } from '@/lib/baseline'
@@ -47,6 +47,8 @@ export default function StudentMirror() {
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [checks, setChecks] = useState<BaselineCheck[]>([])
+  const [detectedCount, setDetectedCount] = useState(0)
+  const [expectedCount, setExpectedCount] = useState(0)
   const [poseDetected, setPoseDetected] = useState(false)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
@@ -100,6 +102,11 @@ export default function StudentMirror() {
 
     setPoseDetected(true)
     const metrics = calculateMetrics(lm, cp.camera_angle)
+    const expected = cp.selected_metrics?.length
+      ? cp.selected_metrics
+      : METRICS_BY_ANGLE[cp.camera_angle] ?? []
+    setExpectedCount(expected.length)
+    setDetectedCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
     const rawChecks = compareToBaseline(metrics, cp.baseline as Baseline, cp.selected_metrics)
 
     // 6-frame majority vote smoothing
@@ -172,6 +179,15 @@ export default function StudentMirror() {
             />
             <span className="text-sm font-medium" style={{ color: STATUS_CONFIG[overall].color }}>
               {STATUS_CONFIG[overall].label}
+            </span>
+          </div>
+        )}
+
+        {/* Visibility warning — not enough body visible */}
+        {poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
+            <span className="text-black text-sm font-medium">
+              Muestra todo el cuerpo — {detectedCount}/{expectedCount} métricas visibles
             </span>
           </div>
         )}
