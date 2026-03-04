@@ -223,3 +223,6 @@ create policy "student_otps_anon_all"
 -- ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS selected_metrics text[] NOT NULL DEFAULT '{}';
 -- UPDATE checkpoints SET selected_metrics = ARRAY(SELECT jsonb_object_keys(baseline))
 --   WHERE baseline IS NOT NULL AND baseline != 'null'::jsonb AND selected_metrics = '{}';
+
+-- Add checkpoint_type column (position = static posture, swing = phase-based movement):
+-- ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS checkpoint_type text NOT NULL DEFAULT 'position' CHECK (checkpoint_type IN ('position', 'swing'));

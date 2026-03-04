@@ -8,7 +8,8 @@ import type { Checkpoint } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { METRIC_LABELS, METRIC_INFO, calculateBaseline } from '@/lib/baseline'
+import { METRIC_LABELS, METRIC_INFO, PHASE_LABELS, calculateBaseline, calculateSwingBaseline, isSwingBaseline } from '@/lib/baseline'
+import type { SwingPhaseName } from '@/lib/types'
 import { MarkGallery } from '@/components/MarkGallery'
 import Link from 'next/link'
 
@@ -31,7 +32,9 @@ export default function InstructorCheckpointDetail() {
   async function handleDeleteMark(index: number) {
     if (!cp) return
     const newMarks = cp.calibration_marks.filter((_, i) => i !== index)
-    const newBaseline = newMarks.length > 0 ? calculateBaseline(newMarks, cp.selected_metrics) : null
+    const newBaseline = newMarks.length > 0
+      ? (cp.checkpoint_type === 'swing' ? calculateSwingBaseline(newMarks, cp.selected_metrics) : calculateBaseline(newMarks, cp.selected_metrics))
+      : null
     const newStatus = newMarks.length > 0 ? 'calibrated' : 'pending'
 
     await supabase.from('checkpoints').update({
@@ -131,25 +134,54 @@ export default function InstructorCheckpointDetail() {
         {cp.baseline && Object.keys(cp.baseline).length > 0 && (
           <div className="bg-card border border-border rounded-xl px-4 py-4 mb-8">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia personal</p>
-            <div className="flex flex-col gap-2">
-              {Object.entries(cp.baseline)
-                .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
-                .map(([key, val]) => {
-                  const info = METRIC_INFO[key]
-                  const unitSuffix = info?.unit === 'grados' ? '°' : ''
-                  return (
-                    <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
-                      <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}</span>
-                      <span className="text-ok font-mono font-semibold">
-                        {val.mean.toFixed(1)}{unitSuffix}
-                        <span className="text-muted-foreground/60 font-normal ml-1.5">
-                          ({val.min.toFixed(1)} – {val.max.toFixed(1)})
-                        </span>
-                      </span>
+            {isSwingBaseline(cp.baseline) ? (
+              <div className="flex flex-col gap-3">
+                {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
+                  <div key={phase}>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">{PHASE_LABELS[phase as SwingPhaseName] ?? phase}</p>
+                    <div className="flex flex-col gap-1">
+                      {Object.entries(phaseBaseline as Record<string, any>)
+                        .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                        .map(([key, val]) => {
+                          const info = METRIC_INFO[key]
+                          const unitSuffix = info?.unit === 'grados' ? '°' : ''
+                          return (
+                            <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
+                              <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}</span>
+                              <span className="text-ok font-mono font-semibold">
+                                {val.mean.toFixed(1)}{unitSuffix}
+                                <span className="text-muted-foreground/60 font-normal ml-1.5">
+                                  ({val.min.toFixed(1)} – {val.max.toFixed(1)})
+                                </span>
+                              </span>
+                            </div>
+                          )
+                        })}
                     </div>
-                  )
-                })}
-            </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {Object.entries(cp.baseline)
+                  .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                  .map(([key, val]) => {
+                    const info = METRIC_INFO[key]
+                    const unitSuffix = info?.unit === 'grados' ? '°' : ''
+                    return (
+                      <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
+                        <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}</span>
+                        <span className="text-ok font-mono font-semibold">
+                          {val.mean.toFixed(1)}{unitSuffix}
+                          <span className="text-muted-foreground/60 font-normal ml-1.5">
+                            ({val.min.toFixed(1)} – {val.max.toFixed(1)})
+                          </span>
+                        </span>
+                      </div>
+                    )
+                  })}
+              </div>
+            )}
           </div>
         )}
 

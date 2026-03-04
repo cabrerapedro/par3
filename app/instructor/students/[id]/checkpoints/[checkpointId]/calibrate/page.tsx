@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { calculateMetrics, averageLandmarks, calculateBaseline, METRICS_BY_ANGLE } from '@/lib/baseline'
+import { calculateMetrics, averageLandmarks, calculateBaseline, calculateSwingBaseline, detectSwingPhases, METRICS_BY_ANGLE, PHASE_LABELS } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { Checkpoint, CalibrationMark, Landmark } from '@/lib/types'
 import Link from 'next/link'
@@ -54,6 +54,7 @@ export default function CalibratePage() {
   const [markNoteText, setMarkNoteText] = useState('')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [visibleMetricCount, setVisibleMetricCount] = useState(0)
+  const [swingWarning, setSwingWarning] = useState('')
   const markRecognitionRef = useRef<any>(null)
 
   // Sync stage to ref for use in callbacks
@@ -190,7 +191,8 @@ export default function CalibratePage() {
     if (lm) {
       setPoseDetected(true)
       landmarkBufferRef.current.push(lm)
-      if (landmarkBufferRef.current.length > 30) landmarkBufferRef.current.shift()
+      const maxBuffer = checkpointRef.current?.checkpoint_type === 'swing' ? 45 : 30
+      if (landmarkBufferRef.current.length > maxBuffer) landmarkBufferRef.current.shift()
 
       // Track how many metrics are currently visible
       const cp = checkpointRef.current
@@ -334,18 +336,49 @@ export default function CalibratePage() {
       saveMarkNote()
     }
 
-    // Average last up to 6 frames
-    const frames = landmarkBufferRef.current.slice(-6)
-    const avgLandmarks = averageLandmarks(frames)
-    const metrics = calculateMetrics(avgLandmarks, checkpoint.camera_angle)
+    const isSwing = checkpoint.checkpoint_type === 'swing'
+    let mark: CalibrationMark
 
-    const mark: CalibrationMark = {
-      timestamp_ms: Date.now(),
-      relative_ms: recordingStartTimeRef.current > 0
-        ? Date.now() - recordingStartTimeRef.current
-        : undefined,
-      landmarks: avgLandmarks,
-      metrics,
+    if (isSwing) {
+      // Swing mode: capture last ~3 seconds and detect phases
+      const frames = landmarkBufferRef.current.slice(-30)
+      if (frames.length < 10) {
+        setSwingWarning('Espera a que el alumno complete el swing')
+        setTimeout(() => setSwingWarning(''), 3000)
+        return
+      }
+
+      const phases = detectSwingPhases(frames, checkpoint.camera_angle)
+      if (!phases) {
+        setSwingWarning('No se detectó un swing completo. Asegúrate de que el alumno haya terminado el movimiento.')
+        setTimeout(() => setSwingWarning(''), 4000)
+        return
+      }
+
+      setSwingWarning('')
+      mark = {
+        timestamp_ms: Date.now(),
+        relative_ms: recordingStartTimeRef.current > 0
+          ? Date.now() - recordingStartTimeRef.current
+          : undefined,
+        landmarks: phases[0].landmarks,
+        metrics: phases[0].metrics,
+        phases,
+      }
+    } else {
+      // Position mode: average last 6 frames
+      const frames = landmarkBufferRef.current.slice(-6)
+      const avgLandmarks = averageLandmarks(frames)
+      const metrics = calculateMetrics(avgLandmarks, checkpoint.camera_angle)
+
+      mark = {
+        timestamp_ms: Date.now(),
+        relative_ms: recordingStartTimeRef.current > 0
+          ? Date.now() - recordingStartTimeRef.current
+          : undefined,
+        landmarks: avgLandmarks,
+        metrics,
+      }
     }
 
     const newMarks = [...marksRef.current, mark]
@@ -377,7 +410,9 @@ export default function CalibratePage() {
     }
     setStageSync('saving')
 
-    const baseline = calculateBaseline(marks, checkpoint.selected_metrics)
+    const baseline = checkpoint.checkpoint_type === 'swing'
+      ? calculateSwingBaseline(marks, checkpoint.selected_metrics)
+      : calculateBaseline(marks, checkpoint.selected_metrics)
 
     // Stop video recordings and collect blobs
     stopVideoRecording()
@@ -589,6 +624,9 @@ export default function CalibratePage() {
                         {Math.floor(mark.relative_ms / 60000)}:{String(Math.floor((mark.relative_ms / 1000) % 60)).padStart(2, '0')}
                       </span>
                     )}
+                    {mark.phases && (
+                      <span className="text-[10px] text-ok/70 shrink-0">{mark.phases.length} fases</span>
+                    )}
                     {markNoteIndex === i ? (
                       <input
                         type="text"
@@ -634,13 +672,20 @@ export default function CalibratePage() {
               </div>
             )}
 
+            {/* Swing warning */}
+            {swingWarning && (
+              <div className="bg-warn/10 border border-warn/20 rounded-xl px-3 py-2 text-center">
+                <p className="text-warn text-xs">{swingWarning}</p>
+              </div>
+            )}
+
             {/* BIEN button */}
             <button
               onPointerDown={handleBien}
               className="w-full bg-ok text-on-ok font-bold text-xl rounded-2xl active:scale-[0.96] transition-transform select-none"
               style={{ minHeight: 88 }}
             >
-              ✓ Bien
+              {checkpoint?.checkpoint_type === 'swing' ? '✓ Buen swing' : '✓ Bien'}
             </button>
 
             {/* Action buttons */}
@@ -659,7 +704,9 @@ export default function CalibratePage() {
                 Cancelar
               </button>
             </div>
-            <p className="text-muted-foreground/60 text-xs text-center">2–5 marcas ideal</p>
+            <p className="text-muted-foreground/60 text-xs text-center">
+              {checkpoint?.checkpoint_type === 'swing' ? '2–5 swings ideal' : '2–5 marcas ideal'}
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -713,7 +760,9 @@ export default function CalibratePage() {
               disabled={!poseDetected || stage === 'loading'}
               className="w-full bg-ok text-on-ok font-bold text-lg rounded-2xl py-5 active:scale-[0.98] transition-all disabled:opacity-40"
             >
-              {stage === 'loading' ? 'Iniciando cámara...' : marks.length > 0 ? '+ Añadir más marcas' : 'Iniciar calibración'}
+              {stage === 'loading' ? 'Iniciando cámara...'
+                : marks.length > 0 ? (checkpoint?.checkpoint_type === 'swing' ? '+ Añadir más swings' : '+ Añadir más marcas')
+                : 'Iniciar calibración'}
             </button>
             {marks.length >= 1 && (
               <button
@@ -753,7 +802,10 @@ function SavedScreen({ studentId, checkpointId, marks, checkpoint }: {
       <div style={{ animation: 'fade-up 0.8s ease-out 100ms both' }}>
         <h1 className="text-2xl font-bold text-foreground mb-2">Ejercicio calibrado</h1>
         <p className="text-muted-foreground mb-1">
-          {marks.length} posición{marks.length !== 1 ? 'es' : ''} buena{marks.length !== 1 ? 's' : ''} capturada{marks.length !== 1 ? 's' : ''}
+          {checkpoint?.checkpoint_type === 'swing'
+            ? `${marks.length} swing${marks.length !== 1 ? 's' : ''} bueno${marks.length !== 1 ? 's' : ''} capturado${marks.length !== 1 ? 's' : ''}`
+            : `${marks.length} posición${marks.length !== 1 ? 'es' : ''} buena${marks.length !== 1 ? 's' : ''} capturada${marks.length !== 1 ? 's' : ''}`
+          }
         </p>
         <p className="text-muted-foreground text-sm mb-8">La referencia personal de este alumno está guardada</p>
       </div>

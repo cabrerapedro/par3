@@ -6,11 +6,13 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
   calculateMetrics, compareToBaseline, baselineOverallStatus,
-  generateBaselineSummary, METRICS_BY_ANGLE
+  generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
+  detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
+  PHASE_LABELS
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
-import type { Checkpoint, Baseline } from '@/lib/types'
-import type { BaselineCheck } from '@/lib/baseline'
+import type { Checkpoint, Baseline, Landmark, SwingBaseline } from '@/lib/types'
+import type { BaselineCheck, SwingPhaseCheck } from '@/lib/baseline'
 import Link from 'next/link'
 
 type Stage = 'input' | 'recording' | 'processing' | 'results'
@@ -46,6 +48,7 @@ export default function StudentPractice() {
   const [error, setError] = useState('')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [recordingVisibleCount, setRecordingVisibleCount] = useState(-1)
+  const [swingPhaseChecks, setSwingPhaseChecks] = useState<SwingPhaseCheck[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const recordingSecondsRef = useRef(0)
   const poseCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -254,6 +257,9 @@ export default function StudentPractice() {
     if (!checkpoint?.baseline) { setError('Sin referencia personal.'); return }
     setStage('processing')
     setProgress(0)
+    setSwingPhaseChecks([])
+
+    const isSwingMode = checkpoint.checkpoint_type === 'swing' || isSwingBaseline(checkpoint.baseline)
 
     const url = URL.createObjectURL(blob)
     const video = document.createElement('video')
@@ -274,6 +280,7 @@ export default function StudentPractice() {
     const pose = createPose(() => {})
 
     const results: FrameResult[] = []
+    const allLandmarks: Landmark[][] = []
     const canvas = canvasRef.current || document.createElement('canvas')
     canvas.width = video.videoWidth || 1280
     canvas.height = video.videoHeight || 720
@@ -284,8 +291,15 @@ export default function StudentPractice() {
     pose.onResults((r: any) => {
       frameChecks = []
       if (r.poseLandmarks) {
-        const metrics = calculateMetrics(r.poseLandmarks, checkpoint.camera_angle)
-        frameChecks = compareToBaseline(metrics, checkpoint.baseline as Baseline, checkpoint.selected_metrics)
+        if (isSwingMode) {
+          // Collect landmarks for phase detection
+          allLandmarks.push(r.poseLandmarks.map((lm: any) => ({
+            x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
+          })))
+        } else {
+          const metrics = calculateMetrics(r.poseLandmarks, checkpoint.camera_angle)
+          frameChecks = compareToBaseline(metrics, checkpoint.baseline as Baseline, checkpoint.selected_metrics)
+        }
       }
       resolveFrame?.()
       resolveFrame = null
@@ -308,37 +322,86 @@ export default function StudentPractice() {
         setTimeout(() => { resolveFrame = null; res() }, 1500)
       })
 
-      if (frameChecks.length) results.push({ checks: frameChecks })
+      if (!isSwingMode && frameChecks.length) results.push({ checks: frameChecks })
       setProgress(Math.round((i + 1) / totalFrames * 100))
     }
 
-    if (!results.length) { setError('No se detectó pose en el video. Asegúrate de que te veas completo.'); URL.revokeObjectURL(url); return }
+    if (isSwingMode) {
+      // Swing mode: detect phases and compare
+      if (allLandmarks.length < 10) {
+        setError('No se detectó suficiente pose en el video. Asegúrate de que te veas completo.')
+        URL.revokeObjectURL(url)
+        return
+      }
 
-    const aggregated = aggregateFrameResults(results)
+      const phases = detectSwingPhases(allLandmarks, checkpoint.camera_angle)
+      if (!phases) {
+        setError('No se detectó un swing en el video. Graba un swing completo de principio a fin.')
+        URL.revokeObjectURL(url)
+        return
+      }
 
-    // Reuse the same blob URL for preview (don't revoke + recreate)
-    setPreviewUrl(url)
-    setFrameResults(results)
-    setSummary(generateBaselineSummary(aggregated))
+      const swingBaseline = checkpoint.baseline as SwingBaseline
+      const phaseChecks = compareSwingToBaseline(phases, swingBaseline, checkpoint.selected_metrics)
 
-    if (student && checkpoint) {
-      const overall_score = Math.round(
-        aggregated.filter(c => c.status === 'ok').length / aggregated.length * 100
-      )
-      const resultsMap = Object.fromEntries(
-        aggregated.map(c => [c.id, { value: 0, deviation: 0, status: c.status }])
-      )
-      await supabase.from('practice_sessions').insert({
-        student_id: student.id,
-        checkpoint_id: checkpoint.id,
-        date: new Date().toISOString(),
-        duration_seconds: Math.round(results.length / fps),
-        results: resultsMap,
-        overall_score,
-      })
+      setPreviewUrl(url)
+      setSwingPhaseChecks(phaseChecks)
+      setSummary(generateSwingSummary(phaseChecks))
+
+      if (student && checkpoint) {
+        const allChecks = phaseChecks.flatMap(pc => pc.checks)
+        const overall_score = allChecks.length > 0
+          ? Math.round(allChecks.filter(c => c.status === 'ok').length / allChecks.length * 100)
+          : 0
+        const resultsMap = Object.fromEntries(
+          phaseChecks.flatMap(pc =>
+            pc.checks.map(c => [`${pc.phase}__${c.id}`, { value: 0, deviation: 0, status: c.status }])
+          )
+        )
+        await supabase.from('practice_sessions').insert({
+          student_id: student.id,
+          checkpoint_id: checkpoint.id,
+          date: new Date().toISOString(),
+          duration_seconds: Math.round(allLandmarks.length / fps),
+          results: resultsMap,
+          overall_score,
+        })
+      }
+
+      setStage('results')
+    } else {
+      // Position mode: aggregate frame results
+      if (!results.length) {
+        setError('No se detectó pose en el video. Asegúrate de que te veas completo.')
+        URL.revokeObjectURL(url)
+        return
+      }
+
+      const aggregated = aggregateFrameResults(results)
+
+      setPreviewUrl(url)
+      setFrameResults(results)
+      setSummary(generateBaselineSummary(aggregated))
+
+      if (student && checkpoint) {
+        const overall_score = Math.round(
+          aggregated.filter(c => c.status === 'ok').length / aggregated.length * 100
+        )
+        const resultsMap = Object.fromEntries(
+          aggregated.map(c => [c.id, { value: 0, deviation: 0, status: c.status }])
+        )
+        await supabase.from('practice_sessions').insert({
+          student_id: student.id,
+          checkpoint_id: checkpoint.id,
+          date: new Date().toISOString(),
+          duration_seconds: Math.round(results.length / fps),
+          results: resultsMap,
+          overall_score,
+        })
+      }
+
+      setStage('results')
     }
-
-    setStage('results')
   }
 
   function aggregateFrameResults(frames: FrameResult[]): BaselineCheck[] {
@@ -546,7 +609,53 @@ export default function StudentPractice() {
             </div>
 
             <div className="flex-1">
-              {/* Warning if some metrics are missing */}
+              {/* Swing mode results */}
+              {swingPhaseChecks.length > 0 && (
+                <div className="flex flex-col gap-3 mb-6">
+                  {swingPhaseChecks.map(pc => {
+                    const okCount = pc.checks.filter(c => c.status === 'ok').length
+                    const phaseStatus = pc.checks.every(c => c.status === 'ok') ? 'ok'
+                      : pc.checks.some(c => c.status === 'bad') ? 'bad' : 'warn'
+                    return (
+                      <div key={pc.phase} className="bg-card border border-border rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-foreground text-sm font-semibold">{pc.phaseLabel}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            phaseStatus === 'ok' ? 'text-ok bg-ok/10' :
+                            phaseStatus === 'bad' ? 'text-bad bg-bad/10' : 'text-warn bg-warn/10'
+                          }`}>
+                            {phaseStatus === 'ok' ? 'Bien' : phaseStatus === 'bad' ? 'Corregir' : 'Ajustar'}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-2">
+                          <div
+                            className={`h-full rounded-full ${
+                              phaseStatus === 'ok' ? 'bg-ok' : phaseStatus === 'bad' ? 'bg-bad' : 'bg-warn'
+                            }`}
+                            style={{ width: `${pc.checks.length ? Math.round(okCount / pc.checks.length * 100) : 0}%` }}
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {pc.checks.map(check => (
+                            <span
+                              key={check.id}
+                              className={`text-xs px-2 py-0.5 rounded-full border ${
+                                check.status === 'ok' ? 'text-ok bg-ok/10 border-ok/20' :
+                                check.status === 'warn' ? 'text-warn bg-warn/10 border-warn/20' :
+                                'text-bad bg-bad/10 border-bad/20'
+                              }`}
+                            >
+                              {check.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Position mode: Warning if some metrics are missing */}
               {frameResults.length > 0 && (() => {
                 const expected = checkpoint.selected_metrics?.length
                   ? checkpoint.selected_metrics
@@ -604,7 +713,7 @@ export default function StudentPractice() {
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => { setStage('input'); setFrameResults([]); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
+                  onClick={() => { setStage('input'); setFrameResults([]); setSwingPhaseChecks([]); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
                   className="flex-1 bg-card border border-border text-muted-foreground font-semibold rounded-xl py-3 hover:bg-secondary transition-all text-sm"
                 >
                   Volver a grabar

@@ -1,4 +1,4 @@
-import type { Landmark, Baseline, CalibrationMark, CameraAngle } from './types'
+import type { Landmark, Baseline, CalibrationMark, CameraAngle, SwingPhaseName, SwingPhase, SwingBaseline } from './types'
 
 type LM = Landmark
 
@@ -276,6 +276,150 @@ export function generateBaselineSummary(checks: BaselineCheck[]): string {
   }
   const worst = issues.find(c => c.status === 'bad') || issues[0]
   parts.push(`Enfócate en mejorar: ${worst.label.toLowerCase()}.`)
+
+  return parts.join(' ')
+}
+
+// ============================================================
+// Swing analysis — phase-based
+// ============================================================
+
+export const PHASE_LABELS: Record<SwingPhaseName, string> = {
+  address: 'Address',
+  top: 'Top del backswing',
+  impact: 'Impacto',
+  finish: 'Finish',
+}
+
+export function isSwingBaseline(baseline: unknown): baseline is SwingBaseline {
+  return (baseline as any)?._type === 'swing'
+}
+
+/**
+ * Detect swing phases from a sequence of landmark frames.
+ * Uses wrist Y trajectory: address → top (wrists highest) → impact (wrists lowest) → finish.
+ * Returns null if no swing pattern is detected.
+ */
+export function detectSwingPhases(
+  frames: LM[][],
+  cameraAngle: CameraAngle
+): SwingPhase[] | null {
+  if (frames.length < 10) return null
+
+  // Track average wrist Y across frames (lower Y = higher in frame)
+  const wristY = frames.map(lm => {
+    const lWrist = lm[15], rWrist = lm[16]
+    if (!lWrist || !rWrist) return 0.5
+    return (lWrist.y + rWrist.y) / 2
+  })
+
+  // Smooth signal (moving average of 3)
+  const smooth = wristY.map((_, i) => {
+    const start = Math.max(0, i - 1)
+    const end = Math.min(wristY.length, i + 2)
+    const slice = wristY.slice(start, end)
+    return slice.reduce((a, b) => a + b, 0) / slice.length
+  })
+
+  // Find top of backswing: minimum Y (wrists highest) in first 70% of frames
+  const searchEnd = Math.floor(smooth.length * 0.7)
+  let topIdx = 0
+  let topVal = smooth[0]
+  for (let i = 1; i < searchEnd; i++) {
+    if (smooth[i] < topVal) { topVal = smooth[i]; topIdx = i }
+  }
+
+  // Find impact: maximum Y (wrists lowest) after top
+  let impactIdx = topIdx
+  let impactVal = smooth[topIdx]
+  for (let i = topIdx + 1; i < smooth.length; i++) {
+    if (smooth[i] > impactVal) { impactVal = smooth[i]; impactIdx = i }
+  }
+
+  // Validate: meaningful movement detected
+  const range = impactVal - topVal
+  if (range < 0.03 || topIdx >= impactIdx) return null
+
+  // Address: early frames (20% of the way to top, minimum index 0)
+  const addressIdx = Math.max(0, Math.floor(topIdx * 0.2))
+
+  // Finish: 70% of the way from impact to end
+  const finishIdx = Math.min(
+    smooth.length - 1,
+    impactIdx + Math.max(1, Math.floor((smooth.length - 1 - impactIdx) * 0.7))
+  )
+
+  const phaseNames: SwingPhaseName[] = ['address', 'top', 'impact', 'finish']
+  const indices = [addressIdx, topIdx, impactIdx, finishIdx]
+
+  return phaseNames.map((phase, i) => ({
+    phase,
+    landmarks: frames[indices[i]],
+    metrics: calculateMetrics(frames[indices[i]], cameraAngle),
+    frame_index: indices[i],
+  }))
+}
+
+/** Calculate per-phase baseline from swing calibration marks */
+export function calculateSwingBaseline(marks: CalibrationMark[], selectedMetrics?: string[]): SwingBaseline {
+  const phaseNames: SwingPhaseName[] = ['address', 'top', 'impact', 'finish']
+  const phases: Partial<Record<SwingPhaseName, Baseline>> = {}
+
+  for (const phaseName of phaseNames) {
+    const phaseMarks: CalibrationMark[] = marks
+      .filter(m => m.phases?.some(p => p.phase === phaseName))
+      .map(m => {
+        const phase = m.phases!.find(p => p.phase === phaseName)!
+        return { ...m, landmarks: phase.landmarks, metrics: phase.metrics }
+      })
+
+    if (phaseMarks.length > 0) {
+      phases[phaseName] = calculateBaseline(phaseMarks, selectedMetrics)
+    }
+  }
+
+  return { _type: 'swing', phases }
+}
+
+export interface SwingPhaseCheck {
+  phase: SwingPhaseName
+  phaseLabel: string
+  checks: BaselineCheck[]
+}
+
+/** Compare detected swing phases against a swing baseline */
+export function compareSwingToBaseline(
+  phases: SwingPhase[],
+  baseline: SwingBaseline,
+  selectedMetrics?: string[]
+): SwingPhaseCheck[] {
+  return phases
+    .filter(p => baseline.phases[p.phase])
+    .map(phase => ({
+      phase: phase.phase,
+      phaseLabel: PHASE_LABELS[phase.phase],
+      checks: compareToBaseline(phase.metrics, baseline.phases[phase.phase]!, selectedMetrics),
+    }))
+}
+
+/** Generate summary for swing practice results */
+export function generateSwingSummary(phaseChecks: SwingPhaseCheck[]): string {
+  const good = phaseChecks.filter(pc => pc.checks.every(c => c.status === 'ok'))
+  const bad = phaseChecks.filter(pc => pc.checks.some(c => c.status === 'bad'))
+
+  if (!bad.length && good.length === phaseChecks.length) {
+    return 'Todas las fases del swing dentro de tu rango personal. Excelente consistencia.'
+  }
+
+  const parts: string[] = []
+  if (good.length) {
+    parts.push(`${good.map(pc => pc.phaseLabel).join(', ')} ${good.length === 1 ? 'está' : 'están'} dentro de tu rango.`)
+  }
+  if (bad.length) {
+    const worst = bad[0]
+    const worstMetric = worst.checks.find(c => c.status === 'bad') || worst.checks[0]
+    parts.push(`Enfócate en mejorar ${worstMetric.label.toLowerCase()} en ${worst.phaseLabel.toLowerCase()}.`)
+  }
 
   return parts.join(' ')
 }

@@ -8,7 +8,7 @@ import type { Checkpoint } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { METRIC_LABELS } from '@/lib/baseline'
+import { METRIC_LABELS, isSwingBaseline, PHASE_LABELS } from '@/lib/baseline'
 import { MarkGallery } from '@/components/MarkGallery'
 import Link from 'next/link'
 
@@ -97,11 +97,16 @@ export default function CheckpointDetail() {
             <Badge variant="outline" className="text-muted-foreground border-border text-xs">
               {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
             </Badge>
+            {cp.checkpoint_type === 'swing' && (
+              <Badge variant="outline" className="text-blue border-blue/20 bg-blue/10 text-xs">
+                Swing
+              </Badge>
+            )}
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{cp.name}</h1>
           {cp.baseline && (
             <p className="text-muted-foreground text-sm mt-1">
-              {cp.calibration_marks?.length ?? 0} posiciones calibradas · referencia personal activa
+              {cp.calibration_marks?.length ?? 0} {cp.checkpoint_type === 'swing' ? 'swings calibrados' : 'posiciones calibradas'} · referencia personal activa
             </p>
           )}
         </div>
@@ -144,16 +149,36 @@ export default function CheckpointDetail() {
         {cp.baseline && (
           <div className="bg-card border border-border rounded-xl px-4 py-4 mb-8">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu referencia personal</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(cp.baseline)
-                .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
-                .map(([key, val]) => (
-                <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
-                  <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}: </span>
-                  <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
-                </div>
-              ))}
-            </div>
+            {isSwingBaseline(cp.baseline) ? (
+              <div className="flex flex-col gap-3">
+                {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
+                  <div key={phase}>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">{PHASE_LABELS[phase as keyof typeof PHASE_LABELS] ?? phase}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(phaseBaseline as Record<string, any>)
+                        .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                        .map(([key, val]) => (
+                        <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
+                          <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}: </span>
+                          <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(cp.baseline)
+                  .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                  .map(([key, val]) => (
+                  <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
+                    <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}: </span>
+                    <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -162,7 +187,10 @@ export default function CheckpointDetail() {
         {/* Action cards */}
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">¿Qué quieres hacer?</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {ACTIONS.map(action => (
+          {ACTIONS.filter(action =>
+            // Hide mirror for swing checkpoints
+            !(cp.checkpoint_type === 'swing' && action.title === 'Espejo inteligente')
+          ).map(action => (
             <Link key={action.title} href={action.href(cpId)}>
               <div className={cn(
                 "group flex items-center gap-4 p-4 rounded-xl border border-border bg-card transition-all cursor-pointer",

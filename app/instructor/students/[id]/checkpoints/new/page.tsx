@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import type { CameraAngle } from '@/lib/types'
+import type { CameraAngle, CheckpointType } from '@/lib/types'
 import { METRICS_BY_ANGLE, METRIC_LABELS } from '@/lib/baseline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,7 @@ export default function NewCheckpoint() {
   const recognitionRef = useRef<any>(null)
 
   const [name, setName] = useState('')
+  const [checkpointType, setCheckpointType] = useState<CheckpointType>('position')
   const [cameraAngle, setCameraAngle] = useState<CameraAngle>('face_on')
   const [note, setNote] = useState('')
   const [order, setOrder] = useState(1)
@@ -99,6 +100,7 @@ export default function NewCheckpoint() {
       .insert({
         student_id: studentId,
         name,
+        checkpoint_type: checkpointType,
         camera_angle: cameraAngle,
         display_order: order,
         instructor_note: note || null,
@@ -172,6 +174,45 @@ export default function NewCheckpoint() {
               required
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
             />
+          </div>
+
+          {/* Checkpoint type */}
+          <div className="flex flex-col gap-3">
+            <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Modo de captura</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { value: 'position' as CheckpointType, label: 'Postura', desc: 'Captura posiciones estáticas (address, setup)' },
+                { value: 'swing' as CheckpointType, label: 'Swing', desc: 'Analiza el movimiento completo por fases' },
+              ]).map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setCheckpointType(opt.value)}
+                  className={cn(
+                    "rounded-xl border px-4 py-4 text-left transition-all",
+                    checkpointType === opt.value
+                      ? "bg-ok/10 border-ok/40"
+                      : "bg-card border-border hover:border-ok/20"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={cn(
+                      "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                      checkpointType === opt.value ? "border-ok" : "border-border"
+                    )}>
+                      {checkpointType === opt.value && (
+                        <div className="size-2 rounded-full bg-ok" />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-sm font-semibold",
+                      checkpointType === opt.value ? "text-ok" : "text-foreground"
+                    )}>{opt.label}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-6">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Camera angle */}

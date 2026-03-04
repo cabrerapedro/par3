@@ -1,6 +1,8 @@
 export type CameraAngle = 'face_on' | 'dtl'
 export type CheckpointStatus = 'calibrated' | 'pending'
+export type CheckpointType = 'position' | 'swing'
 export type MetricStatus = 'ok' | 'warn' | 'bad'
+export type SwingPhaseName = 'address' | 'top' | 'impact' | 'finish'
 
 export interface Landmark {
   x: number
@@ -20,12 +22,25 @@ export interface Baseline {
   [metricKey: string]: BaselineMetric
 }
 
+export interface SwingPhase {
+  phase: SwingPhaseName
+  landmarks: Landmark[]
+  metrics: Record<string, number>
+  frame_index: number
+}
+
+export interface SwingBaseline {
+  _type: 'swing'
+  phases: Partial<Record<SwingPhaseName, Baseline>>
+}
+
 export interface CalibrationMark {
   timestamp_ms: number
   relative_ms?: number  // ms since recording started, for timeline mapping
   landmarks: Landmark[]
   metrics: Record<string, number>
   note?: string
+  phases?: SwingPhase[]  // Only present in swing mode
 }
 
 export interface Instructor {
@@ -55,13 +70,14 @@ export interface Checkpoint {
   student_id: string
   name: string
   camera_angle: CameraAngle
+  checkpoint_type?: CheckpointType
   display_order: number
   instructor_note?: string
   instructor_audio_url?: string
   calibration_video_url?: string
   calibration_skeleton_url?: string
   calibration_marks: CalibrationMark[]
-  baseline: Baseline | null
+  baseline: Baseline | SwingBaseline | null
   selected_metrics: string[]
   status: CheckpointStatus
   created_at: string

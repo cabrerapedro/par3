@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { ProgressChart } from '@/components/ProgressChart'
-import { METRIC_LABELS } from '@/lib/baseline'
+import { METRIC_LABELS, PHASE_LABELS } from '@/lib/baseline'
+import type { SwingPhaseName } from '@/lib/types'
 import type { Checkpoint, PracticeSession } from '@/lib/types'
 import Link from 'next/link'
 
@@ -135,7 +136,11 @@ export default function PracticeHistory() {
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {[...sessions].reverse().map((session, i) => {
                 const metricEntries = Object.entries(session.results ?? {})
-                  .filter(([key]) => !checkpoint?.selected_metrics?.length || checkpoint.selected_metrics.includes(key))
+                  .filter(([key]) => {
+                    if (!checkpoint?.selected_metrics?.length) return true
+                    const baseKey = key.includes('__') ? key.split('__')[1] : key
+                    return checkpoint.selected_metrics.includes(baseKey)
+                  })
                 const okCount = metricEntries.filter(([, v]) => (v as any).status === 'ok').length
                 const isLatest = i === 0
                 const prevSession = i < sessions.length - 1 ? [...sessions].reverse()[i + 1] : null
@@ -188,20 +193,30 @@ export default function PracticeHistory() {
                       {/* Per-metric pills */}
                       {metricEntries.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
-                          {metricEntries.map(([key, val]) => (
-                            <span
-                              key={key}
-                              className={`text-xs px-2 py-0.5 rounded-full border ${
-                                (val as any).status === 'ok'
-                                  ? 'text-ok bg-ok/10 border-ok/20'
-                                  : (val as any).status === 'warn'
-                                    ? 'text-warn bg-warn/10 border-warn/20'
-                                    : 'text-bad bg-bad/10 border-bad/20'
-                              }`}
-                            >
-                              {METRIC_LABELS[key] ?? key}
-                            </span>
-                          ))}
+                          {metricEntries.map(([key, val]) => {
+                            let label: string
+                            if (key.includes('__')) {
+                              const [phase, metric] = key.split('__')
+                              const phaseLabel = PHASE_LABELS[phase as SwingPhaseName] ?? phase
+                              label = `${phaseLabel}: ${METRIC_LABELS[metric] ?? metric}`
+                            } else {
+                              label = METRIC_LABELS[key] ?? key
+                            }
+                            return (
+                              <span
+                                key={key}
+                                className={`text-xs px-2 py-0.5 rounded-full border ${
+                                  (val as any).status === 'ok'
+                                    ? 'text-ok bg-ok/10 border-ok/20'
+                                    : (val as any).status === 'warn'
+                                      ? 'text-warn bg-warn/10 border-warn/20'
+                                      : 'text-bad bg-bad/10 border-bad/20'
+                                }`}
+                              >
+                                {label}
+                              </span>
+                            )
+                          })}
                         </div>
                       )}
                     </div>

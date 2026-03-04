@@ -62,6 +62,7 @@ export default function StudentMirror() {
   async function init() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
     if (!data?.baseline || Object.keys(data.baseline).length === 0) { setError('Este ejercicio aún no tiene referencia. Pide a tu instructor que calibre primero.'); return }
+    if (data.checkpoint_type === 'swing') { setError('El espejo inteligente funciona solo con ejercicios de postura. Para analizar tu swing, usa "Grabar práctica".'); return }
     setCheckpoint(data)
     checkpointRef.current = data
     await initMediaPipe()
