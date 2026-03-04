@@ -119,8 +119,8 @@ create policy "practice_sessions_instructor"
 -- ============================================================
 
 insert into storage.buckets (id, name, public)
-values ('calibration-videos', 'calibration-videos', false)
-on conflict do nothing;
+values ('calibration-videos', 'calibration-videos', true)
+on conflict (id) do update set public = true;
 
 insert into storage.buckets (id, name, public)
 values ('practice-videos', 'practice-videos', false)
@@ -130,15 +130,16 @@ insert into storage.buckets (id, name, public)
 values ('instructor-notes', 'instructor-notes', true)
 on conflict do nothing;
 
--- Storage: instructors can upload calibration videos
+-- Storage: instructors can upload calibration videos (authenticated)
 create policy "calibration_videos_instructor_upload"
   on storage.objects for insert
   to authenticated
   with check (bucket_id = 'calibration-videos');
 
-create policy "calibration_videos_instructor_read"
+-- Storage: anyone can read calibration videos (students use anon role)
+create policy "calibration_videos_public_read"
   on storage.objects for select
-  to authenticated
+  to anon, authenticated
   using (bucket_id = 'calibration-videos');
 
 -- Storage: instructors can upload audio notes (public read)
