@@ -535,42 +535,74 @@ export default function CalibratePage() {
 
       {/* Controls */}
       <div className="flex-shrink-0 bg-background border-t lg:border-t-0 lg:border-l border-border px-4 py-4 lg:w-80 lg:overflow-y-auto">
-        {stage === 'recording' ? (
+        {stage === 'saving' ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-8">
+            <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <p className="text-foreground text-sm font-medium">Calculando referencia personal...</p>
+            <p className="text-muted-foreground text-xs">{marks.length} marca{marks.length !== 1 ? 's' : ''}</p>
+          </div>
+        ) : stage === 'recording' ? (
           <div className="flex flex-col gap-3">
-            {/* Per-mark note strip */}
-            {markNoteIndex !== null && (
-              <div className="flex items-center gap-2 bg-card border border-ok/20 rounded-xl px-3 py-2">
-                <span className="text-xs font-mono text-ok shrink-0">#{markNoteIndex + 1}</span>
-                <input
-                  type="text"
-                  value={markNoteText}
-                  onChange={e => setMarkNoteText(e.target.value)}
-                  placeholder="Nota para esta marca..."
-                  className="flex-1 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/40 focus:outline-none min-w-0"
-                />
-                <button
-                  onClick={toggleMarkDictation}
-                  className={`shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
-                    markDictating
-                      ? 'bg-bad/20 border-bad/40 text-bad animate-pulse'
-                      : 'bg-secondary border-border text-muted-foreground hover:border-ok/40 hover:text-ok'
-                  }`}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="2" width="6" height="11" rx="3" />
-                    <path d="M5 10a7 7 0 0 0 14 0" />
-                    <line x1="12" y1="19" x2="12" y2="22" />
-                    <line x1="8" y1="22" x2="16" y2="22" />
-                  </svg>
-                </button>
-                <button
-                  onClick={dismissMarkNote}
-                  className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </button>
+            {/* Mark list — scrollable */}
+            {marks.length > 0 && (
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                {marks.map((mark, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2 rounded-lg px-2.5 py-2 transition-all ${
+                      markNoteIndex === i
+                        ? 'bg-card border border-ok/20'
+                        : 'bg-secondary/50'
+                    }`}
+                  >
+                    <span className="text-xs font-mono text-ok shrink-0 w-6">#{i + 1}</span>
+                    {mark.relative_ms != null && (
+                      <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                        {Math.floor(mark.relative_ms / 60000)}:{String(Math.floor((mark.relative_ms / 1000) % 60)).padStart(2, '0')}
+                      </span>
+                    )}
+                    {markNoteIndex === i ? (
+                      <input
+                        type="text"
+                        value={markNoteText}
+                        onChange={e => setMarkNoteText(e.target.value)}
+                        placeholder="Nota..."
+                        autoFocus
+                        className="flex-1 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/40 focus:outline-none min-w-0"
+                      />
+                    ) : (
+                      <span className="flex-1 text-xs text-muted-foreground truncate">
+                        {mark.note || '—'}
+                      </span>
+                    )}
+                    {markNoteIndex === i && (
+                      <>
+                        <button
+                          onClick={toggleMarkDictation}
+                          className={`shrink-0 w-7 h-7 rounded-md border flex items-center justify-center transition-all ${
+                            markDictating
+                              ? 'bg-bad/20 border-bad/40 text-bad animate-pulse'
+                              : 'bg-secondary border-border text-muted-foreground hover:border-ok/40 hover:text-ok'
+                          }`}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="2" width="6" height="11" rx="3" />
+                            <path d="M5 10a7 7 0 0 0 14 0" />
+                            <line x1="12" y1="19" x2="12" y2="22" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={dismissMarkNote}
+                          className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -582,24 +614,24 @@ export default function CalibratePage() {
             >
               ✓ Bien
             </button>
+
+            {/* Action buttons */}
             <div className="flex gap-2">
-              <div className="flex-1 bg-card border border-border rounded-xl px-3 py-2.5 text-center">
-                <p className="text-muted-foreground text-xs leading-snug">Mín. 2 marcas<br/>Ideal: 3–5</p>
-              </div>
-              <button
-                onClick={() => { dismissMarkNote(); setStageSync('ready') }}
-                className="bg-card border border-border text-muted-foreground text-sm rounded-xl px-4 py-2.5 hover:border-bad/40 hover:text-bad transition-all"
-              >
-                Cancelar
-              </button>
               <button
                 onClick={handleSave}
                 disabled={marks.length < 1}
-                className="bg-secondary border border-ok/30 text-ok font-semibold text-sm rounded-xl px-4 py-2.5 hover:bg-ok/10 transition-all disabled:opacity-40"
+                className="flex-1 bg-secondary border border-ok/30 text-ok font-semibold text-sm rounded-xl py-3 hover:bg-ok/10 transition-all disabled:opacity-40"
               >
                 Guardar ({marks.length})
               </button>
+              <button
+                onClick={() => { dismissMarkNote(); setStageSync('ready') }}
+                className="bg-card border border-border text-muted-foreground text-sm rounded-xl px-4 py-3 hover:border-bad/40 hover:text-bad transition-all"
+              >
+                Cancelar
+              </button>
             </div>
+            <p className="text-muted-foreground/60 text-xs text-center">2–5 marcas ideal</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -611,8 +643,8 @@ export default function CalibratePage() {
             )}
 
             {/* Voice / text note */}
-            <div className="bg-card border border-border rounded-xl px-3 py-2.5">
-              <div className="flex items-center justify-between mb-1.5">
+            <div className="bg-card border border-border rounded-xl px-3 py-3">
+              <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-muted-foreground">Nota para el alumno</p>
                 {audioBlob && (
                   <span className="text-xs text-ok flex items-center gap-1">
@@ -626,8 +658,8 @@ export default function CalibratePage() {
                   value={saveNote}
                   onChange={e => setSaveNote(e.target.value)}
                   placeholder="Dicta o escribe una nota..."
-                  rows={2}
-                  className="flex-1 bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ok/40"
+                  rows={4}
+                  className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ok/40"
                 />
                 <button
                   onPointerDown={isVoiceRecording ? stopVoice : startVoice}
