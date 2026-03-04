@@ -31,7 +31,8 @@ create table if not exists checkpoints (
   camera_angle         text        not null check (camera_angle in ('face_on', 'dtl')),
   display_order        integer     not null default 0,
   instructor_note      text,
-  calibration_video_url text,
+  calibration_video_url    text,
+  calibration_skeleton_url text,
   calibration_marks    jsonb       not null default '[]',
   baseline             jsonb,
   status               text        not null default 'pending' check (status in ('calibrated', 'pending')),
@@ -188,3 +189,11 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_instructor();
+
+
+-- ============================================================
+-- MIGRATIONS
+-- ============================================================
+
+-- Run this if the table already exists (adds the skeleton video column):
+-- ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS calibration_skeleton_url text;

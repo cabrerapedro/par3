@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { calculateMetrics, averageLandmarks, calculateBaseline } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { Checkpoint, CalibrationMark, Landmark } from '@/lib/types'
+import { VideoTogglePlayer } from '@/components/VideoTogglePlayer'
 import Link from 'next/link'
 
 type Stage = 'loading' | 'ready' | 'recording' | 'saving' | 'done'
@@ -32,6 +33,13 @@ export default function CalibratePage() {
   const audioChunksRef = useRef<Blob[]>([])
   const audioStreamRef = useRef<MediaStream | null>(null)
 
+  // Video recording refs
+  const videoRecorderRef = useRef<MediaRecorder | null>(null)
+  const skeletonRecorderRef = useRef<MediaRecorder | null>(null)
+  const videoChunksRef = useRef<Blob[]>([])
+  const skeletonChunksRef = useRef<Blob[]>([])
+  const recordingStartedRef = useRef(false)
+
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [stage, setStage] = useState<Stage>('loading')
   const [marks, setMarks] = useState<CalibrationMark[]>([])
@@ -39,6 +47,7 @@ export default function CalibratePage() {
   const [saveNote, setSaveNote] = useState('')
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [isVoiceRecording, setIsVoiceRecording] = useState(false)
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [error, setError] = useState('')
 
   // Sync stage to ref for use in callbacks
@@ -59,34 +68,78 @@ export default function CalibratePage() {
     if (data.calibration_marks?.length) {
       setMarksSync(data.calibration_marks)
     }
-    await initMediaPipe()
+    await initMediaPipe('environment')
     setStageSync('ready')
   }
 
-  async function initMediaPipe() {
+  async function initMediaPipe(facing: 'user' | 'environment' = 'environment') {
     try {
       await loadMediaPipe()
-      const pose = createPose(onResults)
-      poseRef.current = pose
-
-      if (videoRef.current) {
-        const cam = createCamera(videoRef.current, async () => {
-          if (poseRef.current && videoRef.current) {
-            await poseRef.current.send({ image: videoRef.current })
-          }
-        })
-        cameraRef.current = cam
-        await cam.start()
+      if (!poseRef.current) {
+        poseRef.current = createPose(onResults)
       }
+      await startCamera(facing)
     } catch (e) {
       setError('Error al iniciar la cámara. Verifica los permisos.')
     }
+  }
+
+  async function startCamera(facing: 'user' | 'environment') {
+    if (!videoRef.current) return
+    cameraRef.current?.stop()
+    recordingStartedRef.current = false
+    const cam = createCamera(videoRef.current, async () => {
+      if (poseRef.current && videoRef.current) {
+        await poseRef.current.send({ image: videoRef.current })
+      }
+    }, facing)
+    cameraRef.current = cam
+    await cam.start()
+  }
+
+  async function flipCamera() {
+    const newFacing = facingMode === 'user' ? 'environment' : 'user'
+    setFacingMode(newFacing)
+    stopVideoRecording()
+    await startCamera(newFacing)
+  }
+
+  function tryStartRecording(stream: MediaStream, recorderRef: React.MutableRefObject<MediaRecorder | null>, chunksRef: React.MutableRefObject<Blob[]>) {
+    try {
+      const mimeType = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t)) ?? ''
+      chunksRef.current = []
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      rec.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      rec.start(1000)
+      recorderRef.current = rec
+    } catch { /* not supported on this device */ }
+  }
+
+  function stopVideoRecording() {
+    if (videoRecorderRef.current?.state !== 'inactive') videoRecorderRef.current?.stop()
+    if (skeletonRecorderRef.current?.state !== 'inactive') skeletonRecorderRef.current?.stop()
+  }
+
+  function getBlobFromChunks(chunks: Blob[]): Blob | null {
+    if (chunks.length === 0) return null
+    return new Blob(chunks, { type: chunks[0].type || 'video/webm' })
   }
 
   const onResults = useCallback((results: any) => {
     const canvas = canvasRef.current
     const video = videoRef.current
     if (!canvas || !video) return
+
+    // Start recording on first frame after camera is confirmed running
+    if (!recordingStartedRef.current) {
+      recordingStartedRef.current = true
+      const rawStream = video.srcObject as MediaStream
+      if (rawStream) tryStartRecording(rawStream, videoRecorderRef, videoChunksRef)
+      try {
+        const skelStream = canvas.captureStream(15)
+        tryStartRecording(skelStream, skeletonRecorderRef, skeletonChunksRef)
+      } catch { /* captureStream not supported */ }
+    }
 
     canvas.width = video.videoWidth || 1280
     canvas.height = video.videoHeight || 720
@@ -167,6 +220,7 @@ export default function CalibratePage() {
   }
 
   function stopCamera() {
+    stopVideoRecording()
     cameraRef.current?.stop()
     streamRef.current?.getTracks().forEach(t => t.stop())
   }
@@ -206,6 +260,13 @@ export default function CalibratePage() {
 
     const baseline = calculateBaseline(marks)
 
+    // Stop video recordings and collect blobs
+    stopVideoRecording()
+    // Wait briefly for onstop to fire
+    await new Promise(r => setTimeout(r, 300))
+    const videoBlob = getBlobFromChunks(videoChunksRef.current)
+    const skeletonBlob = getBlobFromChunks(skeletonChunksRef.current)
+
     // Upload audio note if recorded
     let audioUrl: string | null = null
     if (audioBlob) {
@@ -220,6 +281,34 @@ export default function CalibratePage() {
       }
     }
 
+    // Upload raw video
+    let videoUrl: string | null = null
+    if (videoBlob) {
+      const ext = videoBlob.type.includes('mp4') ? 'mp4' : 'webm'
+      const path = `${checkpointId}/video-${Date.now()}.${ext}`
+      const { data: vUp } = await supabase.storage
+        .from('calibration-videos')
+        .upload(path, videoBlob, { contentType: videoBlob.type, upsert: true })
+      if (vUp) {
+        const { data: { publicUrl } } = supabase.storage.from('calibration-videos').getPublicUrl(path)
+        videoUrl = publicUrl
+      }
+    }
+
+    // Upload skeleton video
+    let skeletonUrl: string | null = null
+    if (skeletonBlob) {
+      const ext = skeletonBlob.type.includes('mp4') ? 'mp4' : 'webm'
+      const path = `${checkpointId}/skeleton-${Date.now()}.${ext}`
+      const { data: sUp } = await supabase.storage
+        .from('calibration-videos')
+        .upload(path, skeletonBlob, { contentType: skeletonBlob.type, upsert: true })
+      if (sUp) {
+        const { data: { publicUrl } } = supabase.storage.from('calibration-videos').getPublicUrl(path)
+        skeletonUrl = publicUrl
+      }
+    }
+
     const { error: updateErr } = await supabase
       .from('checkpoints')
       .update({
@@ -228,6 +317,8 @@ export default function CalibratePage() {
         status: 'calibrated',
         instructor_note: saveNote || null,
         instructor_audio_url: audioUrl,
+        ...(videoUrl && { calibration_video_url: videoUrl }),
+        ...(skeletonUrl && { calibration_skeleton_url: skeletonUrl }),
       })
       .eq('id', checkpointId)
 
@@ -273,6 +364,21 @@ export default function CalibratePage() {
               {poseDetected ? 'Pose detectada' : 'Sin persona en cámara'}
             </div>
           )}
+          {stage !== 'loading' && (
+            <button
+              onClick={flipCamera}
+              title="Cambiar cámara"
+              className="w-8 h-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-ok/30 transition-all"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
+                <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="m18 22-3-3 3-3" />
+                <path d="m6 2 3 3-3 3" />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
 
@@ -280,13 +386,13 @@ export default function CalibratePage() {
       <div className="relative flex-1 bg-black overflow-hidden" style={{ minHeight: 0 }}>
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+          className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
           playsInline
           muted
         />
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+          className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
         />
 
         {/* Mark counter */}
@@ -339,6 +445,17 @@ export default function CalibratePage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
+            {(checkpoint?.calibration_video_url || checkpoint?.calibration_skeleton_url) && (
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <p className="text-xs text-muted-foreground px-3 pt-2.5 pb-1.5">Grabación anterior</p>
+                <div className="px-3 pb-3">
+                  <VideoTogglePlayer
+                    videoUrl={checkpoint.calibration_video_url}
+                    skeletonUrl={checkpoint.calibration_skeleton_url}
+                  />
+                </div>
+              </div>
+            )}
             {marks.length > 0 && (
               <div className="bg-card border border-ok/20 rounded-xl px-4 py-3 text-center">
                 <p className="text-ok text-sm font-semibold">{marks.length} marca{marks.length !== 1 ? 's' : ''} guardada{marks.length !== 1 ? 's' : ''}</p>

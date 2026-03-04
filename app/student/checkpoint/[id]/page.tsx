@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { METRIC_LABELS } from '@/lib/baseline'
+import { VideoTogglePlayer } from '@/components/VideoTogglePlayer'
 import Link from 'next/link'
 
 const ACTIONS = [
@@ -122,6 +123,18 @@ export default function CheckpointDetail() {
             {cp.instructor_note && (
               <p className="text-foreground text-sm leading-relaxed">"{cp.instructor_note}"</p>
             )}
+          </div>
+        )}
+
+        {/* Reference video */}
+        {(cp.calibration_video_url || cp.calibration_skeleton_url) && (
+          <div className="mb-8">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
+            <VideoTogglePlayer
+              videoUrl={cp.calibration_video_url}
+              skeletonUrl={cp.calibration_skeleton_url}
+              className="bg-card border border-border rounded-xl overflow-hidden p-3"
+            />
           </div>
         )}
 

@@ -40,7 +40,11 @@ export function createPose(onResults: (r: any) => void) {
   return pose
 }
 
-export function createCamera(video: HTMLVideoElement, onFrame: () => Promise<void>) {
+export function createCamera(
+  video: HTMLVideoElement,
+  onFrame: () => Promise<void>,
+  facingMode: 'user' | 'environment' = 'user'
+) {
   const Camera = (window as any).Camera
-  return new Camera(video, { onFrame, width: 1280, height: 720 })
+  return new Camera(video, { onFrame, width: 1280, height: 720, facingMode })
 }

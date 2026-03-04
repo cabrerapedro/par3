@@ -57,6 +57,7 @@ export interface Checkpoint {
   instructor_note?: string
   instructor_audio_url?: string
   calibration_video_url?: string
+  calibration_skeleton_url?: string
   calibration_marks: CalibrationMark[]
   baseline: Baseline | null
   status: CheckpointStatus
