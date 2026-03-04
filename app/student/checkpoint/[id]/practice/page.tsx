@@ -31,6 +31,7 @@ export default function StudentPractice() {
   const pendingStreamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const mimeTypeRef = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
@@ -108,6 +109,7 @@ export default function StudentPractice() {
       const mimeType = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4']
         .find(t => MediaRecorder.isTypeSupported(t)) ?? ''
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      mimeTypeRef.current = recorder.mimeType || mimeType || 'video/webm'
       recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       recorder.start(100)
       recorderRef.current = recorder
@@ -170,7 +172,7 @@ export default function StudentPractice() {
 
   async function processVideo() {
     if (!chunksRef.current.length) { setError('No se grabó video.'); return }
-    const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'video/webm' })
+    const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'video/webm' })
     await analyzeVideoBlob(blob)
   }
 
@@ -269,13 +271,12 @@ export default function StudentPractice() {
       setProgress(Math.round((i + 1) / totalFrames * 100))
     }
 
-    URL.revokeObjectURL(url)
-
-    if (!results.length) { setError('No se detectó pose en el video. Asegúrate de que te veas completo.'); return }
+    if (!results.length) { setError('No se detectó pose en el video. Asegúrate de que te veas completo.'); URL.revokeObjectURL(url); return }
 
     const aggregated = aggregateFrameResults(results)
 
-    setPreviewUrl(URL.createObjectURL(blob))
+    // Reuse the same blob URL for preview (don't revoke + recreate)
+    setPreviewUrl(url)
     setFrameResults(results)
     setSummary(generateBaselineSummary(aggregated))
 
@@ -476,7 +477,17 @@ export default function StudentPractice() {
 
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-64 flex-shrink-0">
-              {previewUrl && <video src={previewUrl} controls playsInline className="w-full rounded-2xl bg-black" />}
+              {previewUrl && (
+                <video
+                  src={previewUrl}
+                  controls
+                  playsInline
+                  muted
+                  preload="auto"
+                  onLoadedData={e => { (e.target as HTMLVideoElement).currentTime = 0.1 }}
+                  className="w-full rounded-2xl bg-black"
+                />
+              )}
             </div>
 
             <div className="flex-1">
