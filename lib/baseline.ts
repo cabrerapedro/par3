@@ -189,6 +189,7 @@ export interface BaselineCheck {
   label: string
   status: 'ok' | 'warn' | 'bad'
   message: string
+  direction: 'high' | 'low' | 'center'
 }
 
 // Compare current metrics against a personal baseline
@@ -203,16 +204,18 @@ export function compareToBaseline(
 
   return entries.map(([key, value]) => {
     const b = baseline[key]
-    if (!b) return { id: key, label: METRIC_LABELS[key] || key, status: 'ok' as const, message: 'Correcto' }
+    if (!b) return { id: key, label: METRIC_LABELS[key] || key, status: 'ok' as const, message: 'Correcto', direction: 'center' as const }
 
     const deviation = Math.abs(value - b.mean)
     const status: 'ok' | 'warn' | 'bad' = deviation <= b.std ? 'ok' : deviation <= 2 * b.std ? 'warn' : 'bad'
+    const direction: 'high' | 'low' | 'center' = status === 'ok' ? 'center' : value > b.mean ? 'high' : 'low'
 
     return {
       id: key,
       label: METRIC_LABELS[key] || key,
       status,
       message: baselineMessage(key, value, b.mean, status),
+      direction,
     }
   })
 }

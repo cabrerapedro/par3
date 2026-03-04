@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { calculateMetrics, compareToBaseline, baselineOverallStatus, baselineTip } from '@/lib/baseline'
+import { calculateMetrics, compareToBaseline, baselineOverallStatus } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { Checkpoint, Baseline } from '@/lib/types'
 import type { BaselineCheck } from '@/lib/baseline'
@@ -14,6 +14,22 @@ const STATUS_CONFIG = {
   ok: { color: '#34d178', label: 'Postura correcta' },
   warn: { color: '#e8b930', label: 'Ajustar postura' },
   bad: { color: '#f04848', label: 'Corregir postura' },
+}
+
+// Short action hints per metric+direction, visible at a distance
+const ACTION_HINTS: Record<string, { high: string; low: string }> = {
+  head_lateral:   { high: '← Centrar',    low: '→ Centrar' },
+  shoulder_level: { high: 'Nivelar',       low: 'Nivelar' },
+  arm_angle:      { high: '↓ Relajar',    low: '↑ Extender' },
+  spine_angle:    { high: '↓ Inclinar',   low: '↑ Erguir' },
+  knee_flex:      { high: '↑ Extender',   low: '↓ Flexionar' },
+  head_forward:   { high: '← Atrás',      low: '→ Adelante' },
+  hip_sway:       { high: '← Centrar',    low: '→ Centrar' },
+  hip_hinge:      { high: '↑ Menos',      low: '↓ Más' },
+  trail_arm:      { high: '↓ Relajar',    low: '↑ Extender' },
+  head_height:    { high: '↓ Bajar',      low: '↑ Subir' },
+  stance_width:   { high: '→← Juntar',    low: '←→ Separar' },
+  weight_shift:   { high: '← Centrar',    low: '→ Centrar' },
 }
 
 export default function StudentMirror() {
@@ -27,7 +43,7 @@ export default function StudentMirror() {
   const poseRef = useRef<any>(null)
   const checkpointRef = useRef<Checkpoint | null>(null)
   // Smoothing buffer for baseline checks
-  const smoothRef = useRef<Array<Array<{ id: string; status: string }>>>([])
+  const smoothRef = useRef<Array<Array<{ id: string; status: string; direction: string }>>>([])
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [checks, setChecks] = useState<BaselineCheck[]>([])
@@ -87,17 +103,21 @@ export default function StudentMirror() {
     const rawChecks = compareToBaseline(metrics, cp.baseline as Baseline, cp.selected_metrics)
 
     // 6-frame majority vote smoothing
-    smoothRef.current.push(rawChecks.map(c => ({ id: c.id, status: c.status })))
+    smoothRef.current.push(rawChecks.map(c => ({ id: c.id, status: c.status, direction: c.direction })))
     if (smoothRef.current.length > 6) smoothRef.current.shift()
 
     const smoothed = rawChecks.map((check, i) => {
       const votes: Record<string, number> = {}
+      const dirVotes: Record<string, number> = {}
       for (const frame of smoothRef.current) {
         const s = frame[i]?.status ?? 'ok'
+        const d = frame[i]?.direction ?? 'center'
         votes[s] = (votes[s] ?? 0) + 1
+        dirVotes[d] = (dirVotes[d] ?? 0) + 1
       }
       const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0][0] as 'ok' | 'warn' | 'bad'
-      return { ...check, status: best }
+      const bestDir = Object.entries(dirVotes).sort((a, b) => b[1] - a[1])[0][0] as 'high' | 'low' | 'center'
+      return { ...check, status: best, direction: bestDir }
     })
 
     setChecks(smoothed)
@@ -115,7 +135,6 @@ export default function StudentMirror() {
   }, [])
 
   const overall = checks.length ? baselineOverallStatus(checks) : null
-  const tip = checks.length ? baselineTip(checks) : ''
 
   if (error) return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
@@ -170,43 +189,43 @@ export default function StudentMirror() {
         )}
       </div>
 
-      {/* Panel */}
-      <div className="flex-shrink-0 lg:w-72 bg-card border-t lg:border-t-0 lg:border-l border-border overflow-y-auto" style={{ maxHeight: '50vh', minHeight: '120px' }}>
-        <div className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Comparación con tu referencia</p>
-
+      {/* Panel — fixed-height rows, readable at distance */}
+      <div className="flex-shrink-0 lg:w-80 bg-card border-t lg:border-t-0 lg:border-l border-border overflow-y-auto" style={{ maxHeight: '50vh', minHeight: '120px' }}>
+        <div className="p-3">
           {checks.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground text-sm">Esperando detección de pose...</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {checks.map(check => (
-                <div key={check.id} className="bg-secondary border border-border rounded-xl px-3 py-3 flex items-start gap-3">
+            <div className="flex flex-col gap-1.5">
+              {checks.map(check => {
+                const hint = check.status !== 'ok' && check.direction !== 'center'
+                  ? ACTION_HINTS[check.id]?.[check.direction] ?? ''
+                  : ''
+                return (
                   <div
-                    className="flex-shrink-0 w-2 h-2 rounded-full mt-1.5"
-                    style={{ backgroundColor: STATUS_CONFIG[check.status]?.color }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-foreground text-sm font-medium">{check.label}</span>
-                      <span className="text-xs font-mono" style={{ color: STATUS_CONFIG[check.status]?.color }}>
-                        {check.status === 'ok' ? 'OK' : check.status === 'warn' ? 'Ajustar' : 'Corregir'}
+                    key={check.id}
+                    className="flex items-center gap-3 rounded-xl px-3 h-14"
+                    style={{ backgroundColor: STATUS_CONFIG[check.status]?.color + '10' }}
+                  >
+                    <div
+                      className="flex-shrink-0 w-3 h-3 rounded-full"
+                      style={{ backgroundColor: STATUS_CONFIG[check.status]?.color }}
+                    />
+                    <span className="flex-1 text-foreground font-medium text-base truncate">{check.label}</span>
+                    {check.status === 'ok' ? (
+                      <span className="text-ok font-bold text-lg shrink-0">✓</span>
+                    ) : (
+                      <span
+                        className="font-semibold text-sm shrink-0"
+                        style={{ color: STATUS_CONFIG[check.status]?.color }}
+                      >
+                        {hint}
                       </span>
-                    </div>
-                    {check.status !== 'ok' && (
-                      <p className="text-muted-foreground text-xs leading-snug">{check.message}</p>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {tip && (
-            <div className="mt-4 bg-secondary border border-border rounded-xl px-3 py-3">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Consejo principal</p>
-              <p className="text-foreground text-sm leading-relaxed">{tip}</p>
+                )
+              })}
             </div>
           )}
         </div>
