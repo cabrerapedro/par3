@@ -137,6 +137,7 @@ create policy "calibration_videos_instructor_upload"
   with check (bucket_id = 'calibration-videos');
 
 -- Storage: anyone can read calibration videos (students use anon role)
+drop policy if exists "calibration_videos_instructor_read" on storage.objects;
 create policy "calibration_videos_public_read"
   on storage.objects for select
   to anon, authenticated
