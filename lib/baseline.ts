@@ -44,8 +44,19 @@ export const METRIC_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(METRIC_INFO).map(([k, v]) => [k, v.label])
 )
 
+// Minimum visibility threshold — landmarks below this are considered unreliable
+const MIN_VIS = 0.65
+
+// Check if all given landmarks are visible enough
+function visible(...landmarks: LM[]): boolean {
+  return landmarks.every(l => (l.visibility ?? 0) >= MIN_VIS)
+}
+
 // Raw metric values from landmarks (no thresholds)
+// Only includes metrics where the required landmarks are sufficiently visible.
 export function calculateMetrics(lm: LM[], cameraAngle: CameraAngle): Record<string, number> {
+  const metrics: Record<string, number> = {}
+
   if (cameraAngle === 'face_on') {
     const nose = lm[0]
     const lShoulder = lm[11], rShoulder = lm[12]
@@ -54,26 +65,24 @@ export function calculateMetrics(lm: LM[], cameraAngle: CameraAngle): Record<str
     const lHip = lm[23], rHip = lm[24]
     const lAnkle = lm[27], rAnkle = lm[28]
 
-    const hipMidX = (lHip.x + rHip.x) / 2
-    const head_lateral = Math.abs(nose.x - hipMidX)
-
-    const lArm = angleBetween(lShoulder, lElbow, lWrist)
-    const rArm = angleBetween(rShoulder, rElbow, rWrist)
-    const arm_angle = (lArm + rArm) / 2
-
-    const shoulder_level = Math.abs(lShoulder.y - rShoulder.y)
-
-    const ankleMidX = (lAnkle.x + rAnkle.x) / 2
-    const hip_sway = Math.abs(hipMidX - ankleMidX)
-
-    const shoulderWidth = Math.abs(lShoulder.x - rShoulder.x)
-    const ankleWidth = Math.abs(lAnkle.x - rAnkle.x)
-    const stance_width = shoulderWidth > 0.001 ? ankleWidth / shoulderWidth : 0
-
-    const shoulderMidX = (lShoulder.x + rShoulder.x) / 2
-    const weight_shift = Math.abs(shoulderMidX - ankleMidX)
-
-    return { head_lateral, arm_angle, shoulder_level, hip_sway, stance_width, weight_shift }
+    if (visible(nose, lHip, rHip)) {
+      metrics.head_lateral = Math.abs(nose.x - (lHip.x + rHip.x) / 2)
+    }
+    if (visible(lShoulder, lElbow, lWrist, rShoulder, rElbow, rWrist)) {
+      metrics.arm_angle = (angleBetween(lShoulder, lElbow, lWrist) + angleBetween(rShoulder, rElbow, rWrist)) / 2
+    }
+    if (visible(lShoulder, rShoulder)) {
+      metrics.shoulder_level = Math.abs(lShoulder.y - rShoulder.y)
+    }
+    if (visible(lHip, rHip, lAnkle, rAnkle)) {
+      const hipMidX = (lHip.x + rHip.x) / 2
+      const ankleMidX = (lAnkle.x + rAnkle.x) / 2
+      metrics.hip_sway = Math.abs(hipMidX - ankleMidX)
+      const shoulderWidth = Math.abs(lShoulder.x - rShoulder.x)
+      const ankleWidth = Math.abs(lAnkle.x - rAnkle.x)
+      metrics.stance_width = shoulderWidth > 0.001 ? ankleWidth / shoulderWidth : 0
+      metrics.weight_shift = Math.abs((lShoulder.x + rShoulder.x) / 2 - ankleMidX)
+    }
   } else {
     const nose = lm[0]
     const lShoulder = lm[11], rShoulder = lm[12]
@@ -83,31 +92,35 @@ export function calculateMetrics(lm: LM[], cameraAngle: CameraAngle): Record<str
     const lKnee = lm[25], rKnee = lm[26]
     const lAnkle = lm[27], rAnkle = lm[28]
 
-    const sMid = { x: (lShoulder.x + rShoulder.x) / 2, y: (lShoulder.y + rShoulder.y) / 2, z: 0 }
-    const hMid = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2, z: 0 }
-    const kMid = { x: (lKnee.x + rKnee.x) / 2, y: (lKnee.y + rKnee.y) / 2, z: 0 }
+    const sMid = { x: (lShoulder.x + rShoulder.x) / 2, y: (lShoulder.y + rShoulder.y) / 2, z: 0, visibility: 1 }
+    const hMid = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2, z: 0, visibility: 1 }
 
-    const spine_angle = Math.abs(Math.atan2(Math.abs(hMid.x - sMid.x), hMid.y - sMid.y) * 180 / Math.PI)
-
-    const lKneeAngle = angleBetween(lHip, lKnee, lAnkle)
-    const rKneeAngle = angleBetween(rHip, rKnee, rAnkle)
-    const knee_flex = (lKneeAngle + rKneeAngle) / 2
-
-    const head_forward = Math.abs(nose.x - sMid.x)
-
-    const hip_hinge = angleBetween(sMid, hMid, kMid)
-
-    // Trail arm: the arm whose shoulder has larger x (further right in frame)
-    const trailIsLeft = lShoulder.x > rShoulder.x
-    const trailShoulder = trailIsLeft ? lShoulder : rShoulder
-    const trailElbow = trailIsLeft ? lElbow : rElbow
-    const trailWrist = trailIsLeft ? lWrist : rWrist
-    const trail_arm = angleBetween(trailShoulder, trailElbow, trailWrist)
-
-    const head_height = Math.abs(hMid.y - nose.y)
-
-    return { spine_angle, knee_flex, head_forward, hip_hinge, trail_arm, head_height }
+    if (visible(lShoulder, rShoulder, lHip, rHip)) {
+      metrics.spine_angle = Math.abs(Math.atan2(Math.abs(hMid.x - sMid.x), hMid.y - sMid.y) * 180 / Math.PI)
+    }
+    if (visible(lHip, rHip, lKnee, rKnee, lAnkle, rAnkle)) {
+      metrics.knee_flex = (angleBetween(lHip, lKnee, lAnkle) + angleBetween(rHip, rKnee, rAnkle)) / 2
+    }
+    if (visible(nose, lShoulder, rShoulder)) {
+      metrics.head_forward = Math.abs(nose.x - sMid.x)
+    }
+    if (visible(lShoulder, rShoulder, lHip, rHip, lKnee, rKnee)) {
+      const kMid = { x: (lKnee.x + rKnee.x) / 2, y: (lKnee.y + rKnee.y) / 2, z: 0, visibility: 1 }
+      metrics.hip_hinge = angleBetween(sMid, hMid, kMid)
+    }
+    if (visible(lShoulder, rShoulder, lElbow, rElbow, lWrist, rWrist)) {
+      const trailIsLeft = lShoulder.x > rShoulder.x
+      const trailShoulder = trailIsLeft ? lShoulder : rShoulder
+      const trailElbow = trailIsLeft ? lElbow : rElbow
+      const trailWrist = trailIsLeft ? lWrist : rWrist
+      metrics.trail_arm = angleBetween(trailShoulder, trailElbow, trailWrist)
+    }
+    if (visible(nose, lHip, rHip)) {
+      metrics.head_height = Math.abs(hMid.y - nose.y)
+    }
   }
+
+  return metrics
 }
 
 // Calculate baseline statistics from an array of calibration marks
