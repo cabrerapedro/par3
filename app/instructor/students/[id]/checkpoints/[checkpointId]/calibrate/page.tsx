@@ -21,7 +21,6 @@ export default function CalibratePage() {
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
   const poseRef = useRef<any>(null)
   const cameraRef = useRef<any>(null)
   const landmarkBufferRef = useRef<Landmark[][]>([])
@@ -222,7 +221,6 @@ export default function CalibratePage() {
   function stopCamera() {
     stopVideoRecording()
     cameraRef.current?.stop()
-    streamRef.current?.getTracks().forEach(t => t.stop())
   }
 
   function handleBien() {
