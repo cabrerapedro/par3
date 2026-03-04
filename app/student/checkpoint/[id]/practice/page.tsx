@@ -45,8 +45,11 @@ export default function StudentPractice() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [error, setError] = useState('')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
+  const [recordingVisibleCount, setRecordingVisibleCount] = useState(-1)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const recordingSecondsRef = useRef(0)
+  const poseCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const checkpointRef = useRef<Checkpoint | null>(null)
 
   // Callback ref: auto-attach pending stream when the video element mounts
   const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
@@ -72,6 +75,7 @@ export default function StudentPractice() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
     if (!data?.baseline) { setError('Este ejercicio aún no tiene referencia.'); return }
     setCheckpoint(data)
+    checkpointRef.current = data
   }
 
   async function startRecording(facing: 'user' | 'environment' = 'environment') {
@@ -129,6 +133,9 @@ export default function StudentPractice() {
         recordingSecondsRef.current += 1
         setRecordingSeconds(s => s + 1)
       }, 1000)
+
+      // Start live visibility checking
+      startVisibilityCheck()
     } catch {
       setError('No se pudo acceder a la cámara. Verifica los permisos.')
       setStage('input')
@@ -136,6 +143,7 @@ export default function StudentPractice() {
   }
 
   async function flipCamera() {
+    stopVisibilityCheck()
     if (timerRef.current) clearInterval(timerRef.current)
     if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
     streamRef.current?.getTracks().forEach(t => t.stop())
@@ -144,7 +152,39 @@ export default function StudentPractice() {
     await startRecording(newFacing)
   }
 
+  function stopVisibilityCheck() {
+    if (poseCheckIntervalRef.current) {
+      clearInterval(poseCheckIntervalRef.current)
+      poseCheckIntervalRef.current = null
+    }
+    setRecordingVisibleCount(-1)
+  }
+
+  async function startVisibilityCheck() {
+    stopVisibilityCheck()
+    const cp = checkpointRef.current
+    if (!cp) return
+    try {
+      await loadMediaPipe()
+      const pose = createPose(() => {})
+      pose.onResults((results: any) => {
+        if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
+        const metrics = calculateMetrics(results.poseLandmarks, cp.camera_angle)
+        const expected = cp.selected_metrics?.length
+          ? cp.selected_metrics
+          : METRICS_BY_ANGLE[cp.camera_angle] ?? []
+        setRecordingVisibleCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
+      })
+      poseCheckIntervalRef.current = setInterval(async () => {
+        if (videoRef.current) {
+          try { await pose.send({ image: videoRef.current }) } catch {}
+        }
+      }, 1000)
+    } catch { /* MediaPipe not available */ }
+  }
+
   function cleanupRecording() {
+    stopVisibilityCheck()
     if (timerRef.current) clearInterval(timerRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
@@ -153,6 +193,7 @@ export default function StudentPractice() {
   }
 
   function stopRecording() {
+    stopVisibilityCheck()
     if (timerRef.current) clearInterval(timerRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
 
@@ -432,6 +473,20 @@ export default function StudentPractice() {
                   </svg>
                 </button>
                 )}
+                {/* Visibility warning during recording */}
+                {recordingVisibleCount >= 0 && checkpoint && (() => {
+                  const expected = checkpoint.selected_metrics?.length
+                    ? checkpoint.selected_metrics
+                    : METRICS_BY_ANGLE[checkpoint.camera_angle] ?? []
+                  if (expected.length > 0 && recordingVisibleCount < expected.length) return (
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
+                      <span className="text-black text-sm font-medium">
+                        Muestra todo el cuerpo — {recordingVisibleCount}/{expected.length} métricas
+                      </span>
+                    </div>
+                  )
+                  return null
+                })()}
                 {/* Angle hint */}
                 <div className="absolute bottom-4 left-4 bg-background/60 backdrop-blur text-muted-foreground text-xs px-3 py-1.5 rounded-full">
                   {checkpoint?.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}

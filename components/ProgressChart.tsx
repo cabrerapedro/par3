@@ -11,7 +11,7 @@ interface Props {
   height?: number
 }
 
-export function ProgressChart({ data, height = 120 }: Props) {
+export function ProgressChart({ data, height = 160 }: Props) {
   if (!data.length) return null
 
   const W = 400
@@ -51,8 +51,7 @@ export function ProgressChart({ data, height = 120 }: Props) {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
-        style={{ height }}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
       >
         <defs>
           <linearGradient id={`grad-${lastScore}`} x1="0" y1="0" x2="0" y2="1">
@@ -92,7 +91,7 @@ export function ProgressChart({ data, height = 120 }: Props) {
         {points.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r="4" fill={lineColor} />
-            <circle cx={p.x} cy={p.y} r="2" fill="var(--color-bg)" />
+            <circle cx={p.x} cy={p.y} r="2" fill="var(--color-background)" />
             {/* Score label on hover-ish: show for first, last, and peaks */}
             {(i === 0 || i === points.length - 1) && (
               <text
@@ -122,7 +121,7 @@ export function ProgressChart({ data, height = 120 }: Props) {
               y={H - 4}
               textAnchor="middle"
               fontSize="9"
-              fill="var(--color-dim)"
+              fill="var(--color-muted-foreground)"
             >
               {formatDate(p.date)}
             </text>
