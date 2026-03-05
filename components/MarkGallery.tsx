@@ -307,8 +307,8 @@ export function MarkGallery({
       {/* Source toggle — above grid so columns align */}
       {sourceToggle}
 
-      {/* Two-column layout on lg screens */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-5">
+      {/* Two-column layout on lg screens — video larger, marks narrower */}
+      <div className="lg:grid lg:grid-cols-[5fr_2fr] lg:gap-5">
         {/* Left column: video player */}
         <div className="lg:sticky lg:top-20 lg:self-start">
           {videoPlayer}

@@ -35,6 +35,7 @@ create table if not exists checkpoints (
   calibration_skeleton_url text,
   calibration_marks    jsonb       not null default '[]',
   baseline             jsonb,
+  baseline_summary     text,
   selected_metrics     text[]      not null default '{}',
   status               text        not null default 'pending' check (status in ('calibrated', 'pending')),
   created_at           timestamptz default now()

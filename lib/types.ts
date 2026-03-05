@@ -78,6 +78,7 @@ export interface Checkpoint {
   calibration_skeleton_url?: string
   calibration_marks: CalibrationMark[]
   baseline: Baseline | SwingBaseline | null
+  baseline_summary?: string
   selected_metrics: string[]
   status: CheckpointStatus
   created_at: string

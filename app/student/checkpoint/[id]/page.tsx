@@ -7,8 +7,9 @@ import { supabase } from '@/lib/supabase'
 import type { Checkpoint } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { METRIC_LABELS, isSwingBaseline, PHASE_LABELS } from '@/lib/baseline'
+import { isSwingBaseline } from '@/lib/baseline'
 import { MarkGallery } from '@/components/MarkGallery'
+import { BaselineBody, SwingPhaseFigures } from '@/components/BaselineBody'
 import Link from 'next/link'
 
 
@@ -20,12 +21,39 @@ export default function CheckpointDetail() {
 
   const [cp, setCp] = useState<Checkpoint | null>(null)
   const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState<string | null>(null)
 
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
     supabase.from('checkpoints').select('*').eq('id', cpId).single()
       .then(({ data }) => { if (data) setCp(data); setLoading(false) })
   }, [student])
+
+  const [summaryLoading, setSummaryLoading] = useState(false)
+
+  // Generate baseline summary on-the-fly if missing (persisted server-side)
+  useEffect(() => {
+    if (!cp?.baseline || cp.baseline_summary) return
+    setSummaryLoading(true)
+    fetch('/api/baseline-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseline: cp.baseline,
+        cameraAngle: cp.camera_angle,
+        checkpointName: cp.name,
+        instructorNote: cp.instructor_note || null,
+        selectedMetrics: cp.selected_metrics,
+        marksCount: cp.calibration_marks?.length ?? 0,
+        checkpointType: cp.checkpoint_type,
+        checkpointId: cp.id,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.summary) setSummary(d.summary) })
+      .catch(() => {})
+      .finally(() => setSummaryLoading(false))
+  }, [cp?.id])
 
   if (loading) return <LoadingScreen />
   if (!cp) return (
@@ -121,84 +149,82 @@ export default function CheckpointDetail() {
           )}
         </div>
 
-        {/* Two-column layout on lg */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* LEFT — Video reference */}
-          <div>
-            {cp.calibration_marks?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
-                <MarkGallery
-                  videoUrl={cp.calibration_video_url}
-                  skeletonUrl={cp.calibration_skeleton_url}
-                  marks={cp.calibration_marks}
-                  cameraAngle={cp.camera_angle}
-                  selectedMetrics={cp.selected_metrics}
-                />
+        {/* Instructor note — full width at top */}
+        {(cp.instructor_note || cp.instructor_audio_url) && (
+          <div className="bg-blue/5 border border-blue/20 rounded-xl px-4 py-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="size-6 rounded-full bg-blue/10 border border-blue/20 flex items-center justify-center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+                  <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                </svg>
               </div>
+              <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">Nota de tu instructor</p>
+            </div>
+            {cp.instructor_audio_url && (
+              <audio src={cp.instructor_audio_url} controls className="w-full h-9 mb-3" style={{ accentColor: '#60a5fa' }} />
+            )}
+            {cp.instructor_note && (
+              <p className="text-foreground text-sm leading-relaxed">"{cp.instructor_note}"</p>
             )}
           </div>
+        )}
 
-          {/* RIGHT — Note + Baseline */}
-          <div className="flex flex-col gap-6">
-            {/* Instructor note */}
-            {(cp.instructor_note || cp.instructor_audio_url) && (
-              <div className="bg-blue/5 border border-blue/20 rounded-xl px-4 py-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="size-6 rounded-full bg-blue/10 border border-blue/20 flex items-center justify-center">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
-                      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                    </svg>
-                  </div>
-                  <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">Nota de tu instructor</p>
-                </div>
-                {cp.instructor_audio_url && (
-                  <audio src={cp.instructor_audio_url} controls className="w-full h-9 mb-3" style={{ accentColor: '#60a5fa' }} />
-                )}
-                {cp.instructor_note && (
-                  <p className="text-foreground text-sm leading-relaxed">"{cp.instructor_note}"</p>
-                )}
-              </div>
-            )}
+        {/* Video + clips — asymmetric two columns via MarkGallery */}
+        {cp.calibration_marks?.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
+            <MarkGallery
+              videoUrl={cp.calibration_video_url}
+              skeletonUrl={cp.calibration_skeleton_url}
+              marks={cp.calibration_marks}
+              cameraAngle={cp.camera_angle}
+              selectedMetrics={cp.selected_metrics}
+            />
+          </div>
+        )}
 
-            {/* Baseline summary */}
-            {cp.baseline && (
-              <div className="bg-card border border-border rounded-xl px-4 py-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu referencia personal</p>
-                {isSwingBaseline(cp.baseline) ? (
-                  <div className="flex flex-col gap-3">
-                    {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
-                      <div key={phase}>
-                        <p className="text-xs text-muted-foreground font-medium mb-1.5">{PHASE_LABELS[phase as keyof typeof PHASE_LABELS] ?? phase}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(phaseBaseline as Record<string, any>)
-                            .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
-                            .map(([key, val]) => (
-                            <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
-                              <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}: </span>
-                              <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+        {/* Baseline summary — full width at bottom */}
+        {cp.baseline && (
+          <div className="bg-card border border-border rounded-xl px-5 py-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Tu referencia personal</p>
+
+            {/* Summary — shown for both position and swing */}
+            {(cp.baseline_summary || summary || summaryLoading) && (
+              <div className="mb-5 pb-5 border-b border-border">
+                {summaryLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="w-4 h-4 rounded-full border-2 border-ok/40 border-t-ok animate-spin shrink-0" />
+                    <span className="text-sm">Generando resumen...</span>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(cp.baseline)
-                      .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
-                      .map(([key, val]) => (
-                      <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
-                        <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}: </span>
-                        <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <p className="text-foreground text-base leading-relaxed">{cp.baseline_summary || summary}</p>
+                    <div className="flex items-center gap-1.5 mt-3 text-muted-foreground/50">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                      <span className="text-xs">Resumen generado por IA. Puede contener imprecisiones.</span>
+                    </div>
+                  </>
                 )}
               </div>
             )}
+
+            {isSwingBaseline(cp.baseline) ? (
+              <SwingPhaseFigures
+                baseline={cp.baseline}
+                cameraAngle={cp.camera_angle}
+                selectedMetrics={cp.selected_metrics}
+              />
+            ) : (
+              <BaselineBody
+                baseline={cp.baseline as Record<string, { mean: number; std?: number }>}
+                cameraAngle={cp.camera_angle}
+                selectedMetrics={cp.selected_metrics}
+              />
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

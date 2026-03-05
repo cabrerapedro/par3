@@ -422,6 +422,22 @@ export default function CalibratePage() {
       ? calculateSwingBaseline(marks, checkpoint.selected_metrics)
       : calculateBaseline(marks, checkpoint.selected_metrics)
 
+    // Generate LLM summary in background (non-blocking)
+    const summaryPromise = fetch('/api/baseline-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseline,
+        cameraAngle: checkpoint.camera_angle,
+        checkpointName: checkpoint.name,
+        instructorNote: saveNote || null,
+        selectedMetrics: checkpoint.selected_metrics,
+        marksCount: marks.length,
+        checkpointType: checkpoint.checkpoint_type,
+        checkpointId,
+      }),
+    }).then(r => r.ok ? r.json() : null).then(d => d?.summary ?? null).catch(() => null)
+
     // Stop video recordings and collect blobs
     stopVideoRecording()
     // Wait briefly for onstop to fire
@@ -471,11 +487,15 @@ export default function CalibratePage() {
       }
     }
 
+    // Await the LLM summary (started earlier, should be done by now)
+    const baselineSummary = await summaryPromise
+
     const { error: updateErr } = await supabase
       .from('checkpoints')
       .update({
         calibration_marks: marks,
         baseline,
+        baseline_summary: baselineSummary,
         status: 'calibrated',
         instructor_note: saveNote || null,
         instructor_audio_url: audioUrl,

@@ -174,8 +174,6 @@ export default function StudentMirror() {
     }
   }, [])
 
-  const overall = checks.length ? baselineOverallStatus(checks) : null
-
   if (error) return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
       <p className="text-muted-foreground">{error}</p>
@@ -208,6 +206,9 @@ export default function StudentMirror() {
             <Link href={`/student/checkpoint/${cpId}`} className="bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-3 text-muted-foreground text-sm hover:text-foreground transition-colors">
               ←
             </Link>
+            <span className="bg-background/70 backdrop-blur border border-border rounded-xl px-4 py-2.5 text-foreground text-sm md:text-base font-medium">
+              {checkpoint?.name}
+            </span>
             {hasMultipleCameras && (
               <button
                 onClick={flipCamera}
@@ -241,35 +242,11 @@ export default function StudentMirror() {
           </svg>
         </button>
 
-        {/* Checkpoint name — hidden in kiosk */}
-        {!kiosk && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/70 backdrop-blur border border-border rounded-xl px-4 py-2">
-            <p className="text-foreground text-sm md:text-base font-medium">{checkpoint?.name}</p>
-          </div>
-        )}
-
-        {/* Status pill */}
-        {overall && (
-          <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 md:gap-3 bg-background/80 backdrop-blur border rounded-full px-4 md:px-6 py-2 md:py-3"
-            style={{ borderColor: STATUS_CONFIG[overall].color + '40' }}
-          >
-            <div
-              className="w-3 h-3 md:w-4 md:h-4 rounded-full animate-pulse"
-              style={{ backgroundColor: STATUS_CONFIG[overall].color }}
-            />
-            <span className="text-sm md:text-lg font-semibold" style={{ color: STATUS_CONFIG[overall].color }}>
-              {STATUS_CONFIG[overall].label}
-            </span>
-          </div>
-        )}
-
-        {/* Visibility warning — not enough body visible */}
+        {/* Visibility warning — top center, where checkpoint name used to be */}
         {poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-5 py-2.5 max-w-sm text-center">
-            <span className="text-black text-sm md:text-base font-medium">
-              Muestra todo el cuerpo — {detectedCount}/{expectedCount} métricas visibles
-            </span>
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-2xl px-5 py-2.5 text-center">
+            <p className="text-black text-sm md:text-base font-medium">Muestra todo el cuerpo</p>
+            <p className="text-black/70 text-xs md:text-sm">{detectedCount}/{expectedCount} métricas visibles</p>
           </div>
         )}
 
@@ -288,14 +265,14 @@ export default function StudentMirror() {
 
       {/* Panel — hidden in kiosk mode, hidden on phone */}
       {!kiosk && (
-        <div className="flex-shrink-0 md:w-80 lg:w-96 bg-card border-t md:border-t-0 md:border-l border-border overflow-y-auto hidden md:block">
-          <div className="p-3 md:p-4">
+        <div className="flex-shrink-0 md:w-80 lg:w-[26rem] bg-card border-t md:border-t-0 md:border-l border-border hidden md:flex flex-col h-dvh">
+          <div className="flex-1 flex flex-col p-3 md:p-4 min-h-0">
             {checks.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="flex-1 flex items-center justify-center">
                 <p className="text-muted-foreground text-sm md:text-base">Esperando detección de pose...</p>
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex-1 flex flex-col gap-2">
                 {checks.map(check => {
                   const hint = check.status !== 'ok' && check.direction !== 'center'
                     ? ACTION_HINTS[check.id]?.[check.direction] ?? ''
@@ -303,19 +280,19 @@ export default function StudentMirror() {
                   return (
                     <div
                       key={check.id}
-                      className="flex items-center gap-3 md:gap-4 rounded-xl px-3 md:px-4 h-14 md:h-16"
+                      className="flex items-center gap-4 rounded-xl px-4 flex-1 min-h-0"
                       style={{ backgroundColor: STATUS_CONFIG[check.status]?.color + '10' }}
                     >
                       <div
-                        className="flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full"
+                        className="flex-shrink-0 w-5 h-5 lg:w-6 lg:h-6 rounded-full"
                         style={{ backgroundColor: STATUS_CONFIG[check.status]?.color }}
                       />
-                      <span className="flex-1 text-foreground font-medium text-base md:text-lg truncate">{check.label}</span>
+                      <span className="flex-1 text-foreground font-medium text-lg lg:text-xl truncate">{check.label}</span>
                       {check.status === 'ok' ? (
-                        <span className="text-ok font-bold text-xl md:text-2xl shrink-0">✓</span>
+                        <span className="text-ok font-bold text-2xl lg:text-3xl shrink-0">✓</span>
                       ) : (
                         <span
-                          className="font-semibold text-sm md:text-base shrink-0"
+                          className="font-semibold text-base lg:text-lg shrink-0"
                           style={{ color: STATUS_CONFIG[check.status]?.color }}
                         >
                           {hint}
