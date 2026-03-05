@@ -25,6 +25,7 @@ export default function StudentJourney() {
       .from('checkpoints')
       .select('*')
       .eq('student_id', student.id)
+      .neq('status', 'archived')
       .order('display_order')
       .then(({ data }) => { setCheckpoints(data ?? []); setFetching(false) })
   }, [student, loading])

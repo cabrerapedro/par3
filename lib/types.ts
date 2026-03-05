@@ -1,5 +1,5 @@
 export type CameraAngle = 'face_on' | 'dtl'
-export type CheckpointStatus = 'calibrated' | 'pending'
+export type CheckpointStatus = 'calibrated' | 'pending' | 'archived'
 export type CheckpointType = 'position' | 'swing'
 export type MetricStatus = 'ok' | 'warn' | 'bad'
 export type SwingPhaseName = 'address' | 'top' | 'impact' | 'finish'

@@ -33,6 +33,13 @@ export default function CheckpointDetail() {
       <p className="text-muted-foreground">Ejercicio no encontrado.</p>
     </div>
   )
+  if (cp.status === 'archived') return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3 px-5">
+      <p className="text-foreground font-medium">Este ejercicio fue archivado</p>
+      <p className="text-muted-foreground text-sm text-center">Tu instructor archivó este ejercicio. Consulta con tu instructor si necesitas acceso.</p>
+      <Link href="/student/journey" className="text-ok text-sm font-medium hover:underline mt-2">Volver a mis ejercicios</Link>
+    </div>
+  )
 
   const practiceHref = cp.checkpoint_type === 'swing'
     ? `/student/checkpoint/${cpId}/practice`

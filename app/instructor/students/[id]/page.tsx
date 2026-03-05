@@ -232,12 +232,22 @@ export default function StudentProfile() {
             {checkpoints.map((cp, i) => {
               const stats = cpStats[cp.id]
               return (
-              <div key={cp.id} className="group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:border-ok/30 hover:bg-secondary/40 transition-all">
-                <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0", cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" : "bg-secondary border-border text-muted-foreground")}>
-                  {i + 1}
+              <div key={cp.id} className={cn("group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all",
+                cp.status === 'archived' ? "border-border bg-card/50 opacity-60 hover:opacity-80" : "border-border bg-card hover:border-ok/30 hover:bg-secondary/40"
+              )}>
+                <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0",
+                  cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" :
+                  cp.status === 'archived' ? "bg-warn/10 border-warn/20 text-warn" :
+                  "bg-secondary border-border text-muted-foreground"
+                )}>
+                  {cp.status === 'archived' ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /></svg>
+                  ) : (
+                    i + 1
+                  )}
                 </div>
-                <Link href={cp.status === 'calibrated' ? `/instructor/students/${studentId}/checkpoints/${cp.id}` : `/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate`} className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{cp.name}</p>
+                <Link href={cp.status === 'pending' ? `/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate` : `/instructor/students/${studentId}/checkpoints/${cp.id}`} className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-semibold truncate", cp.status === 'archived' ? "text-muted-foreground" : "text-foreground")}>{cp.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
                     {cp.calibration_marks?.length > 0 && <span className="ml-2 text-muted-foreground/60">· {cp.calibration_marks.length} marca{cp.calibration_marks.length !== 1 ? 's' : ''}</span>}
@@ -253,8 +263,12 @@ export default function StudentProfile() {
                   )}
                 </Link>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex", cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
-                    {cp.status === 'calibrated' ? 'Calibrado' : 'Pendiente'}
+                  <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex",
+                    cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" :
+                    cp.status === 'archived' ? "text-warn border-warn/20 bg-warn/10" :
+                    "text-muted-foreground border-border"
+                  )}>
+                    {cp.status === 'calibrated' ? 'Calibrado' : cp.status === 'archived' ? 'Archivado' : 'Pendiente'}
                   </Badge>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>

@@ -26,6 +26,8 @@ export default function InstructorCheckpointDetail() {
   const [sessions, setSessions] = useState<PracticeSession[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('calibration')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [dictating, setDictating] = useState(false)
   const [recording, setRecording] = useState(false)
   const dictRef = useRef<any>(null)
@@ -152,6 +154,20 @@ export default function InstructorCheckpointDetail() {
     setCp({ ...cp, instructor_audio_url: undefined })
   }
 
+  async function toggleArchive() {
+    if (!cp) return
+    const newStatus = cp.status === 'archived' ? 'calibrated' : 'archived'
+    await supabase.from('checkpoints').update({ status: newStatus }).eq('id', cp.id)
+    setCp({ ...cp, status: newStatus as any })
+  }
+
+  async function deleteCheckpoint() {
+    if (!cp) return
+    setDeleting(true)
+    await supabase.from('checkpoints').delete().eq('id', cp.id)
+    router.replace(`/instructor/students/${studentId}`)
+  }
+
   if (loading) return <LoadingScreen />
   if (!cp) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -190,8 +206,12 @@ export default function InstructorCheckpointDetail() {
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3 mb-1">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={cn("text-xs", cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
-                {cp.status === 'calibrated' ? 'Calibrado' : 'Pendiente'}
+              <Badge variant="outline" className={cn("text-xs",
+                cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" :
+                cp.status === 'archived' ? "text-warn border-warn/20 bg-warn/10" :
+                "text-muted-foreground border-border"
+              )}>
+                {cp.status === 'calibrated' ? 'Calibrado' : cp.status === 'archived' ? 'Archivado' : 'Pendiente'}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground border-border text-xs">
                 {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
@@ -220,6 +240,53 @@ export default function InstructorCheckpointDetail() {
                 </svg>
                 Editar
               </Link>
+              <button
+                onClick={toggleArchive}
+                title={cp.status === 'archived' ? 'Desarchivar ejercicio' : 'Archivar ejercicio'}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
+                  cp.status === 'archived'
+                    ? "border-ok/30 bg-ok/5 text-ok hover:bg-ok/10"
+                    : "border-border bg-card text-muted-foreground hover:border-warn/40 hover:text-warn hover:bg-warn/5"
+                )}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {cp.status === 'archived' ? (
+                    <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></>
+                  ) : (
+                    <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></>
+                  )}
+                </svg>
+                {cp.status === 'archived' ? 'Desarchivar' : 'Archivar'}
+              </button>
+              {confirmDelete ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={deleteCheckpoint}
+                    disabled={deleting}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-bad text-white hover:bg-bad/90 transition-all"
+                  >
+                    {deleting ? 'Eliminando...' : 'Confirmar'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  title="Eliminar ejercicio"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-bad/40 hover:text-bad hover:bg-bad/5 transition-all"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Eliminar
+                </button>
+              )}
             </div>
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{cp.name}</h1>
