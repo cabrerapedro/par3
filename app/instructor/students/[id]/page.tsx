@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -35,7 +34,6 @@ export default function StudentProfile() {
   const [sessions, setSessions] = useState<{ id: string; checkpoint_id: string; overall_score: number; date: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialog, setDeleteDialog] = useState(false)
-  const [deleteCpDialog, setDeleteCpDialog] = useState<Checkpoint | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shared, setShared] = useState(false)
@@ -88,12 +86,6 @@ export default function StudentProfile() {
     router.replace('/instructor/dashboard')
   }
 
-  async function deleteCheckpoint(cp: Checkpoint) {
-    await supabase.from('checkpoints').delete().eq('id', cp.id)
-    setCheckpoints(prev => prev.filter(c => c.id !== cp.id))
-    setDeleteCpDialog(null)
-  }
-
   if (loading) return <LoadingScreen />
   if (!student) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -123,21 +115,27 @@ export default function StudentProfile() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Mis alumnos
           </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-12 text-muted-foreground">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="5" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="19" r="1" fill="currentColor" />
-                </svg>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/edit`}>Editar alumno</Link></DropdownMenuItem>
-              <DropdownMenuItem onClick={copyCode}>Copiar código de acceso</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteDialog(true)}>Eliminar alumno</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href={`/instructor/students/${studentId}/edit`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-blue/40 hover:text-blue hover:bg-blue/5 transition-all"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Editar
+            </Link>
+            <button
+              onClick={() => setDeleteDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-bad/40 hover:text-bad hover:bg-bad/5 transition-all"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Eliminar
+            </button>
+          </div>
         </div>
       </header>
 
@@ -258,22 +256,6 @@ export default function StudentProfile() {
                   <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex", cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
                     {cp.status === 'calibrated' ? 'Calibrado' : 'Pendiente'}
                   </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-7 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground" onClick={e => e.stopPropagation()}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="5" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="19" r="1" fill="currentColor" /></svg>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      {cp.status === 'calibrated' && (
-                        <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}`}>Ver detalle</Link></DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate`}>{cp.status === 'calibrated' ? 'Recalibrar' : 'Calibrar'}</Link></DropdownMenuItem>
-                      <DropdownMenuItem asChild><Link href={`/instructor/students/${studentId}/checkpoints/${cp.id}/edit`}>Editar</Link></DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteCpDialog(cp)}>Eliminar</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>
               </div>
@@ -296,18 +278,6 @@ export default function StudentProfile() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteCpDialog} onOpenChange={v => { if (!v) setDeleteCpDialog(null) }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar "{deleteCpDialog?.name}"</DialogTitle>
-            <DialogDescription>Se eliminará la referencia y todas las sesiones de práctica de este ejercicio. Esta acción no se puede deshacer.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteCpDialog(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => deleteCpDialog && deleteCheckpoint(deleteCpDialog)}>Eliminar ejercicio</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -6,7 +6,6 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Checkpoint } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { METRIC_LABELS, isSwingBaseline, PHASE_LABELS } from '@/lib/baseline'
 import { MarkGallery } from '@/components/MarkGallery'
@@ -35,10 +34,16 @@ export default function CheckpointDetail() {
     </div>
   )
 
+  const practiceHref = cp.checkpoint_type === 'swing'
+    ? `/student/checkpoint/${cpId}/practice`
+    : `/student/checkpoint/${cpId}/mirror`
+  const practiceLabel = cp.checkpoint_type === 'swing' ? 'Grabar práctica' : 'Practicar'
+  const isSwing = cp.checkpoint_type === 'swing'
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
           <Link href="/student/journey" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Mis ejercicios
@@ -46,165 +51,147 @@ export default function CheckpointDetail() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-5 py-10">
-        {/* Checkpoint title */}
+      <div className="max-w-6xl mx-auto px-4 lg:px-6 py-10">
+        {/* Title + badges + action buttons */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
-              Calibrado
-            </Badge>
-            <Badge variant="outline" className="text-muted-foreground border-border text-xs">
-              {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
-            </Badge>
-            {cp.checkpoint_type === 'swing' && (
-              <Badge variant="outline" className="text-blue border-blue/20 bg-blue/10 text-xs">
-                Swing
+          <div className="flex items-start justify-between gap-4 mb-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
+                Calibrado
               </Badge>
+              <Badge variant="outline" className="text-muted-foreground border-border text-xs">
+                {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
+              </Badge>
+              {isSwing && (
+                <Badge variant="outline" className="text-blue border-blue/20 bg-blue/10 text-xs">
+                  Swing
+                </Badge>
+              )}
+            </div>
+            {/* Action buttons — always visible */}
+            {cp.baseline && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/student/checkpoint/${cpId}/history`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground transition-all"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 8v4l3 3" />
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                  Historial
+                </Link>
+                <Link
+                  href={practiceHref}
+                  className={cn(
+                    "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all",
+                    isSwing
+                      ? "bg-blue text-white border-blue hover:bg-blue/90"
+                      : "bg-ok text-black border-ok hover:bg-ok/90"
+                  )}
+                >
+                  {isSwing ? (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+                    </svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" />
+                      <path d="M8 21h8M12 17v4" />
+                    </svg>
+                  )}
+                  {practiceLabel}
+                </Link>
+              </div>
             )}
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{cp.name}</h1>
           {cp.baseline && (
             <p className="text-muted-foreground text-sm mt-1">
-              {cp.calibration_marks?.length ?? 0} {cp.checkpoint_type === 'swing' ? 'swings calibrados' : 'posiciones calibradas'} · referencia personal activa
+              {cp.calibration_marks?.length ?? 0} {isSwing ? 'swings calibrados' : 'posiciones calibradas'} · referencia personal activa
             </p>
           )}
         </div>
 
-        {/* Instructor note */}
-        {(cp.instructor_note || cp.instructor_audio_url) && (
-          <div className="bg-blue/5 border border-blue/20 rounded-xl px-4 py-4 mb-8">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="size-6 rounded-full bg-blue/10 border border-blue/20 flex items-center justify-center">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
-                  <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                </svg>
+        {/* Two-column layout on lg */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* LEFT — Video reference */}
+          <div>
+            {cp.calibration_marks?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
+                <MarkGallery
+                  videoUrl={cp.calibration_video_url}
+                  skeletonUrl={cp.calibration_skeleton_url}
+                  marks={cp.calibration_marks}
+                  cameraAngle={cp.camera_angle}
+                  selectedMetrics={cp.selected_metrics}
+                />
               </div>
-              <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">Nota de tu instructor</p>
-            </div>
-            {cp.instructor_audio_url && (
-              <audio src={cp.instructor_audio_url} controls className="w-full h-9 mb-3" style={{ accentColor: '#60a5fa' }} />
-            )}
-            {cp.instructor_note && (
-              <p className="text-foreground text-sm leading-relaxed">"{cp.instructor_note}"</p>
             )}
           </div>
-        )}
 
-        {/* Reference marks from instructor */}
-        {cp.calibration_marks?.length > 0 && (
-          <div className="mb-8">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
-            <MarkGallery
-              videoUrl={cp.calibration_video_url}
-              skeletonUrl={cp.calibration_skeleton_url}
-              marks={cp.calibration_marks}
-              cameraAngle={cp.camera_angle}
-              selectedMetrics={cp.selected_metrics}
-            />
-          </div>
-        )}
+          {/* RIGHT — Note + Baseline */}
+          <div className="flex flex-col gap-6">
+            {/* Instructor note */}
+            {(cp.instructor_note || cp.instructor_audio_url) && (
+              <div className="bg-blue/5 border border-blue/20 rounded-xl px-4 py-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="size-6 rounded-full bg-blue/10 border border-blue/20 flex items-center justify-center">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+                      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                    </svg>
+                  </div>
+                  <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">Nota de tu instructor</p>
+                </div>
+                {cp.instructor_audio_url && (
+                  <audio src={cp.instructor_audio_url} controls className="w-full h-9 mb-3" style={{ accentColor: '#60a5fa' }} />
+                )}
+                {cp.instructor_note && (
+                  <p className="text-foreground text-sm leading-relaxed">"{cp.instructor_note}"</p>
+                )}
+              </div>
+            )}
 
-        {/* Baseline summary */}
-        {cp.baseline && (
-          <div className="bg-card border border-border rounded-xl px-4 py-4 mb-8">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu referencia personal</p>
-            {isSwingBaseline(cp.baseline) ? (
-              <div className="flex flex-col gap-3">
-                {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
-                  <div key={phase}>
-                    <p className="text-xs text-muted-foreground font-medium mb-1.5">{PHASE_LABELS[phase as keyof typeof PHASE_LABELS] ?? phase}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(phaseBaseline as Record<string, any>)
-                        .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
-                        .map(([key, val]) => (
-                        <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
-                          <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}: </span>
-                          <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
+            {/* Baseline summary */}
+            {cp.baseline && (
+              <div className="bg-card border border-border rounded-xl px-4 py-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tu referencia personal</p>
+                {isSwingBaseline(cp.baseline) ? (
+                  <div className="flex flex-col gap-3">
+                    {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
+                      <div key={phase}>
+                        <p className="text-xs text-muted-foreground font-medium mb-1.5">{PHASE_LABELS[phase as keyof typeof PHASE_LABELS] ?? phase}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(phaseBaseline as Record<string, any>)
+                            .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                            .map(([key, val]) => (
+                            <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
+                              <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}: </span>
+                              <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(cp.baseline)
-                  .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
-                  .map(([key, val]) => (
-                  <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
-                    <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}: </span>
-                    <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(cp.baseline)
+                      .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
+                      .map(([key, val]) => (
+                      <div key={key} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs">
+                        <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}: </span>
+                        <span className="text-ok font-mono font-semibold">{typeof val.mean === 'number' ? val.mean.toFixed(1) : val.mean}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
-        )}
-
-        <Separator className="mb-8" />
-
-        {/* Primary CTA */}
-        {cp.baseline && (
-          <div className="flex flex-col gap-4">
-            <Link
-              href={cp.checkpoint_type === 'swing'
-                ? `/student/checkpoint/${cpId}/practice`
-                : `/student/checkpoint/${cpId}/mirror`
-              }
-            >
-              <div className={cn(
-                "flex items-center gap-4 p-5 rounded-xl border transition-all cursor-pointer",
-                cp.checkpoint_type === 'swing'
-                  ? "bg-blue/5 border-blue/30 hover:border-blue/50 hover:bg-blue/10"
-                  : "bg-ok/5 border-ok/30 hover:border-ok/50 hover:bg-ok/10"
-              )}>
-                <div className={cn(
-                  "size-14 rounded-xl flex items-center justify-center shrink-0 border",
-                  cp.checkpoint_type === 'swing'
-                    ? "bg-blue/10 border-blue/20 text-blue"
-                    : "bg-ok/10 border-ok/20 text-ok"
-                )}>
-                  {cp.checkpoint_type === 'swing' ? (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
-                    </svg>
-                  ) : (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="3" width="20" height="14" rx="2" />
-                      <path d="M8 21h8M12 17v4" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-lg font-bold text-foreground">
-                    {cp.checkpoint_type === 'swing' ? 'Grabar práctica' : 'Practicar'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">
-                    {cp.checkpoint_type === 'swing'
-                      ? 'Graba tu swing y compara cada fase con tu referencia'
-                      : 'Revisa tu postura en tiempo real antes de cada swing'
-                    }
-                  </p>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50 shrink-0">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </div>
-            </Link>
-
-            <Link
-              href={`/student/checkpoint/${cpId}/history`}
-              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 8v4l3 3" />
-                <circle cx="12" cy="12" r="9" />
-              </svg>
-              Ver historial de práctica
-            </Link>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
