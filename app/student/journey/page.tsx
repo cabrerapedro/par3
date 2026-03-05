@@ -137,7 +137,7 @@ export default function StudentJourney() {
                           <div className="flex-1 min-w-0">
                             <p className={cn("text-sm font-semibold truncate", isReady ? "text-foreground" : "text-muted-foreground")}>{cp.name}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
+                              {cp.checkpoint_type === 'swing' ? 'Swing' : 'Postura'} · {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
                             </p>
                             {cp.instructor_note && isReady && (
                               <p className="text-xs text-muted-foreground/80 mt-2 italic line-clamp-1">"{cp.instructor_note}"</p>

@@ -12,47 +12,6 @@ import { METRIC_LABELS, isSwingBaseline, PHASE_LABELS } from '@/lib/baseline'
 import { MarkGallery } from '@/components/MarkGallery'
 import Link from 'next/link'
 
-const ACTIONS = [
-  {
-    href: (id: string) => `/student/checkpoint/${id}/mirror`,
-    color: 'ok',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" />
-        <path d="M8 21h8M12 17v4" />
-      </svg>
-    ),
-    title: 'Espejo inteligente',
-    desc: 'Revisa tu postura en tiempo real antes de cada swing',
-    tag: 'Tiempo real',
-  },
-  {
-    href: (id: string) => `/student/checkpoint/${id}/practice`,
-    color: 'blue',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
-      </svg>
-    ),
-    title: 'Grabar práctica',
-    desc: 'Graba tu swing y compara cuadro a cuadro con tu referencia',
-    tag: 'Análisis post-swing',
-  },
-  {
-    href: (id: string) => `/student/checkpoint/${id}/history`,
-    color: 'muted-foreground',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 8v4l3 3" />
-        <circle cx="12" cy="12" r="9" />
-      </svg>
-    ),
-    title: 'Historial',
-    desc: 'Ve tu progreso y sesiones de práctica anteriores',
-    tag: 'Seguimiento',
-  },
-]
 
 export default function CheckpointDetail() {
   const { student } = useAuth()
@@ -184,46 +143,68 @@ export default function CheckpointDetail() {
 
         <Separator className="mb-8" />
 
-        {/* Action cards */}
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">¿Qué quieres hacer?</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {ACTIONS.filter(action =>
-            // Hide mirror for swing checkpoints
-            !(cp.checkpoint_type === 'swing' && action.title === 'Espejo inteligente')
-          ).map(action => (
-            <Link key={action.title} href={action.href(cpId)}>
+        {/* Primary CTA */}
+        {cp.baseline && (
+          <div className="flex flex-col gap-4">
+            <Link
+              href={cp.checkpoint_type === 'swing'
+                ? `/student/checkpoint/${cpId}/practice`
+                : `/student/checkpoint/${cpId}/mirror`
+              }
+            >
               <div className={cn(
-                "group flex items-center gap-4 p-4 rounded-xl border border-border bg-card transition-all cursor-pointer",
-                action.color === 'ok' && "hover:border-ok/40 hover:bg-ok/5",
-                action.color === 'blue' && "hover:border-blue/40 hover:bg-blue/5",
-                action.color === 'muted-foreground' && "hover:border-border hover:bg-secondary/50"
+                "flex items-center gap-4 p-5 rounded-xl border transition-all cursor-pointer",
+                cp.checkpoint_type === 'swing'
+                  ? "bg-blue/5 border-blue/30 hover:border-blue/50 hover:bg-blue/10"
+                  : "bg-ok/5 border-ok/30 hover:border-ok/50 hover:bg-ok/10"
               )}>
                 <div className={cn(
-                  "size-12 rounded-xl flex items-center justify-center shrink-0 border transition-colors",
-                  action.color === 'ok' && "bg-ok/10 border-ok/20 text-ok group-hover:bg-ok/20",
-                  action.color === 'blue' && "bg-blue/10 border-blue/20 text-blue group-hover:bg-blue/20",
-                  action.color === 'muted-foreground' && "bg-secondary border-border text-muted-foreground group-hover:bg-secondary/80"
+                  "size-14 rounded-xl flex items-center justify-center shrink-0 border",
+                  cp.checkpoint_type === 'swing'
+                    ? "bg-blue/10 border-blue/20 text-blue"
+                    : "bg-ok/10 border-ok/20 text-ok"
                 )}>
-                  {action.icon}
+                  {cp.checkpoint_type === 'swing' ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" />
+                      <path d="M8 21h8M12 17v4" />
+                    </svg>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-base font-semibold text-foreground">{action.title}</p>
-                  <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{action.desc}</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {cp.checkpoint_type === 'swing' ? 'Grabar práctica' : 'Practicar'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">
+                    {cp.checkpoint_type === 'swing'
+                      ? 'Graba tu swing y compara cada fase con tu referencia'
+                      : 'Revisa tu postura en tiempo real antes de cada swing'
+                    }
+                  </p>
                 </div>
-                <div className="shrink-0 flex flex-col items-end gap-1.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                  <span className={cn("text-xs font-medium hidden sm:block",
-                    action.color === 'ok' && "text-ok/70",
-                    action.color === 'blue' && "text-blue/70",
-                    action.color === 'muted-foreground' && "text-muted-foreground"
-                  )}>{action.tag}</span>
-                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50 shrink-0">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </div>
             </Link>
-          ))}
-        </div>
+
+            <Link
+              href={`/student/checkpoint/${cpId}/history`}
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 8v4l3 3" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Ver historial de práctica
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )

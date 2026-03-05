@@ -124,9 +124,15 @@ export default function PracticeHistory() {
             <div className="text-4xl mb-3">📋</div>
             <p className="text-muted-foreground mb-1">Sin sesiones todavía</p>
             <p className="text-sm">Graba tu primera práctica para empezar a ver tu progreso</p>
-            <Link href={`/student/checkpoint/${cpId}/practice`} className="inline-block mt-4">
+            <Link
+              href={checkpoint?.checkpoint_type === 'swing'
+                ? `/student/checkpoint/${cpId}/practice`
+                : `/student/checkpoint/${cpId}/mirror`
+              }
+              className="inline-block mt-4"
+            >
               <button className="bg-ok text-on-ok text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
-                Grabar práctica
+                {checkpoint?.checkpoint_type === 'swing' ? 'Grabar práctica' : 'Practicar'}
               </button>
             </Link>
           </div>
