@@ -451,9 +451,20 @@ export default function StudentPractice() {
         <div className="max-w-md mx-auto px-5 py-8 flex flex-col gap-4">
           <h1 className="text-xl font-bold text-foreground mb-4">Grabar práctica</h1>
 
+          {/* Phone restriction for recording */}
+          <div className="flex md:hidden flex-col items-center text-center gap-3 py-4">
+            <div className="w-14 h-14 rounded-2xl bg-blue/10 border border-blue/20 flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+                <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            </div>
+            <p className="text-foreground font-semibold text-sm">Usa un iPad o tablet para grabar</p>
+            <p className="text-muted-foreground text-xs max-w-xs">La grabación funciona mejor en una pantalla grande con trípode.</p>
+          </div>
+
           <button
             onClick={() => startRecording('environment')}
-            className="bg-blue/10 border border-blue/30 rounded-2xl p-6 text-left hover:bg-blue/20 transition-all"
+            className="bg-blue/10 border border-blue/30 rounded-2xl p-6 text-left hover:bg-blue/20 transition-all hidden md:block"
           >
             <div className="flex items-center gap-3 mb-2">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
@@ -590,11 +601,11 @@ export default function StudentPractice() {
 
       {/* RESULTS stage */}
       {stage === 'results' && checkpoint && (
-        <div className="max-w-2xl mx-auto px-5 py-8">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
           <h1 className="text-xl font-bold text-foreground mb-6">Resultados</h1>
 
           <div className="flex flex-col lg:flex-row gap-6">
-            <div className="lg:w-64 flex-shrink-0">
+            <div className="lg:w-80 flex-shrink-0">
               {previewUrl && (
                 <video
                   src={previewUrl}

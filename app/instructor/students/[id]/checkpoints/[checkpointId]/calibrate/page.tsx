@@ -553,7 +553,7 @@ export default function CalibratePage() {
             <button
               onClick={flipCamera}
               title="Cambiar cámara"
-              className="w-8 h-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-ok/30 transition-all"
+              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-ok/30 transition-all"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
@@ -567,11 +567,11 @@ export default function CalibratePage() {
         </div>
       </header>
 
-      {/* Camera + Controls wrapper — stacked on mobile, side-by-side on desktop */}
-      <div className="flex-1 flex flex-col lg:flex-row" style={{ minHeight: 0 }}>
+      {/* Camera + Controls wrapper — stacked on mobile, side-by-side on tablet+ */}
+      <div className="flex-1 flex flex-col md:flex-row" style={{ minHeight: 0 }}>
 
-      {/* Camera + Canvas */}
-      <div className="relative flex-1 bg-black overflow-hidden" style={{ minHeight: 0 }}>
+      {/* Camera + Canvas — takes ~70% on tablet+ */}
+      <div className="relative flex-1 bg-black overflow-hidden md:w-[70%]" style={{ minHeight: 0 }}>
         <video
           ref={videoRef}
           className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
@@ -616,7 +616,7 @@ export default function CalibratePage() {
       </div>
 
       {/* Controls */}
-      <div className="flex-shrink-0 bg-background border-t lg:border-t-0 lg:border-l border-border px-4 py-4 lg:w-80 lg:overflow-y-auto">
+      <div className="flex-shrink-0 bg-background border-t md:border-t-0 md:border-l border-border px-4 py-4 md:w-[30%] md:overflow-y-auto">
         {stage === 'saving' ? (
           <div className="flex flex-col items-center justify-center gap-3 py-8">
             <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />

@@ -37,7 +37,7 @@ export default function StudentJourney() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-1.5 shrink-0">
             <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
               strokeLinecap="round" className="text-ok">
@@ -61,7 +61,7 @@ export default function StudentJourney() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-5 py-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
         {/* Header */}
         <div className="mb-8">
           <p className="text-sm text-muted-foreground mb-1">Hola, {student.name.split(' ')[0]}</p>
@@ -99,11 +99,11 @@ export default function StudentJourney() {
             <p className="text-muted-foreground text-sm max-w-xs">Cuando tu instructor calibre tu técnica, aparecerán aquí listos para practicar</p>
           </div>
         ) : (
-          <div className="relative max-w-xl">
-            {/* Timeline line */}
-            <div className="absolute left-[19px] top-8 bottom-8 w-px bg-border" />
+          <div className="relative">
+            {/* Timeline line — only on single column */}
+            <div className="absolute left-[19px] top-8 bottom-8 w-px bg-border md:hidden" />
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4">
               {checkpoints.map((cp, i) => {
                 const isReady = cp.status === 'calibrated'
                 return (

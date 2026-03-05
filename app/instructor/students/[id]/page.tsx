@@ -94,14 +94,14 @@ export default function StudentProfile() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
           <Link href="/instructor/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Mis alumnos
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
+              <Button variant="ghost" size="icon" className="size-12 text-muted-foreground">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="5" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="19" r="1" fill="currentColor" />
                 </svg>
@@ -117,7 +117,7 @@ export default function StudentProfile() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-5 py-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
         <div className="flex items-start gap-5 mb-10">
           <Avatar className="size-16 shrink-0">
             <AvatarFallback className="bg-secondary text-muted-foreground text-xl font-semibold">
@@ -185,7 +185,7 @@ export default function StudentProfile() {
             <Link href={`/instructor/students/${studentId}/checkpoints/new`} className="inline-flex h-8 px-3 text-xs border border-border rounded-lg hover:border-ok/40 items-center transition-all">Crear primer ejercicio</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {checkpoints.map((cp, i) => (
               <div key={cp.id} className="group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:border-ok/30 hover:bg-secondary/40 transition-all">
                 <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0", cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" : "bg-secondary border-border text-muted-foreground")}>

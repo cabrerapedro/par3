@@ -55,6 +55,7 @@ export default function StudentMirror() {
   const [error, setError] = useState('')
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
+  const [kiosk, setKiosk] = useState(false)
 
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
@@ -167,8 +168,9 @@ export default function StudentMirror() {
     if (drawConnectors && POSE_CONNECTIONS) {
       const overall = baselineOverallStatus(smoothed)
       const color = STATUS_CONFIG[overall]?.color ?? '#34d178'
-      drawConnectors(ctx, lm, POSE_CONNECTIONS, { color, lineWidth: 3 })
-      drawLandmarks(ctx, lm, { color: '#060a08', fillColor: color, lineWidth: 1, radius: 4 })
+      const isTablet = canvas.width >= 768
+      drawConnectors(ctx, lm, POSE_CONNECTIONS, { color, lineWidth: isTablet ? 5 : 3 })
+      drawLandmarks(ctx, lm, { color: '#060a08', fillColor: color, lineWidth: 1, radius: isTablet ? 6 : 4 })
     }
   }, [])
 
@@ -182,50 +184,81 @@ export default function StudentMirror() {
   )
 
   return (
-    <main className="min-h-screen bg-background flex flex-col lg:flex-row overflow-hidden" style={{ height: '100dvh' }}>
-      {/* Video area */}
-      <div className="relative flex-1 bg-black overflow-hidden" style={{ minHeight: 0 }}>
+    <main className="min-h-screen bg-background flex flex-col md:flex-row overflow-hidden" style={{ height: '100dvh' }}>
+      {/* Phone restriction — show message instead of camera on small screens */}
+      <div className="flex md:hidden flex-col items-center justify-center flex-1 px-6 text-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue/10 border border-blue/20 flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+            <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+        </div>
+        <p className="text-foreground font-semibold">Usa un iPad o tablet para el espejo</p>
+        <p className="text-muted-foreground text-sm max-w-xs">El espejo inteligente necesita una pantalla más grande para que puedas verte a distancia.</p>
+        <Link href={`/student/checkpoint/${cpId}`} className="text-ok hover:underline text-sm mt-2">← Volver al ejercicio</Link>
+      </div>
+
+      {/* Video area — hidden on phone */}
+      <div className="relative flex-1 bg-black overflow-hidden hidden md:block" style={{ minHeight: 0 }}>
         <video ref={videoRef} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} playsInline muted />
         <canvas ref={canvasRef} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
 
-        {/* Back + flip buttons */}
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-          <Link href={`/student/checkpoint/${cpId}`} className="bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
-            ←
-          </Link>
-          {hasMultipleCameras && (
-            <button
-              onClick={flipCamera}
-              title="Cambiar cámara"
-              className="bg-background/70 backdrop-blur border border-border rounded-xl w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
-                <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
-                <circle cx="12" cy="12" r="3" />
-                <path d="m18 22-3-3 3-3" />
-                <path d="m6 2 3 3-3 3" />
-              </svg>
-            </button>
-          )}
-        </div>
+        {/* Top bar — hidden in kiosk */}
+        {!kiosk && (
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+            <Link href={`/student/checkpoint/${cpId}`} className="bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-3 text-muted-foreground text-sm hover:text-foreground transition-colors">
+              ←
+            </Link>
+            {hasMultipleCameras && (
+              <button
+                onClick={flipCamera}
+                title="Cambiar cámara"
+                className="bg-background/70 backdrop-blur border border-border rounded-xl w-12 h-12 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
+                  <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="m18 22-3-3 3-3" />
+                  <path d="m6 2 3 3-3 3" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
 
-        {/* Checkpoint name */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-1.5">
-          <p className="text-foreground text-sm font-medium">{checkpoint?.name}</p>
-        </div>
+        {/* Kiosk toggle — always visible, top right */}
+        <button
+          onClick={() => setKiosk(!kiosk)}
+          title={kiosk ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          className="absolute top-4 right-4 z-10 bg-background/70 backdrop-blur border border-border rounded-xl w-12 h-12 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {kiosk ? (
+              <><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></>
+            ) : (
+              <><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></>
+            )}
+          </svg>
+        </button>
+
+        {/* Checkpoint name — hidden in kiosk */}
+        {!kiosk && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/70 backdrop-blur border border-border rounded-xl px-4 py-2">
+            <p className="text-foreground text-sm md:text-base font-medium">{checkpoint?.name}</p>
+          </div>
+        )}
 
         {/* Status pill */}
         {overall && (
           <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-background/80 backdrop-blur border rounded-full px-4 py-2"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 md:gap-3 bg-background/80 backdrop-blur border rounded-full px-4 md:px-6 py-2 md:py-3"
             style={{ borderColor: STATUS_CONFIG[overall].color + '40' }}
           >
             <div
-              className="w-2 h-2 rounded-full animate-pulse"
+              className="w-3 h-3 md:w-4 md:h-4 rounded-full animate-pulse"
               style={{ backgroundColor: STATUS_CONFIG[overall].color }}
             />
-            <span className="text-sm font-medium" style={{ color: STATUS_CONFIG[overall].color }}>
+            <span className="text-sm md:text-lg font-semibold" style={{ color: STATUS_CONFIG[overall].color }}>
               {STATUS_CONFIG[overall].label}
             </span>
           </div>
@@ -233,67 +266,69 @@ export default function StudentMirror() {
 
         {/* Visibility warning — not enough body visible */}
         {poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
-          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
-            <span className="text-black text-sm font-medium">
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-5 py-2.5 max-w-sm text-center">
+            <span className="text-black text-sm md:text-base font-medium">
               Muestra todo el cuerpo — {detectedCount}/{expectedCount} métricas visibles
             </span>
           </div>
         )}
 
         {!poseDetected && ready && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-background/80 backdrop-blur border border-warn/30 rounded-full px-4 py-2">
-            <span className="text-warn text-sm">Ponte en el encuadre</span>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-background/80 backdrop-blur border border-warn/30 rounded-full px-5 py-2.5">
+            <span className="text-warn text-sm md:text-base">Ponte en el encuadre</span>
           </div>
         )}
 
         {!ready && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-            <div className="w-6 h-6 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />
           </div>
         )}
       </div>
 
-      {/* Panel — fixed-height rows, readable at distance */}
-      <div className="flex-shrink-0 lg:w-80 bg-card border-t lg:border-t-0 lg:border-l border-border overflow-y-auto" style={{ maxHeight: '50vh', minHeight: '120px' }}>
-        <div className="p-3">
-          {checks.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground text-sm">Esperando detección de pose...</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {checks.map(check => {
-                const hint = check.status !== 'ok' && check.direction !== 'center'
-                  ? ACTION_HINTS[check.id]?.[check.direction] ?? ''
-                  : ''
-                return (
-                  <div
-                    key={check.id}
-                    className="flex items-center gap-3 rounded-xl px-3 h-14"
-                    style={{ backgroundColor: STATUS_CONFIG[check.status]?.color + '10' }}
-                  >
+      {/* Panel — hidden in kiosk mode, hidden on phone */}
+      {!kiosk && (
+        <div className="flex-shrink-0 md:w-80 lg:w-96 bg-card border-t md:border-t-0 md:border-l border-border overflow-y-auto hidden md:block">
+          <div className="p-3 md:p-4">
+            {checks.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm md:text-base">Esperando detección de pose...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {checks.map(check => {
+                  const hint = check.status !== 'ok' && check.direction !== 'center'
+                    ? ACTION_HINTS[check.id]?.[check.direction] ?? ''
+                    : ''
+                  return (
                     <div
-                      className="flex-shrink-0 w-3 h-3 rounded-full"
-                      style={{ backgroundColor: STATUS_CONFIG[check.status]?.color }}
-                    />
-                    <span className="flex-1 text-foreground font-medium text-base truncate">{check.label}</span>
-                    {check.status === 'ok' ? (
-                      <span className="text-ok font-bold text-lg shrink-0">✓</span>
-                    ) : (
-                      <span
-                        className="font-semibold text-sm shrink-0"
-                        style={{ color: STATUS_CONFIG[check.status]?.color }}
-                      >
-                        {hint}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                      key={check.id}
+                      className="flex items-center gap-3 md:gap-4 rounded-xl px-3 md:px-4 h-14 md:h-16"
+                      style={{ backgroundColor: STATUS_CONFIG[check.status]?.color + '10' }}
+                    >
+                      <div
+                        className="flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full"
+                        style={{ backgroundColor: STATUS_CONFIG[check.status]?.color }}
+                      />
+                      <span className="flex-1 text-foreground font-medium text-base md:text-lg truncate">{check.label}</span>
+                      {check.status === 'ok' ? (
+                        <span className="text-ok font-bold text-xl md:text-2xl shrink-0">✓</span>
+                      ) : (
+                        <span
+                          className="font-semibold text-sm md:text-base shrink-0"
+                          style={{ color: STATUS_CONFIG[check.status]?.color }}
+                        >
+                          {hint}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </main>
   )
 }

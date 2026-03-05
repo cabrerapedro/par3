@@ -87,7 +87,7 @@ export default function InstructorDashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-1.5 shrink-0">
             <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
               strokeLinecap="round" className="text-ok">
@@ -111,7 +111,7 @@ export default function InstructorDashboard() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-5 py-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
         {/* Page header */}
         <div className="mb-8">
           <p className="text-sm text-muted-foreground mb-1">Hola, {instructor.name.split(' ')[0]}</p>
@@ -196,7 +196,7 @@ export default function InstructorDashboard() {
             No se encontró ningún alumno con "{search}"
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(s => {
               const total = s.checkpoints.length
               const cal = s.checkpoints.filter(c => c.status === 'calibrated').length
