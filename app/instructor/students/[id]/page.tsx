@@ -204,7 +204,7 @@ export default function StudentProfile() {
                   </Badge>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="size-7 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground" onClick={e => e.stopPropagation()}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="5" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="19" r="1" fill="currentColor" /></svg>
                       </Button>
                     </DropdownMenuTrigger>
