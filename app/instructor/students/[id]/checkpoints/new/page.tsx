@@ -45,7 +45,7 @@ export default function NewCheckpoint() {
   useEffect(() => {
     if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
-    supabase.from('checkpoints').select('id', { count: 'exact' }).eq('student_id', studentId)
+    supabase.from('checkpoints').select('*', { count: 'exact', head: true }).eq('student_id', studentId)
       .then(({ count }) => setOrder((count ?? 0) + 1))
     return () => recognitionRef.current?.stop()
   }, [authLoading])
@@ -122,7 +122,7 @@ export default function NewCheckpoint() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-lg lg:max-w-2xl mx-auto px-5 h-14 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link
             href={`/instructor/students/${studentId}`}
             className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5"
@@ -136,7 +136,7 @@ export default function NewCheckpoint() {
         </div>
       </header>
 
-      <div className="max-w-lg lg:max-w-2xl mx-auto px-5 py-10">
+      <div className="max-w-3xl mx-auto px-5 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">Nuevo ejercicio</h1>
           <p className="text-muted-foreground text-sm">Define la técnica que vas a calibrar</p>
@@ -144,186 +144,176 @@ export default function NewCheckpoint() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
 
-          {/* Technique name */}
-          <div className="flex flex-col gap-3">
-            <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Técnica</Label>
-
-            {/* Preset chips */}
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map(p => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => pickPreset(p)}
-                  className={cn(
-                    "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
-                    selectedPreset === p.label
-                      ? "bg-ok/10 border-ok/40 text-ok"
-                      : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
-            <Input
-              type="text"
-              value={name}
-              onChange={e => handleNameChange(e.target.value)}
-              placeholder="O escribe un nombre personalizado..."
-              required
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
-            />
-          </div>
-
-          {/* Checkpoint type */}
-          <div className="flex flex-col gap-3">
-            <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Modo de captura</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { value: 'position' as CheckpointType, label: 'Postura', desc: 'Captura posiciones estáticas (address, setup)' },
-                { value: 'swing' as CheckpointType, label: 'Swing', desc: 'Analiza el movimiento completo por fases' },
-              ]).map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setCheckpointType(opt.value)}
-                  className={cn(
-                    "rounded-xl border px-4 py-4 text-left transition-all",
-                    checkpointType === opt.value
-                      ? "bg-ok/10 border-ok/40"
-                      : "bg-card border-border hover:border-ok/20"
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={cn(
-                      "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                      checkpointType === opt.value ? "border-ok" : "border-border"
-                    )}>
-                      {checkpointType === opt.value && (
-                        <div className="size-2 rounded-full bg-ok" />
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-sm font-semibold",
-                      checkpointType === opt.value ? "text-ok" : "text-foreground"
-                    )}>{opt.label}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground pl-6">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Camera angle */}
-          <div className="flex flex-col gap-3">
-            <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Ángulo de cámara</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { value: 'face_on' as CameraAngle, label: 'De frente', desc: 'Cabeza, brazos y hombros' },
-                { value: 'dtl' as CameraAngle, label: 'De perfil', desc: 'Columna, rodillas y cabeza' },
-              ]).map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setCameraAngle(opt.value)}
-                  className={cn(
-                    "rounded-xl border px-4 py-4 text-left transition-all",
-                    cameraAngle === opt.value
-                      ? "bg-ok/10 border-ok/40"
-                      : "bg-card border-border hover:border-ok/20"
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={cn(
-                      "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                      cameraAngle === opt.value ? "border-ok" : "border-border"
-                    )}>
-                      {cameraAngle === opt.value && (
-                        <div className="size-2 rounded-full bg-ok" />
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-sm font-semibold",
-                      cameraAngle === opt.value ? "text-ok" : "text-foreground"
-                    )}>{opt.label}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground pl-6">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Metrics to track */}
-          <div className="flex flex-col gap-3">
-            <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Métricas a evaluar</Label>
-            <div className="flex flex-wrap gap-2">
-              {METRICS_BY_ANGLE[cameraAngle].map(key => {
-                const selected = selectedMetrics.includes(key)
-                return (
+          {/* Row 1: Capture mode + Camera angle — aligned side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="flex flex-col gap-3">
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Modo de captura</Label>
+              <div className="flex flex-col gap-2">
+                {([
+                  { value: 'position' as CheckpointType, label: 'Postura', desc: 'Posiciones estáticas (address, setup)' },
+                  { value: 'swing' as CheckpointType, label: 'Swing', desc: 'Movimiento completo por fases' },
+                ]).map(opt => (
                   <button
-                    key={key}
+                    key={opt.value}
                     type="button"
-                    onClick={() => setSelectedMetrics(prev =>
-                      selected ? prev.filter(k => k !== key) : [...prev, key]
+                    onClick={() => setCheckpointType(opt.value)}
+                    className={cn(
+                      "rounded-xl border px-4 py-3 text-left transition-all",
+                      checkpointType === opt.value
+                        ? "bg-ok/10 border-ok/40"
+                        : "bg-card border-border hover:border-ok/20"
                     )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                        checkpointType === opt.value ? "border-ok" : "border-border"
+                      )}>
+                        {checkpointType === opt.value && (
+                          <div className="size-2 rounded-full bg-ok" />
+                        )}
+                      </div>
+                      <span className={cn(
+                        "text-sm font-semibold",
+                        checkpointType === opt.value ? "text-ok" : "text-foreground"
+                      )}>{opt.label}</span>
+                      <span className="text-xs text-muted-foreground ml-auto hidden sm:inline">{opt.desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Ángulo de cámara</Label>
+              <div className="flex flex-col gap-2">
+                {([
+                  { value: 'face_on' as CameraAngle, label: 'De frente', desc: 'Cabeza, brazos y hombros' },
+                  { value: 'dtl' as CameraAngle, label: 'De perfil', desc: 'Columna, rodillas y cabeza' },
+                ]).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCameraAngle(opt.value)}
+                    className={cn(
+                      "rounded-xl border px-4 py-3 text-left transition-all",
+                      cameraAngle === opt.value
+                        ? "bg-ok/10 border-ok/40"
+                        : "bg-card border-border hover:border-ok/20"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                        cameraAngle === opt.value ? "border-ok" : "border-border"
+                      )}>
+                        {cameraAngle === opt.value && (
+                          <div className="size-2 rounded-full bg-ok" />
+                        )}
+                      </div>
+                      <span className={cn(
+                        "text-sm font-semibold",
+                        cameraAngle === opt.value ? "text-ok" : "text-foreground"
+                      )}>{opt.label}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{opt.desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Technique + Metrics — aligned side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="flex flex-col gap-3">
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Técnica</Label>
+              <div className="flex flex-wrap gap-2">
+                {PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => pickPreset(p)}
                     className={cn(
                       "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
-                      selected
+                      selectedPreset === p.label
                         ? "bg-ok/10 border-ok/40 text-ok"
                         : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
                     )}
                   >
-                    {METRIC_LABELS[key]}
+                    {p.label}
                   </button>
-                )
-              })}
+                ))}
+              </div>
+              <Input
+                type="text"
+                value={name}
+                onChange={e => handleNameChange(e.target.value)}
+                placeholder="O escribe un nombre personalizado..."
+                required
+                className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+              />
             </div>
-            {selectedMetrics.length === 0 && (
-              <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
-            )}
+
+            <div className="flex flex-col gap-3">
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Métricas a evaluar</Label>
+              <div className="flex flex-wrap gap-2">
+                {METRICS_BY_ANGLE[cameraAngle].map(key => {
+                  const selected = selectedMetrics.includes(key)
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedMetrics(prev =>
+                        selected ? prev.filter(k => k !== key) : [...prev, key]
+                      )}
+                      className={cn(
+                        "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
+                        selected
+                          ? "bg-ok/10 border-ok/40 text-ok"
+                          : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
+                      )}
+                    >
+                      {METRIC_LABELS[key]}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedMetrics.length === 0 && (
+                <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
+              )}
+            </div>
           </div>
 
-          {/* Note with voice dictation */}
+          {/* FULL WIDTH — Note */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
               Nota para el alumno{' '}
               <span className="normal-case tracking-normal text-muted-foreground/60 font-normal">(opcional)</span>
             </Label>
-            <div className="flex gap-2 items-start">
-              <Textarea
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder="Escribe o dicta una nota que verá el alumno al practicar..."
-                rows={3}
-                className="flex-1 bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 resize-none"
-              />
-              <button
-                type="button"
-                onPointerDown={isVoiceRecording ? stopVoice : startVoice}
-                title={isVoiceRecording ? 'Detener dictado' : 'Dictar nota'}
-                className={cn(
-                  "size-10 rounded-xl border flex items-center justify-center transition-all mt-0.5 shrink-0",
-                  isVoiceRecording
-                    ? "bg-bad/10 border-bad/40 text-bad animate-pulse"
-                    : "bg-card border-border text-muted-foreground hover:border-ok/40 hover:text-ok"
-                )}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="2" width="6" height="11" rx="3" />
-                  <path d="M5 10a7 7 0 0 0 14 0" />
-                  <line x1="12" y1="19" x2="12" y2="22" />
-                  <line x1="8" y1="22" x2="16" y2="22" />
-                </svg>
-              </button>
-            </div>
-            {isVoiceRecording && (
-              <p className="text-xs text-bad flex items-center gap-1.5">
-                <span className="inline-block size-1.5 rounded-full bg-bad animate-pulse" />
-                Dictando... presiona el micrófono para detener
-              </p>
-            )}
+            <Textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="Escribe o dicta una nota para el alumno..."
+              rows={2}
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 resize-none"
+            />
+            <button
+              type="button"
+              onPointerDown={isVoiceRecording ? stopVoice : startVoice}
+              className={cn(
+                "flex items-center gap-1.5 self-start px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
+                isVoiceRecording
+                  ? "bg-bad/15 border-bad/30 text-bad animate-pulse"
+                  : "border-border text-muted-foreground hover:border-ok/30 hover:text-ok"
+              )}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="2" width="6" height="11" rx="3" />
+                <path d="M5 10a7 7 0 0 0 14 0" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+              {isVoiceRecording ? 'Dictando...' : 'Dictar'}
+            </button>
           </div>
 
           {error && (
@@ -331,26 +321,21 @@ export default function NewCheckpoint() {
           )}
 
           {/* CTA */}
-          <div className="flex flex-col gap-3 pt-2">
-            <Button
-              type="submit"
-              disabled={loading || !name.trim()}
-              className="h-12 bg-ok text-on-ok hover:bg-ok/90 font-semibold text-base"
-            >
-              {loading ? 'Creando ejercicio...' : (
-                <span className="flex items-center gap-2">
-                  Crear y calibrar
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
-                  </svg>
-                </span>
-              )}
-            </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              Después de crear el ejercicio, podrás iniciar la sesión de calibración
-            </p>
-          </div>
+          <Button
+            type="submit"
+            disabled={loading || !name.trim()}
+            className="h-12 bg-ok text-on-ok hover:bg-ok/90 font-semibold text-base"
+          >
+            {loading ? 'Creando ejercicio...' : (
+              <span className="flex items-center gap-2">
+                Crear y calibrar
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
+            )}
+          </Button>
 
         </form>
       </div>

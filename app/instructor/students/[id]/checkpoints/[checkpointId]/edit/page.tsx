@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -34,7 +33,7 @@ export default function EditCheckpoint() {
   useEffect(() => {
     if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
-    supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
+    supabase.from('checkpoints').select('name, camera_angle, instructor_note, selected_metrics').eq('id', checkpointId).single()
       .then(({ data }) => {
         if (data) {
           setName(data.name)
@@ -79,7 +78,7 @@ export default function EditCheckpoint() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-sm lg:max-w-lg mx-auto px-5 h-14 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -90,79 +89,88 @@ export default function EditCheckpoint() {
         </div>
       </header>
 
-      <div className="max-w-sm lg:max-w-lg mx-auto px-5 py-10">
+      <div className="max-w-2xl mx-auto px-5 py-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Editar ejercicio</h1>
           <p className="text-muted-foreground text-sm">Nombre, ángulo y nota del instructor</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
-            <Input
-              id="name"
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Ej. Address de frente"
-              required
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wide">Ángulo de cámara</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { value: 'face_on' as CameraAngle, label: 'De frente' },
-                { value: 'dtl' as CameraAngle, label: 'De perfil' },
-              ]).map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setCameraAngle(opt.value)}
-                  className={cn(
-                    "rounded-xl border px-4 py-3 text-sm font-medium transition-all",
-                    cameraAngle === opt.value
-                      ? "bg-ok/10 border-ok/40 text-ok"
-                      : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
+          {/* Two-column layout: LEFT = Name + Angle, RIGHT = Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            {/* LEFT — identity */}
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ej. Address de frente"
+                  required
+                  className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wide">Ángulo de cámara</Label>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { value: 'face_on' as CameraAngle, label: 'De frente' },
+                    { value: 'dtl' as CameraAngle, label: 'De perfil' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setCameraAngle(opt.value)}
+                      className={cn(
+                        "rounded-xl border px-4 py-3 text-sm font-medium transition-all text-left",
+                        cameraAngle === opt.value
+                          ? "bg-ok/10 border-ok/40 text-ok"
+                          : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT — metrics */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wide">Métricas a evaluar</Label>
+              <div className="flex flex-wrap gap-2">
+                {METRICS_BY_ANGLE[cameraAngle].map(key => {
+                  const selected = selectedMetrics.includes(key)
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedMetrics(prev =>
+                        selected ? prev.filter(k => k !== key) : [...prev, key]
+                      )}
+                      className={cn(
+                        "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
+                        selected
+                          ? "bg-ok/10 border-ok/40 text-ok"
+                          : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
+                      )}
+                    >
+                      {METRIC_LABELS[key]}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedMetrics.length === 0 && (
+                <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wide">Métricas a evaluar</Label>
-            <div className="flex flex-wrap gap-2">
-              {METRICS_BY_ANGLE[cameraAngle].map(key => {
-                const selected = selectedMetrics.includes(key)
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSelectedMetrics(prev =>
-                      selected ? prev.filter(k => k !== key) : [...prev, key]
-                    )}
-                    className={cn(
-                      "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
-                      selected
-                        ? "bg-ok/10 border-ok/40 text-ok"
-                        : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
-                    )}
-                  >
-                    {METRIC_LABELS[key]}
-                  </button>
-                )
-              })}
-            </div>
-            {selectedMetrics.length === 0 && (
-              <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
-            )}
-          </div>
-
+          {/* FULL WIDTH — Note */}
           <div className="flex flex-col gap-2">
             <Label className="text-muted-foreground text-xs uppercase tracking-wide">
               Nota para el alumno <span className="normal-case font-normal text-muted-foreground/60">(opcional)</span>
@@ -171,7 +179,7 @@ export default function EditCheckpoint() {
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="Indicaciones o consejos..."
-              rows={3}
+              rows={2}
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 resize-none"
             />
           </div>
@@ -180,47 +188,50 @@ export default function EditCheckpoint() {
             <p className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3">{error}</p>
           )}
 
-          <Button
-            type="submit"
-            disabled={saving || !name.trim()}
-            className="h-11 bg-ok text-on-ok font-semibold hover:bg-ok/90"
-          >
-            {saving ? 'Guardando...' : 'Guardar cambios'}
-          </Button>
-        </form>
+          {/* CTA + Delete */}
+          <div className="flex items-center gap-3">
+            <Button
+              type="submit"
+              disabled={saving || !name.trim()}
+              className="h-11 px-6 bg-ok text-on-ok font-semibold hover:bg-ok/90"
+            >
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
 
-        <Separator className="my-8" />
-
-        {confirmDelete ? (
-          <div className="bg-bad/5 border border-bad/20 rounded-xl px-4 py-4">
-            <p className="text-foreground text-sm font-medium mb-1">¿Eliminar este ejercicio?</p>
-            <p className="text-muted-foreground text-xs mb-4">Se eliminará la referencia y todas las sesiones de práctica. Esta acción no se puede deshacer.</p>
-            <div className="flex gap-2">
-              <Button
-                onClick={deleteCheckpoint}
-                disabled={deleting}
-                variant="destructive"
-                className="flex-1 h-10 text-sm"
+            {confirmDelete ? (
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-xs text-bad">¿Eliminar?</span>
+                <Button
+                  type="button"
+                  onClick={deleteCheckpoint}
+                  disabled={deleting}
+                  variant="destructive"
+                  size="sm"
+                  className="h-9 text-xs"
+                >
+                  {deleting ? 'Eliminando...' : 'Confirmar'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 text-xs text-muted-foreground"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="text-muted-foreground text-xs hover:text-bad transition-colors ml-auto"
               >
-                {deleting ? 'Eliminando...' : 'Eliminar ejercicio'}
-              </Button>
-              <Button
-                onClick={() => setConfirmDelete(false)}
-                variant="outline"
-                className="flex-1 h-10 text-sm border-border text-muted-foreground hover:text-foreground"
-              >
-                Cancelar
-              </Button>
-            </div>
+                Eliminar ejercicio
+              </button>
+            )}
           </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="text-muted-foreground text-sm hover:text-bad transition-colors"
-          >
-            Eliminar ejercicio
-          </button>
-        )}
+        </form>
       </div>
     </div>
   )

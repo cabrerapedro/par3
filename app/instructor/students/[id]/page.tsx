@@ -15,6 +15,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
+function timeAgo(date: Date) {
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000)
+  if (days === 0) return 'Hoy'
+  if (days === 1) return 'Ayer'
+  if (days < 7) return `Hace ${days} días`
+  if (days < 30) return `Hace ${Math.floor(days / 7)} sem`
+  return `Hace ${Math.floor(days / 30)} mes${Math.floor(days / 30) !== 1 ? 'es' : ''}`
+}
+
 export default function StudentProfile() {
   const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -23,6 +32,7 @@ export default function StudentProfile() {
 
   const [student, setStudent] = useState<Student | null>(null)
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
+  const [sessions, setSessions] = useState<{ id: string; checkpoint_id: string; overall_score: number; date: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [deleteCpDialog, setDeleteCpDialog] = useState<Checkpoint | null>(null)
@@ -38,12 +48,14 @@ export default function StudentProfile() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: s }, { data: c }] = await Promise.all([
+    const [{ data: s }, { data: c }, { data: ps }] = await Promise.all([
       supabase.from('students').select('*').eq('id', studentId).single(),
       supabase.from('checkpoints').select('*').eq('student_id', studentId).order('display_order'),
+      supabase.from('practice_sessions').select('id, checkpoint_id, overall_score, date').eq('student_id', studentId).order('date', { ascending: false }),
     ])
     if (s) setStudent(s)
     setCheckpoints(c ?? [])
+    setSessions(ps ?? [])
     setLoading(false)
   }
 
@@ -90,6 +102,18 @@ export default function StudentProfile() {
   )
 
   const calibrated = checkpoints.filter(c => c.status === 'calibrated').length
+
+  // Practice stats
+  const totalSessions = sessions.length
+  const lastPractice = sessions[0]?.date ? new Date(sessions[0].date) : null
+  const avgScore = totalSessions > 0 ? Math.round(sessions.reduce((sum, s) => sum + s.overall_score, 0) / totalSessions) : null
+
+  // Per-checkpoint stats: { [cpId]: { count, lastScore, lastDate } }
+  const cpStats: Record<string, { count: number; lastScore: number; lastDate: string }> = {}
+  for (const s of sessions) {
+    if (!cpStats[s.checkpoint_id]) cpStats[s.checkpoint_id] = { count: 0, lastScore: s.overall_score, lastDate: s.date }
+    cpStats[s.checkpoint_id].count++
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,7 +183,28 @@ export default function StudentProfile() {
           </div>
         </div>
 
-        <Separator className="mb-8" />
+        {/* Practice activity stats */}
+        {totalSessions > 0 && (
+          <>
+            <Separator className="mb-6" />
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
+                <p className="text-2xl font-bold text-foreground font-mono">{totalSessions}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Sesiones</p>
+              </div>
+              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
+                <p className="text-2xl font-bold text-foreground font-mono">{avgScore}%</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Score promedio</p>
+              </div>
+              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
+                <p className="text-lg font-semibold text-foreground">{lastPractice ? timeAgo(lastPractice) : '—'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Última práctica</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {!totalSessions && <Separator className="mb-8" />}
 
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -186,7 +231,9 @@ export default function StudentProfile() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {checkpoints.map((cp, i) => (
+            {checkpoints.map((cp, i) => {
+              const stats = cpStats[cp.id]
+              return (
               <div key={cp.id} className="group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:border-ok/30 hover:bg-secondary/40 transition-all">
                 <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0", cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" : "bg-secondary border-border text-muted-foreground")}>
                   {i + 1}
@@ -197,6 +244,15 @@ export default function StudentProfile() {
                     {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
                     {cp.calibration_marks?.length > 0 && <span className="ml-2 text-muted-foreground/60">· {cp.calibration_marks.length} marca{cp.calibration_marks.length !== 1 ? 's' : ''}</span>}
                   </p>
+                  {stats && (
+                    <p className="text-xs mt-1 flex items-center gap-2">
+                      <span className="text-blue/70">{stats.count} sesion{stats.count !== 1 ? 'es' : ''}</span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span className="font-mono text-ok/80">{stats.lastScore}%</span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span className="text-muted-foreground/60">{timeAgo(new Date(stats.lastDate))}</span>
+                    </p>
+                  )}
                 </Link>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex", cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
@@ -221,7 +277,8 @@ export default function StudentProfile() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

@@ -138,9 +138,9 @@ bad: bg-bad/10 border border-bad/20 text-bad
 |----------|-----------|
 | Formularios / auth | max-w-md (448px) |
 | Vistas de contenido | max-w-2xl (672px) |
-| Dashboards | max-w-4xl (896px) |
+| Dashboards | max-w-7xl (1280px) |
 
-- Padding horizontal base: `px-5` mobile, `px-6` desktop
+- Padding horizontal base: `px-4` mobile, `px-6` tablet, `px-8` desktop
 - Padding de página: `py-8` entre header y contenido
 - Entre secciones: `gap-y-12` o `mb-12`
 - Cards en grid: `gap-3` o `gap-4`
