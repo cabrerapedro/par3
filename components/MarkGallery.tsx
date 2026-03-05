@@ -201,97 +201,106 @@ export function MarkGallery({
     else startDictation(index)
   }
 
+  // Video player element — reused in both layouts
+  const videoPlayer = hasVideo && selectedIndex !== null ? (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <video
+        ref={videoRef}
+        key={activeUrl}
+        src={activeUrl}
+        playsInline
+        onLoadedMetadata={handleLoadedMetadata}
+        onDurationChange={handleDurationChange}
+        onSeeked={handleSeeked}
+        onTimeUpdate={handleTimeUpdate}
+        onCanPlay={handleCanPlay}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); clipEndRef.current = null }}
+        className={`w-full bg-black cursor-pointer ${mirrored ? 'scale-x-[-1]' : ''}`}
+        onClick={togglePlay}
+      />
+
+      {/* Controls */}
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
+        <button onClick={togglePlay} className="text-foreground hover:text-ok transition-colors shrink-0">
+          {playing ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21" /></svg>
+          )}
+        </button>
+        <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0">
+          {formatTime(currentTime)} / {formatTime(duration)}
+        </span>
+        <div className="flex-1" />
+        <button
+          onClick={() => setMirrored(!mirrored)}
+          title={mirrored ? 'Video normal' : 'Espejo'}
+          className={`shrink-0 p-1 rounded transition-colors ${mirrored ? 'text-ok' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3" /><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" /><line x1="12" y1="2" x2="12" y2="22" />
+          </svg>
+        </button>
+        <button onClick={toggleFullscreen} title="Pantalla completa" className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  ) : hasVideo ? (
+    <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col items-center justify-center" style={{ minHeight: '10rem' }}>
+      <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/60 ml-0.5">
+          <polygon points="6 3 20 12 6 21" />
+        </svg>
+      </div>
+      <p className="text-muted-foreground text-sm">Toca <span className="text-ok font-medium">Ver clip</span> en una marca</p>
+    </div>
+  ) : null
+
+  // Source toggle element
+  const sourceToggle = hasBoth ? (
+    <div className="flex gap-1 mb-2 lg:mb-3">
+      <button
+        onClick={() => switchSource('skeleton')}
+        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+          activeSource === 'skeleton'
+            ? 'bg-ok/10 border-ok/30 text-ok'
+            : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        Video + Ejes
+      </button>
+      <button
+        onClick={() => switchSource('video')}
+        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+          activeSource === 'video'
+            ? 'bg-ok/10 border-ok/30 text-ok'
+            : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        Video
+      </button>
+    </div>
+  ) : null
+
   return (
     <div className={className}>
-      {/* Source toggle */}
-      {hasBoth && (
-        <div className="flex gap-1 mb-2">
-          <button
-            onClick={() => switchSource('skeleton')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-              activeSource === 'skeleton'
-                ? 'bg-ok/10 border-ok/30 text-ok'
-                : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Video + Ejes
-          </button>
-          <button
-            onClick={() => switchSource('video')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-              activeSource === 'video'
-                ? 'bg-ok/10 border-ok/30 text-ok'
-                : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Video
-          </button>
+      {/* Two-column layout on lg screens */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-5">
+        {/* Left column: source toggle + video player */}
+        <div className="lg:sticky lg:top-20 lg:self-start">
+          {sourceToggle}
+          {videoPlayer}
         </div>
-      )}
 
-      {/* Video player — shown only when a mark is selected */}
-      {hasVideo && selectedIndex !== null ? (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <video
-            ref={videoRef}
-            key={activeUrl}
-            src={activeUrl}
-            playsInline
-            onLoadedMetadata={handleLoadedMetadata}
-            onDurationChange={handleDurationChange}
-            onSeeked={handleSeeked}
-            onTimeUpdate={handleTimeUpdate}
-            onCanPlay={handleCanPlay}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => { setPlaying(false); clipEndRef.current = null }}
-            className={`w-full bg-black cursor-pointer ${mirrored ? 'scale-x-[-1]' : ''}`}
-            style={{ maxHeight: '14rem' }}
-            onClick={togglePlay}
-          />
-
-          {/* Controls */}
-          <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
-            <button onClick={togglePlay} className="text-foreground hover:text-ok transition-colors shrink-0">
-              {playing ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21" /></svg>
-              )}
-            </button>
-            <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-            <div className="flex-1" />
-            <button
-              onClick={() => setMirrored(!mirrored)}
-              title={mirrored ? 'Video normal' : 'Espejo'}
-              className={`shrink-0 p-1 rounded transition-colors ${mirrored ? 'text-ok' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3" /><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" /><line x1="12" y1="2" x2="12" y2="22" />
-              </svg>
-            </button>
-            <button onClick={toggleFullscreen} title="Pantalla completa" className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      ) : hasVideo ? (
-        <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col items-center justify-center" style={{ minHeight: '10rem' }}>
-          <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-2">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/60 ml-0.5">
-              <polygon points="6 3 20 12 6 21" />
-            </svg>
-          </div>
-          <p className="text-muted-foreground text-sm">Toca <span className="text-ok font-medium">Ver clip</span> en una marca</p>
-        </div>
-      ) : null}
-
+        {/* Right column: mark cards */}
+        <div>
       {/* Mark cards */}
-      <div className="flex flex-col gap-2 mt-3">
+      <div className="flex flex-col gap-2 mt-3 lg:mt-0">
         {marks.length === 1 && (
           <p className="text-xs text-warn/80 bg-warn/5 border border-warn/15 rounded-lg px-3 py-2">
             Solo 1 marca. Se recomiendan 3–5 para una referencia confiable.
@@ -452,6 +461,8 @@ export function MarkGallery({
           )}
         </div>
       )}
+      </div>{/* end mark cards column */}
+      </div>{/* end grid */}
     </div>
   )
 }

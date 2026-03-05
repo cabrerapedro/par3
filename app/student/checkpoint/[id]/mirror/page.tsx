@@ -41,6 +41,7 @@ export default function StudentMirror() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const poseRef = useRef<any>(null)
+  const cameraRef = useRef<any>(null)
   const checkpointRef = useRef<Checkpoint | null>(null)
   // Smoothing buffer for baseline checks
   const smoothRef = useRef<Array<Array<{ id: string; status: string; direction: string }>>>([])
@@ -52,11 +53,16 @@ export default function StudentMirror() {
   const [poseDetected, setPoseDetected] = useState(false)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
 
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
+    navigator.mediaDevices?.enumerateDevices().then(devices => {
+      setHasMultipleCameras(devices.filter(d => d.kind === 'videoinput').length > 1)
+    }).catch(() => {})
     init()
-    return () => { /* pose is a singleton — don't close */ }
+    return () => { cameraRef.current?.stop() }
   }, [])
 
   async function init() {
@@ -65,27 +71,49 @@ export default function StudentMirror() {
     if (data.checkpoint_type === 'swing') { setError('El espejo inteligente funciona solo con ejercicios de postura. Para analizar tu swing, usa "Grabar práctica".'); return }
     setCheckpoint(data)
     checkpointRef.current = data
-    await initMediaPipe()
+    await startCamera('environment')
     setReady(true)
   }
 
-  async function initMediaPipe() {
+  async function startCamera(facing: 'user' | 'environment') {
     try {
       await loadMediaPipe()
       const pose = await createPose(onResults)
       poseRef.current = pose
 
       if (videoRef.current) {
+        cameraRef.current?.stop()
         const cam = createCamera(videoRef.current, async () => {
           if (poseRef.current && videoRef.current) {
             try { await poseRef.current.send({ image: videoRef.current }) } catch {}
           }
-        })
-        await cam.start()
+        }, facing)
+        cameraRef.current = cam
+        try {
+          await cam.start()
+          setFacingMode(facing)
+        } catch {
+          if (facing === 'environment') {
+            setFacingMode('user')
+            const fallback = createCamera(videoRef.current, async () => {
+              if (poseRef.current && videoRef.current) {
+                try { await poseRef.current.send({ image: videoRef.current }) } catch {}
+              }
+            }, 'user')
+            cameraRef.current = fallback
+            await fallback.start()
+          } else throw new Error('No camera')
+        }
       }
     } catch {
       setError('Error al iniciar la cámara.')
     }
+  }
+
+  async function flipCamera() {
+    const newFacing = facingMode === 'user' ? 'environment' : 'user'
+    smoothRef.current = []
+    await startCamera(newFacing)
   }
 
   const onResults = useCallback((results: any) => {
@@ -157,13 +185,30 @@ export default function StudentMirror() {
     <main className="min-h-screen bg-background flex flex-col lg:flex-row overflow-hidden" style={{ height: '100dvh' }}>
       {/* Video area */}
       <div className="relative flex-1 bg-black overflow-hidden" style={{ minHeight: 0 }}>
-        <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" playsInline muted />
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
+        <video ref={videoRef} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} playsInline muted />
+        <canvas ref={canvasRef} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
 
-        {/* Back button */}
-        <Link href={`/student/checkpoint/${cpId}`} className="absolute top-4 left-4 z-10 bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-2 text-muted-foreground text-sm hover:text-muted-foreground transition-colors">
-          ←
-        </Link>
+        {/* Back + flip buttons */}
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+          <Link href={`/student/checkpoint/${cpId}`} className="bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
+            ←
+          </Link>
+          {hasMultipleCameras && (
+            <button
+              onClick={flipCamera}
+              title="Cambiar cámara"
+              className="bg-background/70 backdrop-blur border border-border rounded-xl w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
+                <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="m18 22-3-3 3-3" />
+                <path d="m6 2 3 3-3 3" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         {/* Checkpoint name */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-1.5">

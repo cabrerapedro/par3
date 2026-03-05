@@ -68,7 +68,7 @@ export default function InstructorCheckpointDetail() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-lg lg:max-w-3xl mx-auto px-5 h-14 flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
           <Link href={`/instructor/students/${studentId}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Perfil del alumno
@@ -76,7 +76,7 @@ export default function InstructorCheckpointDetail() {
         </div>
       </header>
 
-      <div className="max-w-lg lg:max-w-3xl mx-auto px-5 py-10">
+      <div className="max-w-6xl mx-auto px-4 lg:px-6 py-10">
         {/* Checkpoint title */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
@@ -190,8 +190,8 @@ export default function InstructorCheckpointDetail() {
 
         {/* Action cards */}
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Acciones</p>
-        <div className="flex flex-col gap-3">
-          <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/calibrate`}>
+        <div className="flex flex-col lg:flex-row gap-3">
+          <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/calibrate`} className="lg:flex-1">
             <div className="group flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-ok/40 hover:bg-ok/5 transition-all cursor-pointer">
               <div className="size-12 rounded-xl flex items-center justify-center shrink-0 border bg-ok/10 border-ok/20 text-ok group-hover:bg-ok/20 transition-colors">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -211,7 +211,7 @@ export default function InstructorCheckpointDetail() {
             </div>
           </Link>
 
-          <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/edit`}>
+          <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/edit`} className="lg:flex-1">
             <div className="group flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-blue/40 hover:bg-blue/5 transition-all cursor-pointer">
               <div className="size-12 rounded-xl flex items-center justify-center shrink-0 border bg-blue/10 border-blue/20 text-blue group-hover:bg-blue/20 transition-colors">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
