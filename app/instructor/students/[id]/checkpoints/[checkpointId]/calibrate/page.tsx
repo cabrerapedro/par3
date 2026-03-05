@@ -12,7 +12,7 @@ import Link from 'next/link'
 type Stage = 'loading' | 'ready' | 'recording' | 'saving' | 'done'
 
 export default function CalibratePage() {
-  const { instructor } = useAuth()
+  const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
@@ -62,6 +62,7 @@ export default function CalibratePage() {
   const setMarksSync = (m: CalibrationMark[]) => { marksRef.current = m; setMarks(m) }
 
   useEffect(() => {
+    if (authLoading) return                          // wait for auth hydration
     if (!instructor) { router.replace('/instructor/login'); return }
     loadCheckpoint()
     navigator.mediaDevices?.enumerateDevices().then(devices => {
@@ -69,7 +70,7 @@ export default function CalibratePage() {
       setHasMultipleCameras(cameras.length > 1)
     }).catch(() => {})
     return () => { stopCamera(); recognitionRef.current?.stop(); markRecognitionRef.current?.stop(); audioStreamRef.current?.getTracks().forEach(t => t.stop()) }
-  }, [])
+  }, [authLoading])
 
   // Warn before leaving with unsaved marks
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function CalibratePage() {
     try {
       await loadMediaPipe()
       // createPose is a singleton — safe to call multiple times (HMR, re-mount)
-      poseRef.current = createPose(onResults)
+      poseRef.current = await createPose(onResults)
       await startCamera(facing)
     } catch (e: any) {
       if (e?.message === 'RELOAD_REQUIRED') {
@@ -114,7 +115,14 @@ export default function CalibratePage() {
     recordingStartedRef.current = false
     const onFrame = async () => {
       if (poseRef.current && videoRef.current) {
-        await poseRef.current.send({ image: videoRef.current })
+        try {
+          await poseRef.current.send({ image: videoRef.current })
+        } catch (e: any) {
+          if (e?.message?.includes('Aborted') || e?.message?.includes('Module.arguments')) {
+            cameraRef.current?.stop()
+            setError('RELOAD_REQUIRED')
+          }
+        }
       }
     }
     try {
@@ -513,12 +521,23 @@ export default function CalibratePage() {
     <main className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
-        <Link href={checkpoint?.status === 'calibrated' ? `/instructor/students/${studentId}/checkpoints/${checkpointId}` : `/instructor/students/${studentId}`} className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          {checkpoint?.name ?? 'Calibración'}
-        </Link>
+        <div className="flex items-center gap-2 min-w-0">
+          <Link href={checkpoint?.status === 'calibrated' ? `/instructor/students/${studentId}/checkpoints/${checkpointId}` : `/instructor/students/${studentId}`} className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors truncate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span className="truncate">{checkpoint?.name ?? 'Calibración'}</span>
+          </Link>
+          {checkpoint && (
+            <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+              checkpoint.checkpoint_type === 'swing'
+                ? 'bg-blue/15 text-blue border border-blue/25'
+                : 'bg-ok/15 text-ok border border-ok/25'
+            }`}>
+              {checkpoint.checkpoint_type === 'swing' ? 'Swing' : 'Postura'}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {stage !== 'loading' && (
             <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${

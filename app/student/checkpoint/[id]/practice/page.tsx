@@ -169,7 +169,7 @@ export default function StudentPractice() {
     if (!cp) return
     try {
       await loadMediaPipe()
-      const pose = createPose(() => {})
+      const pose = await createPose(() => {})
       pose.onResults((results: any) => {
         if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
         const metrics = calculateMetrics(results.poseLandmarks, cp.camera_angle)
@@ -277,7 +277,7 @@ export default function StudentPractice() {
     const totalFrames = Math.min(Math.floor(duration * fps), 600)
 
     await loadMediaPipe()
-    const pose = createPose(() => {})
+    const pose = await createPose(() => {})
 
     const results: FrameResult[] = []
     const allLandmarks: Landmark[][] = []

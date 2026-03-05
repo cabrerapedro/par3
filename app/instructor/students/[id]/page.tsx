@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
 export default function StudentProfile() {
-  const { instructor } = useAuth()
+  const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
@@ -31,9 +31,10 @@ export default function StudentProfile() {
   const [shared, setShared] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     loadData()
-  }, [instructor, studentId])
+  }, [authLoading, studentId])
 
   async function loadData() {
     setLoading(true)

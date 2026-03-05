@@ -14,7 +14,7 @@ import { MarkGallery } from '@/components/MarkGallery'
 import Link from 'next/link'
 
 export default function InstructorCheckpointDetail() {
-  const { instructor } = useAuth()
+  const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
@@ -24,10 +24,11 @@ export default function InstructorCheckpointDetail() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
       .then(({ data }) => { if (data) setCp(data); setLoading(false) })
-  }, [instructor])
+  }, [authLoading])
 
   async function handleDeleteMark(index: number) {
     if (!cp) return

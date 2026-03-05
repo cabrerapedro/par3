@@ -25,7 +25,7 @@ const PRESETS: { label: string; angle: CameraAngle }[] = [
 ]
 
 export default function NewCheckpoint() {
-  const { instructor } = useAuth()
+  const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
@@ -43,11 +43,12 @@ export default function NewCheckpoint() {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(METRICS_BY_ANGLE['face_on'])
 
   useEffect(() => {
+    if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     supabase.from('checkpoints').select('id', { count: 'exact' }).eq('student_id', studentId)
       .then(({ count }) => setOrder((count ?? 0) + 1))
     return () => recognitionRef.current?.stop()
-  }, [instructor])
+  }, [authLoading])
 
   // Reset metric selection when camera angle changes
   useEffect(() => {

@@ -72,12 +72,14 @@ export default function StudentMirror() {
   async function initMediaPipe() {
     try {
       await loadMediaPipe()
-      const pose = createPose(onResults)
+      const pose = await createPose(onResults)
       poseRef.current = pose
 
       if (videoRef.current) {
         const cam = createCamera(videoRef.current, async () => {
-          if (poseRef.current && videoRef.current) await poseRef.current.send({ image: videoRef.current })
+          if (poseRef.current && videoRef.current) {
+            try { await poseRef.current.send({ image: videoRef.current }) } catch {}
+          }
         })
         await cam.start()
       }

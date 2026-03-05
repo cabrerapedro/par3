@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
 export default function EditStudent() {
-  const { instructor } = useAuth()
+  const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
@@ -22,6 +22,7 @@ export default function EditStudent() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     supabase.from('students').select('*').eq('id', studentId).single()
       .then(({ data }) => {
@@ -31,7 +32,7 @@ export default function EditStudent() {
         }
         setLoading(false)
       })
-  }, [instructor])
+  }, [authLoading])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

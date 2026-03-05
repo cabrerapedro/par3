@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
 export default function EditCheckpoint() {
-  const { instructor } = useAuth()
+  const { instructor, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
@@ -32,6 +32,7 @@ export default function EditCheckpoint() {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
       .then(({ data }) => {
@@ -43,7 +44,7 @@ export default function EditCheckpoint() {
         }
         setLoading(false)
       })
-  }, [instructor])
+  }, [authLoading])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
