@@ -4,7 +4,6 @@ import { useRef, useState } from 'react'
 import type { CalibrationMark } from '@/lib/types'
 import type { CameraAngle } from '@/lib/types'
 import { METRIC_LABELS, METRIC_INFO } from '@/lib/baseline'
-import { VideoTimelinePlayer } from '@/components/VideoTimelinePlayer'
 
 interface MarkGalleryProps {
   videoUrl?: string
@@ -28,7 +27,7 @@ export function MarkGallery({
   const [mirrored, setMirrored] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
-  const [showFullVideo, setShowFullVideo] = useState(false)
+  const [playingFull, setPlayingFull] = useState(false)
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null)
   const [dictatingIndex, setDictatingIndex] = useState<number | null>(null)
   const dictRecognitionRef = useRef<any>(null)
@@ -99,6 +98,7 @@ export function MarkGallery({
     const start = Math.max(0, markTime - 2)
     const end = Math.min(duration || Infinity, markTime + 2)
 
+    setPlayingFull(false)
     setSelectedIndex(index)
 
     // If video already mounted, seek immediately
@@ -201,8 +201,23 @@ export function MarkGallery({
     else startDictation(index)
   }
 
+  function playFullVideo() {
+    setPlayingFull(true)
+    setSelectedIndex(null)
+    clipEndRef.current = null
+    const v = videoRef.current
+    if (v) {
+      v.currentTime = 0
+      v.play()
+      setPlaying(true)
+    } else {
+      pendingPlayRef.current = { start: 0, end: Infinity }
+    }
+  }
+
   // Video player element — reused in both layouts
-  const videoPlayer = hasVideo && selectedIndex !== null ? (
+  const showPlayer = selectedIndex !== null || playingFull
+  const videoPlayer = hasVideo && showPlayer ? (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       <video
         ref={videoRef}
@@ -289,11 +304,13 @@ export function MarkGallery({
 
   return (
     <div className={className}>
+      {/* Source toggle — above grid so columns align */}
+      {sourceToggle}
+
       {/* Two-column layout on lg screens */}
       <div className="lg:grid lg:grid-cols-2 lg:gap-5">
-        {/* Left column: source toggle + video player */}
+        {/* Left column: video player */}
         <div className="lg:sticky lg:top-20 lg:self-start">
-          {sourceToggle}
           {videoPlayer}
         </div>
 
@@ -433,32 +450,22 @@ export function MarkGallery({
         ))}
       </div>
 
-      {/* Collapsible full video */}
+      {/* Full video button */}
       {hasVideo && marks.length > 0 && (
-        <div className="mt-4">
+        <div className="mt-3">
           <button
-            onClick={() => setShowFullVideo(!showFullVideo)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={playFullVideo}
+            className={`flex items-center gap-1.5 text-xs transition-colors ${
+              playingFull
+                ? 'text-ok'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <svg
-              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round"
-              className={`transition-transform ${showFullVideo ? 'rotate-90' : ''}`}
-            >
-              <polyline points="9 18 15 12 9 6" />
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="6 3 20 12 6 21" />
             </svg>
             Ver grabación completa
           </button>
-          {showFullVideo && (
-            <div className="mt-2">
-              <VideoTimelinePlayer
-                videoUrl={videoUrl}
-                skeletonUrl={skeletonUrl}
-                marks={marks}
-                className="bg-card border border-border rounded-xl overflow-hidden p-3"
-              />
-            </div>
-          )}
         </div>
       )}
       </div>{/* end mark cards column */}
