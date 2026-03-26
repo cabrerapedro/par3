@@ -367,7 +367,8 @@ export default function DemoPage() {
       const ctx = exportCanvas.getContext('2d')!
 
       const stream = exportCanvas.captureStream(30)
-      const mimeType = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4']
+      // Prefer MP4 so the file is playable everywhere (iOS, WhatsApp, etc.)
+      const mimeType = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm']
         .find(t => MediaRecorder.isTypeSupported(t)) ?? ''
       const chunks: Blob[] = []
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
@@ -399,11 +400,12 @@ export default function DemoPage() {
       await new Promise<void>(r => { recorder.onstop = () => r() })
 
       const blob = new Blob(chunks, { type: mimeType || 'video/webm' })
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm'
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       const angleLabel = slot.angle === 'face_on' ? 'frente' : 'perfil'
-      a.download = `golf-analysis-${angleLabel}.webm`
+      a.download = `golf-analysis-${angleLabel}.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
