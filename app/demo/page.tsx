@@ -373,10 +373,18 @@ export default function DemoPage() {
       const chunks: Blob[] = []
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-      recorder.start()
 
       const fps = 30
       const totalFrames = Math.floor(slot.duration * fps)
+
+      // Draw first frame before starting recorder to avoid black frames
+      video.currentTime = 0
+      await waitSeek(video)
+      ctx.drawImage(video, 0, 0, w, h)
+      const firstFrame = findNearestFrame(slot.frames, 0)
+      if (firstFrame?.landmarks) drawSkeleton(ctx, firstFrame.landmarks)
+
+      recorder.start()
 
       for (let i = 0; i < totalFrames; i++) {
         video.currentTime = i / fps
