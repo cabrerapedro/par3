@@ -88,6 +88,20 @@ function drawSkeleton(
   }
 }
 
+const SMOOTH_WINDOW = 4
+
+function smoothLandmarks(buffer: Landmark[][], incoming: Landmark[]): Landmark[] {
+  buffer.push(incoming)
+  if (buffer.length > SMOOTH_WINDOW) buffer.shift()
+  const n = buffer.length
+  return incoming.map((_, i) => ({
+    x: buffer.reduce((s, f) => s + (f[i]?.x ?? 0), 0) / n,
+    y: buffer.reduce((s, f) => s + (f[i]?.y ?? 0), 0) / n,
+    z: buffer.reduce((s, f) => s + (f[i]?.z ?? 0), 0) / n,
+    visibility: buffer.reduce((s, f) => s + (f[i]?.visibility ?? 0), 0) / n,
+  }))
+}
+
 function formatMetricValue(key: string, value: number): string {
   const info = METRIC_INFO[key]
   if (!info) return value.toFixed(2)
@@ -115,6 +129,7 @@ export default function DemoPage() {
   const rafRef = useRef<number>(0)
   const slotsRef = useRef<VideoSlot[]>([])
   const activeTabRef = useRef(0)
+  const landmarkBufferRef = useRef<Landmark[][]>([])
 
   // Keep refs in sync
   useEffect(() => { slotsRef.current = slots }, [slots])
@@ -274,6 +289,7 @@ export default function DemoPage() {
     video.load()
     setIsPlaying(false)
     setCurrentMetrics({})
+    landmarkBufferRef.current = []
 
     // Draw first frame once loaded
     const onLoaded = () => {
@@ -305,7 +321,8 @@ export default function DemoPage() {
 
     const frame = findNearestFrame(slot.frames, video.currentTime)
     if (frame?.landmarks) {
-      drawSkeleton(ctx, frame.landmarks)
+      const smoothed = smoothLandmarks(landmarkBufferRef.current, frame.landmarks)
+      drawSkeleton(ctx, smoothed)
       setCurrentMetrics(frame.metrics)
     } else {
       setCurrentMetrics({})
@@ -378,11 +395,12 @@ export default function DemoPage() {
       const totalFrames = Math.floor(slot.duration * fps)
 
       // Draw first frame before starting recorder to avoid black frames
+      const exportBuffer: Landmark[][] = []
       video.currentTime = 0
       await waitSeek(video)
       ctx.drawImage(video, 0, 0, w, h)
       const firstFrame = findNearestFrame(slot.frames, 0)
-      if (firstFrame?.landmarks) drawSkeleton(ctx, firstFrame.landmarks)
+      if (firstFrame?.landmarks) drawSkeleton(ctx, smoothLandmarks(exportBuffer, firstFrame.landmarks))
 
       recorder.start()
 
@@ -393,10 +411,10 @@ export default function DemoPage() {
         // Draw video frame
         ctx.drawImage(video, 0, 0, w, h)
 
-        // Draw skeleton overlay
+        // Draw smoothed skeleton overlay
         const frame = findNearestFrame(slot.frames, i / fps)
         if (frame?.landmarks) {
-          drawSkeleton(ctx, frame.landmarks)
+          drawSkeleton(ctx, smoothLandmarks(exportBuffer, frame.landmarks))
         }
 
         // Pace for captureStream
