@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { calculateMetrics, compareToBaseline, baselineOverallStatus, METRICS_BY_ANGLE } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
+import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
 import type { Checkpoint, Baseline } from '@/lib/types'
 import type { BaselineCheck } from '@/lib/baseline'
 import Link from 'next/link'
@@ -45,6 +46,8 @@ export default function StudentMirror() {
   const checkpointRef = useRef<Checkpoint | null>(null)
   // Smoothing buffer for baseline checks
   const smoothRef = useRef<Array<Array<{ id: string; status: string; direction: string }>>>([])
+  const filterStateRef = useRef(createOneEuroState())
+  const frameTimeRef = useRef(0)
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [checks, setChecks] = useState<BaselineCheck[]>([])
@@ -114,6 +117,7 @@ export default function StudentMirror() {
   async function flipCamera() {
     const newFacing = facingMode === 'user' ? 'environment' : 'user'
     smoothRef.current = []
+    filterStateRef.current = createOneEuroState()
     await startCamera(newFacing)
   }
 
@@ -161,6 +165,10 @@ export default function StudentMirror() {
 
     setChecks(smoothed)
 
+    // Filter landmarks for smooth skeleton drawing
+    frameTimeRef.current += 1 / 15  // approximate ~15fps from MediaPipe
+    const filteredLm = filterLandmarks(filterStateRef.current, lm, frameTimeRef.current)
+
     // Draw skeleton with status colors
     const drawConnectors = (window as any).drawConnectors
     const drawLandmarks = (window as any).drawLandmarks
@@ -169,8 +177,8 @@ export default function StudentMirror() {
       const overall = baselineOverallStatus(smoothed)
       const color = STATUS_CONFIG[overall]?.color ?? '#34d178'
       const isTablet = canvas.width >= 768
-      drawConnectors(ctx, lm, POSE_CONNECTIONS, { color, lineWidth: isTablet ? 5 : 3 })
-      drawLandmarks(ctx, lm, { color: '#060a08', fillColor: color, lineWidth: 1, radius: isTablet ? 6 : 4 })
+      drawConnectors(ctx, filteredLm, POSE_CONNECTIONS, { color, lineWidth: isTablet ? 5 : 3 })
+      drawLandmarks(ctx, filteredLm, { color: '#060a08', fillColor: color, lineWidth: 1, radius: isTablet ? 6 : 4 })
     }
   }, [])
 

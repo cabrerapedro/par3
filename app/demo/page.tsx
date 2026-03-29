@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import { calculateMetrics, METRICS_BY_ANGLE, METRIC_INFO } from '@/lib/baseline'
+import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
+import type { OneEuroState } from '@/lib/oneEuroFilter'
 import type { Landmark, CameraAngle } from '@/lib/types'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -86,62 +88,6 @@ function drawSkeleton(
   if (dl) {
     dl(ctx, landmarks, { color: '#060a08', fillColor: color, lineWidth: 1, radius: 4 })
   }
-}
-
-// ─── OneEuro Filter ─────────────────────────────────────────────────────────
-// Adaptive low-pass filter: smooth when still, responsive when moving.
-// Standard for real-time pose smoothing in motion capture systems.
-const OE_MIN_CUTOFF = 0.8  // lower = smoother when still
-const OE_BETA = 0.4        // higher = more responsive to fast movement
-const OE_D_CUTOFF = 1.0
-
-function oeSmoothingFactor(te: number, cutoff: number): number {
-  const r = 2 * Math.PI * cutoff * te
-  return r / (r + 1)
-}
-
-interface OneEuroState {
-  x: number[]; dx: number[]; lastTime: number; initialized: boolean
-}
-
-function createOneEuroState(): OneEuroState {
-  return { x: [], dx: [], lastTime: 0, initialized: false }
-}
-
-function oneEuroFilter(state: OneEuroState, values: number[], timestamp: number): number[] {
-  if (!state.initialized || !state.x.length) {
-    state.x = [...values]
-    state.dx = values.map(() => 0)
-    state.lastTime = timestamp
-    state.initialized = true
-    return values
-  }
-
-  const te = Math.max(timestamp - state.lastTime, 1e-6)
-  state.lastTime = timestamp
-
-  const aD = oeSmoothingFactor(te, OE_D_CUTOFF)
-  return values.map((v, i) => {
-    const dx = aD * ((v - state.x[i]) / te) + (1 - aD) * (state.dx[i] ?? 0)
-    state.dx[i] = dx
-    const cutoff = OE_MIN_CUTOFF + OE_BETA * Math.abs(dx)
-    const a = oeSmoothingFactor(te, cutoff)
-    const out = a * v + (1 - a) * state.x[i]
-    state.x[i] = out
-    return out
-  })
-}
-
-function filterLandmarks(state: OneEuroState, landmarks: Landmark[], time: number): Landmark[] {
-  // Pack into flat array: [x0, y0, z0, x1, y1, z1, ...]
-  const flat = landmarks.flatMap(lm => [lm.x, lm.y, lm.z])
-  const filtered = oneEuroFilter(state, flat, time)
-  return landmarks.map((lm, i) => ({
-    x: filtered[i * 3],
-    y: filtered[i * 3 + 1],
-    z: filtered[i * 3 + 2],
-    visibility: lm.visibility,
-  }))
 }
 
 function formatMetricValue(key: string, value: number): string {
