@@ -88,17 +88,59 @@ function drawSkeleton(
   }
 }
 
-const SMOOTH_WINDOW = 4
+// ─── OneEuro Filter ─────────────────────────────────────────────────────────
+// Adaptive low-pass filter: smooth when still, responsive when moving.
+// Standard for real-time pose smoothing in motion capture systems.
+const OE_MIN_CUTOFF = 0.8  // lower = smoother when still
+const OE_BETA = 0.4        // higher = more responsive to fast movement
+const OE_D_CUTOFF = 1.0
 
-function smoothLandmarks(buffer: Landmark[][], incoming: Landmark[]): Landmark[] {
-  buffer.push(incoming)
-  if (buffer.length > SMOOTH_WINDOW) buffer.shift()
-  const n = buffer.length
-  return incoming.map((_, i) => ({
-    x: buffer.reduce((s, f) => s + (f[i]?.x ?? 0), 0) / n,
-    y: buffer.reduce((s, f) => s + (f[i]?.y ?? 0), 0) / n,
-    z: buffer.reduce((s, f) => s + (f[i]?.z ?? 0), 0) / n,
-    visibility: buffer.reduce((s, f) => s + (f[i]?.visibility ?? 0), 0) / n,
+function oeSmoothingFactor(te: number, cutoff: number): number {
+  const r = 2 * Math.PI * cutoff * te
+  return r / (r + 1)
+}
+
+interface OneEuroState {
+  x: number[]; dx: number[]; lastTime: number; initialized: boolean
+}
+
+function createOneEuroState(): OneEuroState {
+  return { x: [], dx: [], lastTime: 0, initialized: false }
+}
+
+function oneEuroFilter(state: OneEuroState, values: number[], timestamp: number): number[] {
+  if (!state.initialized || !state.x.length) {
+    state.x = [...values]
+    state.dx = values.map(() => 0)
+    state.lastTime = timestamp
+    state.initialized = true
+    return values
+  }
+
+  const te = Math.max(timestamp - state.lastTime, 1e-6)
+  state.lastTime = timestamp
+
+  const aD = oeSmoothingFactor(te, OE_D_CUTOFF)
+  return values.map((v, i) => {
+    const dx = aD * ((v - state.x[i]) / te) + (1 - aD) * (state.dx[i] ?? 0)
+    state.dx[i] = dx
+    const cutoff = OE_MIN_CUTOFF + OE_BETA * Math.abs(dx)
+    const a = oeSmoothingFactor(te, cutoff)
+    const out = a * v + (1 - a) * state.x[i]
+    state.x[i] = out
+    return out
+  })
+}
+
+function filterLandmarks(state: OneEuroState, landmarks: Landmark[], time: number): Landmark[] {
+  // Pack into flat array: [x0, y0, z0, x1, y1, z1, ...]
+  const flat = landmarks.flatMap(lm => [lm.x, lm.y, lm.z])
+  const filtered = oneEuroFilter(state, flat, time)
+  return landmarks.map((lm, i) => ({
+    x: filtered[i * 3],
+    y: filtered[i * 3 + 1],
+    z: filtered[i * 3 + 2],
+    visibility: lm.visibility,
   }))
 }
 
@@ -129,7 +171,7 @@ export default function DemoPage() {
   const rafRef = useRef<number>(0)
   const slotsRef = useRef<VideoSlot[]>([])
   const activeTabRef = useRef(0)
-  const landmarkBufferRef = useRef<Landmark[][]>([])
+  const filterStateRef = useRef<OneEuroState>(createOneEuroState())
 
   // Keep refs in sync
   useEffect(() => { slotsRef.current = slots }, [slots])
@@ -289,7 +331,7 @@ export default function DemoPage() {
     video.load()
     setIsPlaying(false)
     setCurrentMetrics({})
-    landmarkBufferRef.current = []
+    filterStateRef.current = createOneEuroState()
 
     // Draw first frame once loaded
     const onLoaded = () => {
@@ -321,7 +363,7 @@ export default function DemoPage() {
 
     const frame = findNearestFrame(slot.frames, video.currentTime)
     if (frame?.landmarks) {
-      const smoothed = smoothLandmarks(landmarkBufferRef.current, frame.landmarks)
+      const smoothed = filterLandmarks(filterStateRef.current, frame.landmarks, video.currentTime)
       drawSkeleton(ctx, smoothed)
       setCurrentMetrics(frame.metrics)
     } else {
@@ -395,12 +437,12 @@ export default function DemoPage() {
       const totalFrames = Math.floor(slot.duration * fps)
 
       // Draw first frame before starting recorder to avoid black frames
-      const exportBuffer: Landmark[][] = []
+      const exportFilter = createOneEuroState()
       video.currentTime = 0
       await waitSeek(video)
       ctx.drawImage(video, 0, 0, w, h)
       const firstFrame = findNearestFrame(slot.frames, 0)
-      if (firstFrame?.landmarks) drawSkeleton(ctx, smoothLandmarks(exportBuffer, firstFrame.landmarks))
+      if (firstFrame?.landmarks) drawSkeleton(ctx, filterLandmarks(exportFilter, firstFrame.landmarks, 0))
 
       recorder.start()
 
@@ -414,7 +456,7 @@ export default function DemoPage() {
         // Draw smoothed skeleton overlay
         const frame = findNearestFrame(slot.frames, i / fps)
         if (frame?.landmarks) {
-          drawSkeleton(ctx, smoothLandmarks(exportBuffer, frame.landmarks))
+          drawSkeleton(ctx, filterLandmarks(exportFilter, frame.landmarks, i / fps))
         }
 
         // Pace for captureStream
