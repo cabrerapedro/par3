@@ -24,6 +24,34 @@ interface VideoSlot {
 
 type Stage = 'upload' | 'processing' | 'playback'
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+// MediaPipe Pose connections (fallback if global not available)
+const POSE_CONN: [number, number][] = [
+  [0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8],[9,10],
+  [11,12],[11,13],[13,15],[12,14],[14,16],
+  [11,23],[12,24],[23,24],
+  [23,25],[25,27],[24,26],[26,28],
+  [27,29],[29,31],[28,30],[30,32],
+  [15,17],[15,19],[15,21],[16,18],[16,20],[16,22],
+]
+
+// Where to draw each metric annotation on the body
+const METRIC_ANCHOR: Record<string, { lm: number[]; dx: number; dy: number }> = {
+  head_lateral:   { lm: [0],          dx: 25,  dy: -15 },
+  arm_angle:      { lm: [13, 14],     dx: 35,  dy: 0 },
+  shoulder_level: { lm: [11, 12],     dx: 0,   dy: -18 },
+  hip_sway:       { lm: [23, 24],     dx: 30,  dy: 5 },
+  stance_width:   { lm: [27, 28],     dx: 0,   dy: 18 },
+  weight_shift:   { lm: [11, 12],     dx: -35, dy: -18 },
+  spine_angle:    { lm: [11, 12, 23, 24], dx: 35, dy: 0 },
+  knee_flex:      { lm: [25, 26],     dx: 35,  dy: 0 },
+  head_forward:   { lm: [0],          dx: 25,  dy: -15 },
+  hip_hinge:      { lm: [23, 24],     dx: 35,  dy: 0 },
+  trail_arm:      { lm: [13, 14],     dx: -35, dy: 0 },
+  head_height:    { lm: [0],          dx: 0,   dy: -25 },
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 async function resolveVideoDuration(video: HTMLVideoElement): Promise<number> {
   await new Promise<void>(res => {
@@ -67,25 +95,9 @@ function findNearestFrame(frames: ProcessedFrame[], time: number): ProcessedFram
   for (let i = 1; i < frames.length; i++) {
     const d = Math.abs(frames[i].time - time)
     if (d < bestDist) { best = frames[i]; bestDist = d }
-    else break // frames are sorted by time
+    else break
   }
   return best
-}
-
-function drawSkeleton(
-  ctx: CanvasRenderingContext2D,
-  landmarks: Landmark[],
-  color = '#34d178'
-) {
-  const dc = (window as any).drawConnectors
-  const dl = (window as any).drawLandmarks
-  const PC = (window as any).POSE_CONNECTIONS
-  if (dc && PC) {
-    dc(ctx, landmarks, PC, { color, lineWidth: 3 })
-  }
-  if (dl) {
-    dl(ctx, landmarks, { color: '#060a08', fillColor: color, lineWidth: 1, radius: 4 })
-  }
 }
 
 const SMOOTH_WINDOW = 4
@@ -102,12 +114,109 @@ function smoothLandmarks(buffer: Landmark[][], incoming: Landmark[]): Landmark[]
   }))
 }
 
+// ─── Confidence-based color ─────────────────────────────────────────────────
+function confidenceColor(visibility: number): string {
+  if (visibility >= 0.8) return '#34d178'       // bright green
+  if (visibility >= 0.6) return '#6ee7a0'       // medium green
+  if (visibility >= 0.4) return '#94a3b8'       // slate gray
+  return '#475569'                               // dark gray
+}
+
+function avgVisibility(lm: Landmark[], indices: number[]): number {
+  const vals = indices.map(i => lm[i]?.visibility ?? 0)
+  return vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
+// ─── Drawing ────────────────────────────────────────────────────────────────
+function drawSkeletonFull(
+  ctx: CanvasRenderingContext2D,
+  landmarks: Landmark[],
+  metrics: Record<string, number>,
+  angle: CameraAngle,
+  cw: number,
+  ch: number,
+) {
+  const connections = ((window as any).POSE_CONNECTIONS as [number, number][]) ?? POSE_CONN
+
+  // Draw connections with confidence coloring
+  for (const [a, b] of connections) {
+    const la = landmarks[a], lb = landmarks[b]
+    if (!la || !lb) continue
+    const vis = ((la.visibility ?? 0) + (lb.visibility ?? 0)) / 2
+    ctx.strokeStyle = confidenceColor(vis)
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(la.x * cw, la.y * ch)
+    ctx.lineTo(lb.x * cw, lb.y * ch)
+    ctx.stroke()
+  }
+
+  // Draw landmarks with confidence coloring
+  for (let i = 0; i < landmarks.length; i++) {
+    const lm = landmarks[i]
+    if (!lm) continue
+    const vis = lm.visibility ?? 0
+    const color = confidenceColor(vis)
+    ctx.fillStyle = color
+    ctx.strokeStyle = '#060a08'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(lm.x * cw, lm.y * ch, 4, 0, 2 * Math.PI)
+    ctx.fill()
+    ctx.stroke()
+  }
+
+  // Draw metric annotations
+  const keys = METRICS_BY_ANGLE[angle] ?? []
+  const fontSize = Math.max(11, Math.min(14, cw / 80))
+  ctx.font = `bold ${fontSize}px monospace`
+  ctx.textBaseline = 'middle'
+
+  for (const key of keys) {
+    const value = metrics[key]
+    if (value === undefined) continue
+    const anchor = METRIC_ANCHOR[key]
+    if (!anchor) continue
+
+    // Compute anchor position: average of landmark positions
+    let ax = 0, ay = 0, count = 0
+    for (const idx of anchor.lm) {
+      const lm = landmarks[idx]
+      if (lm) { ax += lm.x; ay += lm.y; count++ }
+    }
+    if (!count) continue
+    ax = (ax / count) * cw + anchor.dx
+    ay = (ay / count) * ch + anchor.dy
+
+    // Format value
+    const info = METRIC_INFO[key]
+    let label: string
+    if (info?.unit === 'grados') label = `${value.toFixed(1)}°`
+    else if (info?.unit === 'ratio') label = value.toFixed(2)
+    else label = (value * 100).toFixed(1)
+
+    // Draw pill background
+    const textW = ctx.measureText(label).width
+    const pad = 4
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.beginPath()
+    const r = (fontSize / 2) + pad
+    const rx = ax - pad, ry = ay - r, rw = textW + pad * 2, rh = r * 2
+    ctx.roundRect(rx, ry, rw, rh, 4)
+    ctx.fill()
+
+    // Draw text
+    const vis = avgVisibility(landmarks, anchor.lm)
+    ctx.fillStyle = confidenceColor(vis)
+    ctx.fillText(label, ax, ay)
+  }
+}
+
 function formatMetricValue(key: string, value: number): string {
   const info = METRIC_INFO[key]
   if (!info) return value.toFixed(2)
   if (info.unit === 'grados') return `${value.toFixed(1)}°`
   if (info.unit === 'ratio') return value.toFixed(2)
-  // distance: multiply by 100 for readability
   return (value * 100).toFixed(1)
 }
 
@@ -117,25 +226,22 @@ export default function DemoPage() {
   const [slots, setSlots] = useState<VideoSlot[]>([])
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
-  const [activeTab, setActiveTab] = useState(0)
-  const [currentMetrics, setCurrentMetrics] = useState<Record<string, number>>({})
+  const [currentMetrics, setCurrentMetrics] = useState<Record<string, number>[]>([{}, {}])
   const [isPlaying, setIsPlaying] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
+  const [exportSlotIdx, setExportSlotIdx] = useState(0)
   const [error, setError] = useState('')
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Refs for up to 2 video panels
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([null, null])
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([null, null])
+  const bufferRefs = useRef<Landmark[][][]>([[], []])
   const rafRef = useRef<number>(0)
   const slotsRef = useRef<VideoSlot[]>([])
-  const activeTabRef = useRef(0)
-  const landmarkBufferRef = useRef<Landmark[][]>([])
 
-  // Keep refs in sync
   useEffect(() => { slotsRef.current = slots }, [slots])
-  useEffect(() => { activeTabRef.current = activeTab }, [activeTab])
 
-  // Cleanup
   useEffect(() => {
     return () => {
       cancelAnimationFrame(rafRef.current)
@@ -147,23 +253,17 @@ export default function DemoPage() {
   const pendingFiles = useRef<{ file: File; angle: CameraAngle }[]>([])
 
   function handleFile(file: File, angle: CameraAngle) {
-    // Replace if same angle already exists
     const existing = pendingFiles.current.filter(f => f.angle !== angle)
     existing.push({ file, angle })
     pendingFiles.current = existing
     setSlots(prev => {
-      // Revoke old URL for this angle to prevent memory leak
       const old = prev.find(s => s.angle === angle)
       if (old) URL.revokeObjectURL(old.objectUrl)
       const filtered = prev.filter(s => s.angle !== angle)
       return [...filtered, {
-        file,
-        angle,
+        file, angle,
         objectUrl: URL.createObjectURL(file),
-        frames: [],
-        duration: 0,
-        width: 0,
-        height: 0,
+        frames: [], duration: 0, width: 0, height: 0,
       }]
     })
   }
@@ -269,7 +369,6 @@ export default function DemoPage() {
 
       slotsRef.current = updatedSlots
       setSlots(updatedSlots)
-      setActiveTab(0)
       setStage('playback')
     } catch (err: any) {
       setError(`Error al procesar: ${err.message}`)
@@ -281,91 +380,110 @@ export default function DemoPage() {
   useEffect(() => {
     if (stage !== 'playback' || !slots.length) return
 
-    const slot = slots[activeTab]
-    if (!slot || !videoRef.current) return
-
-    const video = videoRef.current
-    video.src = slot.objectUrl
-    video.load()
+    bufferRefs.current = [[], []]
+    setCurrentMetrics([{}, {}])
     setIsPlaying(false)
-    setCurrentMetrics({})
-    landmarkBufferRef.current = []
 
-    // Draw first frame once loaded
-    const onLoaded = () => {
-      video.currentTime = 0
-      const onSeeked = () => {
-        video.removeEventListener('seeked', onSeeked)
-        renderCurrentFrame()
-      }
-      video.addEventListener('seeked', onSeeked)
-    }
-    video.addEventListener('loadeddata', onLoaded, { once: true })
+    // Load each video
+    slots.forEach((slot, i) => {
+      const video = videoRefs.current[i]
+      if (!video) return
+      video.src = slot.objectUrl
+      video.load()
+      video.addEventListener('loadeddata', () => {
+        video.currentTime = 0
+        video.addEventListener('seeked', () => renderFrame(i), { once: true })
+      }, { once: true })
+    })
 
-    return () => {
-      video.removeEventListener('loadeddata', onLoaded)
-      cancelAnimationFrame(rafRef.current)
-    }
-  }, [stage, activeTab, slots])
+    return () => { cancelAnimationFrame(rafRef.current) }
+  }, [stage, slots])
 
-  function renderCurrentFrame() {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const slot = slotsRef.current[activeTabRef.current]
+  function renderFrame(idx: number) {
+    const video = videoRefs.current[idx]
+    const canvas = canvasRefs.current[idx]
+    const slot = slotsRef.current[idx]
     if (!video || !canvas || !slot) return
 
-    canvas.width = video.videoWidth || slot.width
-    canvas.height = video.videoHeight || slot.height
+    const cw = video.videoWidth || slot.width
+    const ch = video.videoHeight || slot.height
+    canvas.width = cw
+    canvas.height = ch
     const ctx = canvas.getContext('2d')!
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.clearRect(0, 0, cw, ch)
 
     const frame = findNearestFrame(slot.frames, video.currentTime)
     if (frame?.landmarks) {
-      const smoothed = smoothLandmarks(landmarkBufferRef.current, frame.landmarks)
-      drawSkeleton(ctx, smoothed)
-      setCurrentMetrics(frame.metrics)
+      const smoothed = smoothLandmarks(bufferRefs.current[idx], frame.landmarks)
+      drawSkeletonFull(ctx, smoothed, frame.metrics, slot.angle, cw, ch)
+      setCurrentMetrics(prev => { const n = [...prev]; n[idx] = frame.metrics; return n })
     } else {
-      setCurrentMetrics({})
+      setCurrentMetrics(prev => { const n = [...prev]; n[idx] = {}; return n })
     }
+  }
+
+  function renderAllFrames() {
+    slotsRef.current.forEach((_, i) => renderFrame(i))
   }
 
   function startPlaybackLoop() {
     function loop() {
-      renderCurrentFrame()
+      renderAllFrames()
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
   }
 
   function togglePlay() {
-    const video = videoRef.current
-    if (!video) return
-    // play()/pause() trigger onPlay/onPause handlers which manage the RAF loop
-    if (video.paused) {
-      video.play()
+    const videos = slotsRef.current.map((_, i) => videoRefs.current[i]).filter(Boolean) as HTMLVideoElement[]
+    if (!videos.length) return
+    if (videos[0].paused) {
+      videos.forEach(v => v.play())
     } else {
-      video.pause()
-      renderCurrentFrame()
+      videos.forEach(v => v.pause())
+      renderAllFrames()
     }
   }
 
-  function handleVideoSeeked() {
-    renderCurrentFrame()
+  function handlePlay() {
+    setIsPlaying(true)
+    startPlaybackLoop()
   }
 
-  function handleVideoEnded() {
+  function handlePause() {
     setIsPlaying(false)
     cancelAnimationFrame(rafRef.current)
-    renderCurrentFrame()
+  }
+
+  function handleEnded() {
+    setIsPlaying(false)
+    cancelAnimationFrame(rafRef.current)
+    renderAllFrames()
+  }
+
+  function handleSeeked(idx: number) {
+    renderFrame(idx)
+    // Sync the other video to match
+    const thisVideo = videoRefs.current[idx]
+    if (!thisVideo) return
+    slotsRef.current.forEach((_, i) => {
+      if (i !== idx) {
+        const other = videoRefs.current[i]
+        if (other && Math.abs(other.currentTime - thisVideo.currentTime) > 0.1) {
+          other.currentTime = thisVideo.currentTime
+        }
+      }
+    })
   }
 
   // ─── Export / Download ──────────────────────────────────────────────────
-  async function exportVideo() {
-    const slot = slotsRef.current[activeTabRef.current]
+  async function exportVideo(slotIdx: number) {
+    const slot = slotsRef.current[slotIdx]
     if (!slot || isExporting) return
 
     setIsExporting(true)
     setExportProgress(0)
+    setExportSlotIdx(slotIdx)
 
     try {
       const video = document.createElement('video')
@@ -384,7 +502,6 @@ export default function DemoPage() {
       const ctx = exportCanvas.getContext('2d')!
 
       const stream = exportCanvas.captureStream(30)
-      // Prefer MP4 so the file is playable everywhere (iOS, WhatsApp, etc.)
       const mimeType = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm']
         .find(t => MediaRecorder.isTypeSupported(t)) ?? ''
       const chunks: Blob[] = []
@@ -393,14 +510,16 @@ export default function DemoPage() {
 
       const fps = 30
       const totalFrames = Math.floor(slot.duration * fps)
-
-      // Draw first frame before starting recorder to avoid black frames
       const exportBuffer: Landmark[][] = []
+
+      // Draw first frame before starting recorder
       video.currentTime = 0
       await waitSeek(video)
       ctx.drawImage(video, 0, 0, w, h)
       const firstFrame = findNearestFrame(slot.frames, 0)
-      if (firstFrame?.landmarks) drawSkeleton(ctx, smoothLandmarks(exportBuffer, firstFrame.landmarks))
+      if (firstFrame?.landmarks) {
+        drawSkeletonFull(ctx, smoothLandmarks(exportBuffer, firstFrame.landmarks), firstFrame.metrics, slot.angle, w, h)
+      }
 
       recorder.start()
 
@@ -408,16 +527,13 @@ export default function DemoPage() {
         video.currentTime = i / fps
         await waitSeek(video)
 
-        // Draw video frame
         ctx.drawImage(video, 0, 0, w, h)
 
-        // Draw smoothed skeleton overlay
         const frame = findNearestFrame(slot.frames, i / fps)
         if (frame?.landmarks) {
-          drawSkeleton(ctx, smoothLandmarks(exportBuffer, frame.landmarks))
+          drawSkeletonFull(ctx, smoothLandmarks(exportBuffer, frame.landmarks), frame.metrics, slot.angle, w, h)
         }
 
-        // Pace for captureStream
         await new Promise(r => setTimeout(r, 1000 / fps))
         setExportProgress(Math.round((i + 1) / totalFrames * 100))
       }
@@ -452,7 +568,6 @@ export default function DemoPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-3xl">
-          {/* Header */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-foreground tracking-tight">
               Golf Pose <span className="text-ok">Analysis</span>
@@ -468,23 +583,16 @@ export default function DemoPage() {
             </div>
           )}
 
-          {/* Drop zones */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-            {/* Face-on */}
             <DropZone
-              label="De frente"
-              sublabel="Face-on"
-              angle="face_on"
+              label="De frente" sublabel="Face-on" angle="face_on"
               file={faceOnSlot?.file ?? null}
               onDrop={handleDrop('face_on')}
               onInputChange={handleInputChange('face_on')}
               onRemove={() => removeSlot('face_on')}
             />
-            {/* Down the line */}
             <DropZone
-              label="De perfil"
-              sublabel="Down the line"
-              angle="dtl"
+              label="De perfil" sublabel="Down the line" angle="dtl"
               file={dtlSlot?.file ?? null}
               onDrop={handleDrop('dtl')}
               onInputChange={handleInputChange('dtl')}
@@ -492,7 +600,6 @@ export default function DemoPage() {
             />
           </div>
 
-          {/* Start button */}
           <div className="flex justify-center">
             <button
               onClick={startProcessing}
@@ -512,7 +619,6 @@ export default function DemoPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md text-center">
-          {/* Spinner */}
           <div className="relative w-20 h-20 mx-auto mb-6">
             <div className="absolute inset-0 rounded-full border-4 border-border" />
             <div className="absolute inset-0 rounded-full border-4 border-ok border-t-transparent animate-spin" />
@@ -521,24 +627,17 @@ export default function DemoPage() {
             </div>
           </div>
           <p className="text-foreground font-medium mb-2">{progressLabel || 'Procesando...'}</p>
-          {/* Progress bar */}
           <div className="w-full bg-border rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-ok h-full rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="bg-ok h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
-          <p className="text-muted-foreground text-sm mt-3">
-            Detectando pose con MediaPipe AI
-          </p>
+          <p className="text-muted-foreground text-sm mt-3">Detectando pose con MediaPipe AI</p>
         </div>
       </div>
     )
   }
 
   // ─── Render: Playback ───────────────────────────────────────────────────
-  const activeSlot = slots[activeTab]
-  const metricKeys = activeSlot ? METRICS_BY_ANGLE[activeSlot.angle] : []
+  const isDual = slots.length === 2
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -556,171 +655,160 @@ export default function DemoPage() {
           </h1>
         </div>
 
-        {/* Tabs if 2 videos */}
-        {slots.length > 1 && (
-          <div className="flex gap-1 bg-secondary rounded-lg p-1">
-            {slots.map((s, i) => (
-              <button
-                key={s.angle}
-                onClick={() => {
-                  cancelAnimationFrame(rafRef.current)
-                  setActiveTab(i)
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === i
-                    ? 'bg-ok text-black'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {s.angle === 'face_on' ? 'Frente' : 'Perfil'}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Download */}
-        <button
-          onClick={exportVideo}
-          disabled={isExporting}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ok text-black font-medium text-sm hover:bg-ok/90 disabled:opacity-50 transition-all"
-        >
-          {isExporting ? (
-            <>
-              <SpinnerIcon />
-              {exportProgress}%
-            </>
-          ) : (
-            <>
-              <DownloadIcon />
-              Descargar
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Download buttons */}
+          {slots.map((s, i) => (
+            <button
+              key={s.angle}
+              onClick={() => exportVideo(i)}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-ok text-black font-medium text-sm hover:bg-ok/90 disabled:opacity-50 transition-all"
+            >
+              {isExporting && exportSlotIdx === i ? (
+                <><SpinnerIcon />{exportProgress}%</>
+              ) : (
+                <>
+                  <DownloadIcon />
+                  {isDual ? (s.angle === 'face_on' ? 'Frente' : 'Perfil') : 'Descargar'}
+                </>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Video area */}
-        <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-          <div className="relative max-w-full max-h-full">
-            <video
-              ref={videoRef}
-              className="block max-w-full max-h-[calc(100vh-56px)]"
-              playsInline
-              muted
-              onSeeked={handleVideoSeeked}
-              onEnded={handleVideoEnded}
-              onPlay={() => { setIsPlaying(true); startPlaybackLoop() }}
-              onPause={() => { setIsPlaying(false); cancelAnimationFrame(rafRef.current) }}
-            />
-            <canvas
-              ref={canvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-            />
-          </div>
+        {/* Video area(s) */}
+        <div className={`flex-1 flex ${isDual ? 'flex-row' : ''} bg-black overflow-hidden`}>
+          {slots.map((slot, i) => (
+            <div
+              key={slot.angle}
+              className={`relative flex items-center justify-center ${isDual ? 'flex-1 w-1/2' : 'flex-1'} ${isDual && i === 0 ? 'border-r border-border/30' : ''}`}
+            >
+              {/* Angle label for dual view */}
+              {isDual && (
+                <div className="absolute top-3 left-3 z-10 px-2 py-1 rounded bg-black/60 backdrop-blur-sm text-ok text-xs font-semibold">
+                  {slot.angle === 'face_on' ? 'FRENTE' : 'PERFIL'}
+                </div>
+              )}
 
-          {/* Play/Pause overlay button */}
-          <button
-            onClick={togglePlay}
-            className="absolute bottom-4 left-4 w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 transition-colors"
-          >
-            {isPlaying ? <PauseIcon /> : <PlayIcon />}
-          </button>
-
-          {/* Speed controls */}
-          <div className="absolute bottom-4 right-4 flex gap-1">
-            {[0.25, 0.5, 1].map(speed => (
-              <button
-                key={speed}
-                onClick={() => { if (videoRef.current) videoRef.current.playbackRate = speed }}
-                className="px-2 py-1 rounded bg-black/60 backdrop-blur-sm text-white text-xs font-mono hover:bg-black/80 transition-colors"
-              >
-                {speed}x
-              </button>
-            ))}
-          </div>
+              <div className="relative max-w-full max-h-full">
+                <video
+                  ref={el => { videoRefs.current[i] = el }}
+                  className={`block max-w-full ${isDual ? 'max-h-[calc(100vh-56px)]' : 'max-h-[calc(100vh-56px)]'}`}
+                  playsInline
+                  muted
+                  onSeeked={() => handleSeeked(i)}
+                  onEnded={handleEnded}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                />
+                <canvas
+                  ref={el => { canvasRefs.current[i] = el }}
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                />
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Metrics panel */}
         <div className="w-full lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-border bg-card overflow-y-auto">
           <div className="p-4">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-              Ejes del cuerpo
-              {activeSlot && (
-                <span className="ml-2 text-ok font-normal normal-case">
-                  ({activeSlot.angle === 'face_on' ? 'de frente' : 'de perfil'})
-                </span>
-              )}
-            </h2>
+            {slots.map((slot, si) => {
+              const metricKeys = METRICS_BY_ANGLE[slot.angle] ?? []
+              const metrics = currentMetrics[si] ?? {}
 
-            <div className="space-y-3">
-              {metricKeys.map(key => {
-                const info = METRIC_INFO[key]
-                const value = currentMetrics[key]
-                const hasValue = value !== undefined
+              return (
+                <div key={slot.angle} className={si > 0 ? 'mt-6 pt-4 border-t border-border' : ''}>
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    {slot.angle === 'face_on' ? 'De frente' : 'De perfil'}
+                  </h2>
 
+                  <div className="space-y-2">
+                    {metricKeys.map(key => {
+                      const info = METRIC_INFO[key]
+                      const value = metrics[key]
+                      const hasValue = value !== undefined
+
+                      return (
+                        <div
+                          key={key}
+                          className={`rounded-lg border p-3 transition-all ${
+                            hasValue ? 'border-ok/30 bg-ok/5' : 'border-border bg-secondary/30'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">
+                              {info?.label ?? key}
+                            </span>
+                            <span className={`font-mono text-lg font-bold ${hasValue ? 'text-ok' : 'text-muted-foreground'}`}>
+                              {hasValue ? formatMetricValue(key, value) : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Detection indicator */}
+            <div className="mt-6 pt-4 border-t border-border">
+              {slots.map((slot, si) => {
+                const count = Object.keys(currentMetrics[si] ?? {}).length
                 return (
-                  <div
-                    key={key}
-                    className={`rounded-lg border p-3 transition-all ${
-                      hasValue
-                        ? 'border-ok/30 bg-ok/5'
-                        : 'border-border bg-secondary/30'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-foreground">
-                        {info?.label ?? key}
-                      </span>
-                      <span className={`font-mono text-lg font-bold ${
-                        hasValue ? 'text-ok' : 'text-muted-foreground'
-                      }`}>
-                        {hasValue ? formatMetricValue(key, value) : '—'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {info?.description ?? ''}
-                    </p>
+                  <div key={slot.angle} className="flex items-center gap-2 mb-1">
+                    <div className={`w-2 h-2 rounded-full ${count > 0 ? 'bg-ok animate-pulse' : 'bg-muted-foreground'}`} />
+                    <span className="text-xs text-muted-foreground">
+                      {slot.angle === 'face_on' ? 'Frente' : 'Perfil'}: {count > 0 ? `${count} métricas` : 'sin pose'}
+                    </span>
                   </div>
                 )
               })}
             </div>
 
-            {/* Pose detection indicator */}
-            <div className="mt-6 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  Object.keys(currentMetrics).length > 0 ? 'bg-ok animate-pulse' : 'bg-muted-foreground'
-                }`} />
-                <span className="text-xs text-muted-foreground">
-                  {Object.keys(currentMetrics).length > 0
-                    ? `${Object.keys(currentMetrics).length} métricas detectadas`
-                    : 'Sin pose detectada en este frame'}
-                </span>
-              </div>
-            </div>
-
-            {/* Export progress overlay */}
+            {/* Export progress */}
             {isExporting && (
               <div className="mt-4 p-3 rounded-lg bg-ok/10 border border-ok/30">
                 <p className="text-sm text-ok font-medium mb-2">Exportando video...</p>
                 <div className="w-full bg-border rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-ok h-full rounded-full transition-all"
-                    style={{ width: `${exportProgress}%` }}
-                  />
+                  <div className="bg-ok h-full rounded-full transition-all" style={{ width: `${exportProgress}%` }} />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Renderizando skeleton sobre el video
-                </p>
               </div>
             )}
           </div>
         </div>
       </div>
 
+      {/* Play/Pause + speed controls overlay */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-2 z-10">
+        <button
+          onClick={togglePlay}
+          className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 transition-colors"
+        >
+          {isPlaying ? <PauseIcon /> : <PlayIcon />}
+        </button>
+        {[0.25, 0.5, 1].map(speed => (
+          <button
+            key={speed}
+            onClick={() => {
+              slotsRef.current.forEach((_, i) => {
+                const v = videoRefs.current[i]
+                if (v) v.playbackRate = speed
+              })
+            }}
+            className="px-2 py-1 rounded bg-black/60 backdrop-blur-sm text-white text-xs font-mono hover:bg-black/80 transition-colors"
+          >
+            {speed}x
+          </button>
+        ))}
+      </div>
+
       {error && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-bad/10 border border-bad/30 text-bad rounded-lg p-3 text-sm">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-bad/10 border border-bad/30 text-bad rounded-lg p-3 text-sm z-20">
           {error}
         </div>
       )}
@@ -731,18 +819,9 @@ export default function DemoPage() {
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function DropZone({
-  label,
-  sublabel,
-  angle,
-  file,
-  onDrop,
-  onInputChange,
-  onRemove,
+  label, sublabel, angle, file, onDrop, onInputChange, onRemove,
 }: {
-  label: string
-  sublabel: string
-  angle: CameraAngle
-  file: File | null
+  label: string; sublabel: string; angle: CameraAngle; file: File | null
   onDrop: (e: React.DragEvent) => void
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onRemove: () => void
@@ -776,18 +855,10 @@ function DropZone({
       onDragLeave={() => setDragOver(false)}
       onClick={() => inputRef.current?.click()}
       className={`cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-all ${
-        dragOver
-          ? 'border-ok bg-ok/5'
-          : 'border-border hover:border-muted-foreground bg-card'
+        dragOver ? 'border-ok bg-ok/5' : 'border-border hover:border-muted-foreground bg-card'
       }`}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="video/*"
-        className="hidden"
-        onChange={onInputChange}
-      />
+      <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={onInputChange} />
       <UploadIcon />
       <p className="text-foreground font-medium mt-3">{label}</p>
       <p className="text-muted-foreground text-xs mt-1">{sublabel}</p>
