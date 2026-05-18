@@ -4,6 +4,18 @@
     "tagline": "Practica con la guía de tu profesor",
     "description": "Copiloto digital para instructores y alumnos de golf"
   },
+  "baselineSummary": {
+    "allInRange": "Todas las métricas dentro de tu rango personal. Excelente consistencia.",
+    "goodOne": "{labels} está dentro de tu rango.",
+    "goodMany": "{labels} están dentro de tu rango.",
+    "focusOn": "Enfócate en mejorar: {label}."
+  },
+  "swingSummary": {
+    "allInRange": "Todas las fases del swing dentro de tu rango personal. Excelente consistencia.",
+    "goodOne": "{phases} está dentro de tu rango.",
+    "goodMany": "{phases} están dentro de tu rango.",
+    "focusOn": "Enfócate en mejorar {metric} en {phase}."
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

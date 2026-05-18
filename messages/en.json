@@ -1,4 +1,16 @@
 {
+  "baselineSummary": {
+    "allInRange": "All metrics within your personal range. Excellent consistency.",
+    "goodOne": "{labels} is within your range.",
+    "goodMany": "{labels} are within your range.",
+    "focusOn": "Focus on improving: {label}."
+  },
+  "swingSummary": {
+    "allInRange": "All swing phases within your personal range. Excellent consistency.",
+    "goodOne": "{phases} is within your range.",
+    "goodMany": "{phases} are within your range.",
+    "focusOn": "Focus on improving {metric} in {phase}."
+  },
   "meta": {
     "appName": "parell.golf",
     "tagline": "Practice with your coach's guidance",

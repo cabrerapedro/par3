@@ -27,6 +27,8 @@ export default function StudentPractice() {
   const params = useParams()
   const cpId = params.id as string
   const t = useTranslations('student.practice')
+  const tBaselineSummary = useTranslations('baselineSummary')
+  const tSwingSummary = useTranslations('swingSummary')
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -347,7 +349,7 @@ export default function StudentPractice() {
 
       setPreviewUrl(url)
       setSwingPhaseChecks(phaseChecks)
-      setSummary(generateSwingSummary(phaseChecks))
+      setSummary(generateSwingSummary(phaseChecks, tSwingSummary))
 
       if (student && checkpoint) {
         const allChecks = phaseChecks.flatMap(pc => pc.checks)
@@ -382,7 +384,7 @@ export default function StudentPractice() {
 
       setPreviewUrl(url)
       setFrameResults(results)
-      setSummary(generateBaselineSummary(aggregated))
+      setSummary(generateBaselineSummary(aggregated, tBaselineSummary))
 
       if (student && checkpoint) {
         const overall_score = Math.round(
