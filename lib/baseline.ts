@@ -160,7 +160,14 @@ export function calculateBaseline(marks: CalibrationMark[], selectedMetrics?: st
     const min = Math.min(...values)
     const max = Math.max(...values)
 
-    baseline[key] = { mean, std: Math.max(std, 0.001), min, max }
+    // Floor std at 5% of |mean| (with a hard 0.001 floor for the degenerate
+    // mean=0 case). The old 0.001 absolute floor produced 0.001-wide bands
+    // when std was actually 0, flagging every nonzero deviation as 'bad'.
+    // 5% of mean keeps the bands meaningful at any metric scale (degrees,
+    // normalized lengths, etc.) without inventing variance the student didn't
+    // demonstrate.
+    const stdFloor = Math.max(Math.abs(mean) * 0.05, 0.001)
+    baseline[key] = { mean, std: Math.max(std, stdFloor), min, max }
   }
 
   return baseline
@@ -265,7 +272,7 @@ export const PHASE_LABELS: Record<SwingPhaseName, string> = {
 }
 
 export function isSwingBaseline(baseline: unknown): baseline is SwingBaseline {
-  return (baseline as any)?._type === 'swing'
+  return (baseline as { _type?: string } | null | undefined)?._type === 'swing'
 }
 
 /**

@@ -51,7 +51,9 @@ export default function ClipDetail() {
       setLoading(false)
     })
     return () => { cancelled = true }
-  }, [student])
+    // clipId comes from params and changes on route navigation; make it
+    // explicit so the effect re-runs if Next ever re-uses the page instance.
+  }, [student, clipId, router])
 
   // Generate baseline summary on-the-fly if missing (not persisted for clips yet)
   useEffect(() => {

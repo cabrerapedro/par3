@@ -48,6 +48,10 @@ async function main() {
     .order('created_at', { ascending: true })
   if (cpErr) throw cpErr
   log(`Found ${checkpoints.length} checkpoints to consider`)
+  if (checkpoints.length === 0) {
+    log('Nothing to migrate. Exiting cleanly.')
+    return
+  }
 
   // Map student_id → instructor_id in one query
   const studentIds = Array.from(new Set(checkpoints.map((c) => c.student_id)))

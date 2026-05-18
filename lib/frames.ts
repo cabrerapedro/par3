@@ -76,7 +76,7 @@ async function batchInsert(
 
   if (failures.length > 0) {
     throw new Error(
-      `Failed to insert ${failures.length}/${Math.ceil(frames.length / batchSize)} batches into ${table}: ${failures
+      `Failed to insert ${failures.length}/${Math.ceil(frames.length / batchSize)} batches into ${table} for ${parentColumn}=${parentId}: ${failures
         .map((f) => `batch ${f.batch}: ${describeError(f.error)}`)
         .join('; ')}`,
     )

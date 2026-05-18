@@ -52,7 +52,10 @@ export default function StudentProfile() {
     if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     loadData()
-  }, [authLoading, studentId])
+    // loadData reads `studentId` from the closure; including it in the dep
+    // array makes the lint rule + the intent match.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, studentId, instructor])
 
   async function loadData() {
     setLoading(true)

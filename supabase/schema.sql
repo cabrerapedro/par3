@@ -251,6 +251,13 @@ create policy "student_otps_anon_all"
 -- ALTER TABLE instructors ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'es' CHECK (preferred_locale IN ('es', 'en'));
 -- ALTER TABLE students    ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'es' CHECK (preferred_locale IN ('es', 'en'));
 
+-- Ensure the checkpoints table has instructor_audio_url. The legacy
+-- calibrate flow referenced this column; the migration script reads it
+-- when moving instructor audio into clip_annotations. Some production
+-- DBs had the column hot-added without it ever making it into the
+-- canonical CREATE TABLE — this ALTER is the canonical placement.
+alter table checkpoints add column if not exists instructor_audio_url text;
+
 -- ============================================================
 -- ============================================================
 -- SECTION 3 / 11 / 12 — CLASS + CLIP DATA MODEL (May 2026)
@@ -274,7 +281,11 @@ create index if not exists idx_classes_student_date on classes(student_id, date 
 
 create table if not exists clips (
   id               uuid primary key default gen_random_uuid(),
-  class_id         uuid references classes(id) on delete cascade,
+  -- NOT NULL: every clip belongs to a class. getOrCreateTodayClass on the
+  -- runtime path and the legacy migration script both guarantee a class is
+  -- in place before insert. Keeping this nullable would let stray clips
+  -- disappear from the per-class UI without surfacing an error.
+  class_id         uuid not null references classes(id) on delete cascade,
   student_id       uuid not null references students(id) on delete cascade,
   instructor_id    uuid not null references instructors(id) on delete cascade,
   name             text not null,

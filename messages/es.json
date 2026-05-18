@@ -554,7 +554,9 @@
       "annotationStrokes": "{count, plural, one {# anotación visual} other {# anotaciones visuales}}",
       "annotationAudio": "Audio del instructor",
       "annotationTranscript": "Transcripción",
-      "annotationsCount": "{count, plural, one {# nota} other {# notas}}"
+      "annotationsCount": "{count, plural, one {# nota} other {# notas}}",
+      "hideReference": "Ocultar referencia",
+      "showReference": "Mostrar referencia"
     },
     "clipHistory": {
       "loadingError": "Sin sesiones todavía",

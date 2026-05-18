@@ -125,6 +125,10 @@ export default function StudentClipPractice() {
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       mimeTypeRef.current = recorder.mimeType || mimeType || 'video/webm'
       recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      // Wire onstop up-front so a fast stop() can't fire before the handler
+      // is assigned. We don't know yet whether the user will stop normally or
+      // via cleanup; processVideo guards against an empty chunks array.
+      recorder.onstop = () => processVideo()
       recorder.start(100)
       recorderRef.current = recorder
 
@@ -208,7 +212,8 @@ export default function StudentClipPractice() {
     streamRef.current?.getTracks().forEach(t => t.stop())
 
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-      recorderRef.current.onstop = () => processVideo()
+      // onstop was wired at recorder-creation time (M9 fix). Just stop;
+      // the handler will run processVideo() with the captured chunks.
       recorderRef.current.stop()
     } else {
       processVideo()
@@ -661,7 +666,7 @@ export default function StudentClipPractice() {
                   <rect x="2" y="4" width="9" height="16" rx="1" />
                   <rect x="13" y="4" width="9" height="16" rx="1" />
                 </svg>
-                {sideBySide ? tClip('instructorReferenceTitle') : tClip('instructorReferenceTitle')}
+                {sideBySide ? tClip('hideReference') : tClip('showReference')}
               </button>
             )}
           </div>

@@ -16,7 +16,7 @@
 // context is empty and the annotate page guards by redirecting to
 // /record.
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 interface RecordedClip {
   blob: Blob
@@ -67,6 +67,15 @@ export default function ClipFlowLayout({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     revokeUrl()
     setRecordedState(null)
+  }, [revokeUrl])
+
+  // Clean up the dangling blob URL if the user closes the tab or navigates
+  // outside /clips/new entirely. revokeUrl already runs on reset() and
+  // setRecorded(null); this catches the bail-out paths.
+  useEffect(() => {
+    return () => {
+      revokeUrl()
+    }
   }, [revokeUrl])
 
   const value = useMemo<ClipFlowState>(
