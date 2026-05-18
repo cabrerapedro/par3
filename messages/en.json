@@ -417,6 +417,26 @@
         "tooShort": "Clip too short. Record at least 3 seconds.",
         "maxLengthHit": "60-second limit reached."
       },
+      "detail": {
+        "back": "Back to student",
+        "title": "Clip detail",
+        "loadError": "Couldn't load the clip.",
+        "videoUnavailable": "Video unavailable.",
+        "statusPending": "Building reference…",
+        "statusCalibrated": "Calibrated",
+        "statusArchived": "Archived",
+        "baselineMetricsCount": "{count, plural, one {# metric} other {# metrics}}",
+        "annotationsHeader": "Annotations",
+        "annotationsEmpty": "This clip has no annotations.",
+        "annotationStrokes": "{count, plural, one {# stroke} other {# strokes}}",
+        "annotationAudio": "With audio",
+        "annotationNote": "Note",
+        "deleteCta": "Delete clip",
+        "deleteConfirmTitle": "Delete this clip?",
+        "deleteConfirmDescription": "You'll lose the video, annotations, and processed frames. This can't be undone.",
+        "deleteConfirmCancel": "Cancel",
+        "deleteConfirmAction": "Delete"
+      },
       "annotate": {
         "title": "Review and annotate",
         "back": "Back to recording",

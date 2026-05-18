@@ -417,6 +417,26 @@
         "tooShort": "El clip es muy corto. Intentá grabar al menos 3 segundos.",
         "maxLengthHit": "Llegaste al máximo de 60 segundos."
       },
+      "detail": {
+        "back": "Volver al alumno",
+        "title": "Detalle del clip",
+        "loadError": "No se pudo cargar el clip.",
+        "videoUnavailable": "Video no disponible.",
+        "statusPending": "Procesando referencia…",
+        "statusCalibrated": "Calibrado",
+        "statusArchived": "Archivado",
+        "baselineMetricsCount": "{count, plural, one {# métrica} other {# métricas}}",
+        "annotationsHeader": "Anotaciones",
+        "annotationsEmpty": "Este clip no tiene anotaciones.",
+        "annotationStrokes": "{count, plural, one {# trazo} other {# trazos}}",
+        "annotationAudio": "Con audio",
+        "annotationNote": "Nota",
+        "deleteCta": "Eliminar clip",
+        "deleteConfirmTitle": "¿Eliminar este clip?",
+        "deleteConfirmDescription": "Vas a perder el video, las anotaciones y los frames procesados. Esta acción no se puede deshacer.",
+        "deleteConfirmCancel": "Cancelar",
+        "deleteConfirmAction": "Eliminar"
+      },
       "annotate": {
         "title": "Revisar y anotar",
         "back": "Volver a grabar",
