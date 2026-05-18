@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "appName": "parell.golf",
+    "tagline": "Practice with your coach's guidance",
+    "description": "Digital copilot for golf instructors and their students"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "language": {
+    "label": "Language",
+    "es": "Español",
+    "en": "English"
+  },
+  "userMenu": {
+    "instructorRole": "Instructor",
+    "studentRole": "Student",
+    "profile": "My profile",
+    "logout": "Sign out",
+    "logoutConfirmTitle": "Sign out?",
+    "logoutConfirmDescription": "You can sign back in any time.",
+    "logoutConfirmCancel": "Cancel",
+    "logoutConfirmAction": "Sign out"
+  }
+}

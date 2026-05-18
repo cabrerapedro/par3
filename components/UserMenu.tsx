@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -8,7 +9,12 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -20,6 +26,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/lib/auth'
+import type { Locale } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -37,6 +45,10 @@ function initials(name: string) {
 }
 
 export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }: UserMenuProps) {
+  const t = useTranslations('userMenu')
+  const tLang = useTranslations('language')
+  const locale = useLocale() as Locale
+  const { setLocale } = useAuth()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const isInstructor = role === 'instructor'
 
@@ -78,7 +90,7 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-semibold text-foreground truncate">{name}</span>
                 <span className="text-xs text-muted-foreground truncate">
-                  {email ?? (isInstructor ? 'Instructor' : 'Alumno')}
+                  {email ?? (isInstructor ? t('instructorRole') : t('studentRole'))}
                 </span>
               </div>
             </div>
@@ -95,13 +107,36 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
                       <circle cx="12" cy="8" r="4" />
                       <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
                     </svg>
-                    Mi perfil
+                    {t('profile')}
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
             </>
           )}
+
+          {/* Language submenu */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              {tLang('label')}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup
+                value={locale}
+                onValueChange={(value) => { void setLocale(value as Locale) }}
+              >
+                <DropdownMenuRadioItem value="es">{tLang('es')}</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="en">{tLang('en')}</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSeparator />
 
           <DropdownMenuItem
             className="flex items-center gap-2 text-muted-foreground focus:text-foreground cursor-pointer"
@@ -112,7 +147,7 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            Cerrar sesión
+            {t('logout')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -120,9 +155,9 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>¿Cerrar sesión?</DialogTitle>
+            <DialogTitle>{t('logoutConfirmTitle')}</DialogTitle>
             <DialogDescription>
-              Podés volver a entrar en cualquier momento.
+              {t('logoutConfirmDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-row gap-2">
@@ -131,14 +166,14 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
               onClick={() => setConfirmOpen(false)}
               className="flex-1 border-border"
             >
-              Cancelar
+              {t('logoutConfirmCancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={onLogout}
               className="flex-1"
             >
-              Salir
+              {t('logoutConfirmAction')}
             </Button>
           </DialogFooter>
         </DialogContent>

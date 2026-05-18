@@ -7,20 +7,22 @@
 
 -- Instructors (id = auth.uid())
 create table if not exists instructors (
-  id         uuid primary key references auth.users(id) on delete cascade,
-  name       text        not null,
-  email      text unique not null,
-  created_at timestamptz default now()
+  id               uuid primary key references auth.users(id) on delete cascade,
+  name             text        not null,
+  email            text unique not null,
+  preferred_locale text        not null default 'es' check (preferred_locale in ('es', 'en')),
+  created_at       timestamptz default now()
 );
 
 -- Students
 create table if not exists students (
-  id            uuid primary key default gen_random_uuid(),
-  instructor_id uuid        not null references instructors(id) on delete cascade,
-  name          text        not null,
-  email         text,
-  access_code   char(6)     not null unique,
-  created_at    timestamptz default now()
+  id               uuid primary key default gen_random_uuid(),
+  instructor_id    uuid        not null references instructors(id) on delete cascade,
+  name             text        not null,
+  email            text,
+  access_code      char(6)     not null unique,
+  preferred_locale text        not null default 'es' check (preferred_locale in ('es', 'en')),
+  created_at       timestamptz default now()
 );
 
 -- Checkpoints
@@ -227,3 +229,7 @@ create policy "student_otps_anon_all"
 
 -- Add checkpoint_type column (position = static posture, swing = phase-based movement):
 -- ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS checkpoint_type text NOT NULL DEFAULT 'position' CHECK (checkpoint_type IN ('position', 'swing'));
+
+-- Add preferred_locale to instructors + students (i18n, May 2026):
+-- ALTER TABLE instructors ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'es' CHECK (preferred_locale IN ('es', 'en'));
+-- ALTER TABLE students    ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'es' CHECK (preferred_locale IN ('es', 'en'));

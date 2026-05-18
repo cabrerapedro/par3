@@ -1,10 +1,27 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase, authClient } from './supabase'
-import type { Instructor, Student } from './types'
+import type { Instructor, Locale, Student } from './types'
 
 type StudentUpdates = Partial<Pick<Student, 'name' | 'email' | 'avatar_url' | 'handicap' | 'dominant_hand' | 'years_playing' | 'home_course' | 'bio'>>
+
+const LOCALE_COOKIE = 'NEXT_LOCALE'
+const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+const SUPPORTED_LOCALES: Locale[] = ['es', 'en']
+
+function readLocaleCookie(): Locale | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=([^;]+)/)
+  const value = match?.[1]
+  return SUPPORTED_LOCALES.includes(value as Locale) ? (value as Locale) : null
+}
+
+function writeLocaleCookie(locale: Locale) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${LOCALE_COOKIE}=${locale}; max-age=${LOCALE_COOKIE_MAX_AGE}; path=/; samesite=lax`
+}
 
 interface AuthState {
   instructor: Instructor | null
@@ -17,12 +34,14 @@ interface AuthState {
   studentOtpRequest: (email: string) => Promise<{ error?: string }>
   studentOtpVerify: (email: string, code: string) => Promise<{ error?: string }>
   updateStudent: (updates: StudentUpdates) => Promise<{ error?: string }>
+  setLocale: (locale: Locale) => Promise<void>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const [instructor, setInstructor] = useState<Instructor | null>(null)
   const [student, setStudent] = useState<Student | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,7 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mounted) return
           try {
             const { data } = await supabase.from('instructors').select('*').eq('id', userId).single()
-            if (data && mounted) cacheInstructor(data)
+            if (data && mounted) {
+              cacheInstructor(data)
+              syncLocaleFromDb(data.preferred_locale)
+            }
           } catch {}
         }, 0)
       }
@@ -70,6 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('sweep_instructor', JSON.stringify(data))
   }
 
+  // After fetching the user from DB, if their preferred_locale doesn't match the
+  // cookie (e.g. they logged in from a new browser with a different language),
+  // overwrite the cookie and refresh server components so the UI flips immediately.
+  function syncLocaleFromDb(dbLocale?: Locale | null) {
+    if (!dbLocale || !SUPPORTED_LOCALES.includes(dbLocale)) return
+    if (readLocaleCookie() === dbLocale) return
+    writeLocaleCookie(dbLocale)
+    router.refresh()
+  }
+
   async function instructorLogin(email: string, password: string): Promise<{ error?: string }> {
     // authClient has no persisted session → no blocking on stale token refresh.
     const { data, error } = await authClient.auth.signInWithPassword({ email, password })
@@ -79,7 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       try {
         const { data: inst } = await authClient.from('instructors').select('*').eq('id', data.user.id).single()
-        if (inst) cacheInstructor(inst)
+        if (inst) {
+          cacheInstructor(inst)
+          syncLocaleFromDb(inst.preferred_locale)
+        }
       } catch {}
     }
 
@@ -103,9 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'Revisa tu correo para confirmar la cuenta. Después iniciá sesión normalmente.' }
     }
 
-    // Fetch or create instructor record using authClient.
+    // Capture the auto-detected locale of the user at signup time and persist
+    // it on the new instructor row, so subsequent logins from any device pick
+    // up the same preference.
+    const cookieLocale = readLocaleCookie() ?? 'es'
     const userId = data.user.id
-    let inst = null
+    let inst: Instructor | null = null
     try {
       const { data: found } = await authClient.from('instructors').select('*').eq('id', userId).single()
       inst = found
@@ -113,11 +151,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!inst) {
       try {
-        await authClient.from('instructors').insert({ id: userId, name, email })
+        await authClient.from('instructors').insert({
+          id: userId,
+          name,
+          email,
+          preferred_locale: cookieLocale,
+        })
       } catch {}
-      inst = { id: userId, name, email, created_at: new Date().toISOString() }
+      inst = {
+        id: userId,
+        name,
+        email,
+        preferred_locale: cookieLocale,
+        created_at: new Date().toISOString(),
+      }
+    } else if (!inst.preferred_locale) {
+      // Existing row without a locale set (legacy data) — backfill it.
+      try {
+        await authClient
+          .from('instructors')
+          .update({ preferred_locale: cookieLocale })
+          .eq('id', userId)
+        inst = { ...inst, preferred_locale: cookieLocale }
+      } catch {}
     }
-    cacheInstructor(inst as Instructor)
+    cacheInstructor(inst)
+    syncLocaleFromDb(inst.preferred_locale)
 
     // Transfer session to main client in background.
     supabase.auth.setSession(data.session).catch(() => {})
@@ -150,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem('sweep_student', JSON.stringify(data))
     setStudent(data)
+    syncLocaleFromDb(data.preferred_locale)
     return {}
   }
 
@@ -179,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.student) {
         localStorage.setItem('sweep_student', JSON.stringify(data.student))
         setStudent(data.student)
+        syncLocaleFromDb(data.student.preferred_locale)
       }
       return {}
     } catch {
@@ -203,6 +264,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {}
   }
 
+  // Switch the UI language. Writes the cookie so the next render picks it up,
+  // persists to the logged-in user's DB row (best-effort), and refreshes server
+  // components so the whole tree re-renders in the new locale.
+  async function setLocale(locale: Locale): Promise<void> {
+    if (!SUPPORTED_LOCALES.includes(locale)) return
+    writeLocaleCookie(locale)
+
+    if (instructor) {
+      try {
+        const { data } = await supabase
+          .from('instructors')
+          .update({ preferred_locale: locale })
+          .eq('id', instructor.id)
+          .select()
+          .single()
+        if (data) cacheInstructor(data)
+      } catch {}
+    } else if (student) {
+      try {
+        const { data } = await supabase
+          .from('students')
+          .update({ preferred_locale: locale })
+          .eq('id', student.id)
+          .select()
+          .single()
+        if (data) {
+          const updated = { ...student, ...data }
+          localStorage.setItem('sweep_student', JSON.stringify(updated))
+          setStudent(updated)
+        }
+      } catch {}
+    }
+
+    router.refresh()
+  }
+
   function logout() {
     localStorage.removeItem('sweep_student')
     localStorage.removeItem('sweep_instructor')
@@ -212,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ instructor, student, loading, instructorLogin, instructorSignup, updateInstructor, studentLogin, studentOtpRequest, studentOtpVerify, updateStudent, logout }}>
+    <AuthContext.Provider value={{ instructor, student, loading, instructorLogin, instructorSignup, updateInstructor, studentLogin, studentOtpRequest, studentOtpVerify, updateStudent, setLocale, logout }}>
       {children}
     </AuthContext.Provider>
   )
