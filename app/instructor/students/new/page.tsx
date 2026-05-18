@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ function generateCode(): string {
 export default function NewStudent() {
   const { instructor } = useAuth()
   const router = useRouter()
+  const t = useTranslations('instructor.students')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
@@ -34,7 +36,7 @@ export default function NewStudent() {
       .single()
 
     setLoading(false)
-    if (insertErr) { setError('Error al crear alumno. Intenta de nuevo.'); return }
+    if (insertErr) { setError(t('createError')); return }
     router.push(`/instructor/students/${data.id}`)
   }
 
@@ -46,7 +48,7 @@ export default function NewStudent() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Mis alumnos
+            {t('backToStudents')}
           </Link>
         </div>
       </header>
@@ -57,9 +59,9 @@ export default function NewStudent() {
           style={{ animation: 'fade-up 0.8s ease-out both' }}
         >
           <div className="px-6 pt-6 pb-5 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">Nuevo alumno</h1>
+            <h1 className="text-xl font-bold text-foreground">{t('newTitle')}</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              El código de acceso se genera automáticamente
+              {t('newSubtitle')}
             </p>
           </div>
 
@@ -67,14 +69,14 @@ export default function NewStudent() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name" className="text-sm font-medium text-foreground">
-                  Nombre
+                  {t('nameLabel')}
                 </Label>
                 <Input
                   id="name"
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Nombre del alumno"
+                  placeholder={t('namePlaceholder')}
                   required
                   className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
                 />
@@ -82,14 +84,14 @@ export default function NewStudent() {
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                  Correo <span className="font-normal text-muted-foreground">(opcional)</span>
+                  {t('emailLabel')} <span className="font-normal text-muted-foreground">{t('emailOptional')}</span>
                 </Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="alumno@correo.com"
+                  placeholder={t('emailPlaceholder')}
                   className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
                 />
               </div>
@@ -105,7 +107,7 @@ export default function NewStudent() {
                 disabled={loading || !name.trim()}
                 className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
               >
-                {loading ? 'Creando...' : 'Crear alumno'}
+                {loading ? t('creating') : t('createCta')}
               </button>
             </form>
           </div>

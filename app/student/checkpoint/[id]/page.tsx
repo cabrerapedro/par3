@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Checkpoint } from '@/lib/types'
@@ -18,6 +19,7 @@ export default function CheckpointDetail() {
   const router = useRouter()
   const params = useParams()
   const cpId = params.id as string
+  const t = useTranslations('student.checkpoint')
 
   const [cp, setCp] = useState<Checkpoint | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,21 +60,21 @@ export default function CheckpointDetail() {
   if (loading) return <LoadingScreen />
   if (!cp) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <p className="text-muted-foreground">Ejercicio no encontrado.</p>
+      <p className="text-muted-foreground">{t('notFound')}</p>
     </div>
   )
   if (cp.status === 'archived') return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3 px-5">
-      <p className="text-foreground font-medium">Este ejercicio fue archivado</p>
-      <p className="text-muted-foreground text-sm text-center">Tu instructor archivó este ejercicio. Consulta con tu instructor si necesitas acceso.</p>
-      <Link href="/student/journey" className="text-ok text-sm font-medium hover:underline mt-2">Volver a mis ejercicios</Link>
+      <p className="text-foreground font-medium">{t('archivedTitle')}</p>
+      <p className="text-muted-foreground text-sm text-center">{t('archivedDesc')}</p>
+      <Link href="/student/journey" className="text-ok text-sm font-medium hover:underline mt-2">{t('backToJourneyLink')}</Link>
     </div>
   )
 
   const practiceHref = cp.checkpoint_type === 'swing'
     ? `/student/checkpoint/${cpId}/practice`
     : `/student/checkpoint/${cpId}/mirror`
-  const practiceLabel = cp.checkpoint_type === 'swing' ? 'Grabar práctica' : 'Practicar'
+  const practiceLabel = cp.checkpoint_type === 'swing' ? t('recordPractice') : t('practice')
   const isSwing = cp.checkpoint_type === 'swing'
 
   return (
@@ -81,7 +83,7 @@ export default function CheckpointDetail() {
         <div className="max-w-6xl mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
           <Link href="/student/journey" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Mis ejercicios
+            {t('backToJourney')}
           </Link>
         </div>
       </header>
@@ -92,14 +94,14 @@ export default function CheckpointDetail() {
           <div className="flex items-start justify-between gap-4 mb-1">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
-                Calibrado
+                {t('statusCalibrated')}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground border-border text-xs">
-                {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
+                {cp.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
               </Badge>
               {isSwing && (
                 <Badge variant="outline" className="text-blue border-blue/20 bg-blue/10 text-xs">
-                  Swing
+                  {t('swingBadge')}
                 </Badge>
               )}
             </div>
@@ -114,7 +116,7 @@ export default function CheckpointDetail() {
                     <path d="M12 8v4l3 3" />
                     <circle cx="12" cy="12" r="9" />
                   </svg>
-                  Historial
+                  {t('historyAction')}
                 </Link>
                 <Link
                   href={practiceHref}
@@ -144,7 +146,7 @@ export default function CheckpointDetail() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{cp.name}</h1>
           {cp.baseline && (
             <p className="text-muted-foreground text-sm mt-1">
-              {cp.calibration_marks?.length ?? 0} {isSwing ? 'swings calibrados' : 'posiciones calibradas'} · referencia personal activa
+              {isSwing ? t('swingsCalibratedSummary', { count: cp.calibration_marks?.length ?? 0 }) : t('positionsCalibratedSummary', { count: cp.calibration_marks?.length ?? 0 })}
             </p>
           )}
         </div>
@@ -158,7 +160,7 @@ export default function CheckpointDetail() {
                   <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
                 </svg>
               </div>
-              <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">Nota de tu instructor</p>
+              <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">{t('instructorNoteTitle')}</p>
             </div>
             {cp.instructor_audio_url && (
               <audio src={cp.instructor_audio_url} controls className="w-full h-9 mb-3" style={{ accentColor: '#60a5fa' }} />
@@ -172,7 +174,7 @@ export default function CheckpointDetail() {
         {/* Video + clips — asymmetric two columns via MarkGallery */}
         {cp.calibration_marks?.length > 0 && (
           <div className="mb-6">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Referencia de tu instructor</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t('instructorReferenceTitle')}</p>
             <MarkGallery
               videoUrl={cp.calibration_video_url}
               skeletonUrl={cp.calibration_skeleton_url}
@@ -186,7 +188,7 @@ export default function CheckpointDetail() {
         {/* Baseline summary — full width at bottom */}
         {cp.baseline && (
           <div className="bg-card border border-border rounded-xl px-5 py-5">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Tu referencia personal</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">{t('personalReferenceTitle')}</p>
 
             {/* Summary — shown for both position and swing */}
             {(cp.baseline_summary || summary || summaryLoading) && (
@@ -194,7 +196,7 @@ export default function CheckpointDetail() {
                 {summaryLoading ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <div className="w-4 h-4 rounded-full border-2 border-ok/40 border-t-ok animate-spin shrink-0" />
-                    <span className="text-sm">Generando resumen...</span>
+                    <span className="text-sm">{t('summaryLoading')}</span>
                   </div>
                 ) : (
                   <>
@@ -203,7 +205,7 @@ export default function CheckpointDetail() {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                       </svg>
-                      <span className="text-xs">Resumen generado por IA. Puede contener imprecisiones.</span>
+                      <span className="text-xs">{t('summaryDisclaimer')}</span>
                     </div>
                   </>
                 )}

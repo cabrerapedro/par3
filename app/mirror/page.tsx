@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { CheckPanel } from '@/components/CheckPanel'
 import { StatusPill } from '@/components/StatusPill'
@@ -27,6 +28,8 @@ function loadScript(src: string): Promise<void> {
 }
 
 export default function MirrorPage() {
+  const t = useTranslations('poc.mirror')
+  const tMeta = useTranslations('meta')
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cameraRef = useRef<unknown>(null)
@@ -114,7 +117,7 @@ export default function MirrorPage() {
 
         if (active) setReady(true)
       } catch (e: unknown) {
-        if (active) setError(e instanceof Error ? e.message : 'Error al iniciar la cámara')
+        if (active) setError(e instanceof Error ? e.message : t('cameraErrorFallback'))
       }
     }
 
@@ -152,13 +155,13 @@ export default function MirrorPage() {
               }`}
             >
               {/* Short on phones, full on sm+ */}
-              <span className="sm:hidden">{v === 'face-on' ? 'Frente' : 'Lado'}</span>
-              <span className="hidden sm:inline">{v === 'face-on' ? 'De frente' : 'De lado'}</span>
+              <span className="sm:hidden">{v === 'face-on' ? t('viewFaceOnShort') : t('viewDtlShort')}</span>
+              <span className="hidden sm:inline">{v === 'face-on' ? t('viewFaceOn') : t('viewDtl')}</span>
             </button>
           ))}
         </div>
 
-        <span className="font-bold text-base">Sweep</span>
+        <span className="font-bold text-base">{tMeta('appName')}</span>
       </header>
 
       {/* ── Body ── */}
@@ -199,7 +202,7 @@ export default function MirrorPage() {
             <div className="absolute inset-0 flex items-center justify-center bg-s1 z-20">
               <div className="text-center">
                 <div className="w-9 h-9 border-2 border-ok/30 border-t-ok rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-muted text-sm">Iniciando cámara...</p>
+                <p className="text-muted text-sm">{t('startingCamera')}</p>
               </div>
             </div>
           )}
@@ -208,7 +211,7 @@ export default function MirrorPage() {
           {error && (
             <div className="absolute inset-0 flex items-center justify-center bg-s1 z-20">
               <div className="text-center px-6 max-w-xs">
-                <p className="text-bad font-semibold mb-2">Error de cámara</p>
+                <p className="text-bad font-semibold mb-2">{t('cameraErrorTitle')}</p>
                 <p className="text-muted text-sm">{error}</p>
               </div>
             </div>
@@ -235,7 +238,7 @@ export default function MirrorPage() {
                   </svg>
                 </div>
                 <p className="text-dim text-sm leading-relaxed">
-                  Colócate frente a la cámara para iniciar el análisis
+                  {t('panelEmpty')}
                 </p>
               </div>
             </div>

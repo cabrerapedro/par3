@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { ProgressChart } from '@/components/ProgressChart'
-import { METRIC_LABELS, PHASE_LABELS } from '@/lib/baseline'
+import { getMetricLabel, getPhaseLabel } from '@/lib/baseline'
 import type { SwingPhaseName } from '@/lib/types'
 import type { Checkpoint, PracticeSession } from '@/lib/types'
 import Link from 'next/link'
@@ -15,6 +16,11 @@ export default function PracticeHistory() {
   const router = useRouter()
   const params = useParams()
   const cpId = params.id as string
+  const t = useTranslations('student.history')
+  const tMetrics = useTranslations('metrics.labels')
+  const tPhases = useTranslations('metrics.phases')
+  const locale = useLocale()
+  const dateLocale = locale === 'en' ? 'en-US' : 'es-MX'
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [sessions, setSessions] = useState<PracticeSession[]>([])
@@ -40,7 +46,7 @@ export default function PracticeHistory() {
   }
 
   function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+    return new Date(iso).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })
   }
 
   function formatDuration(s: number) {
@@ -67,7 +73,7 @@ export default function PracticeHistory() {
       <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b border-border">
         <div className="max-w-4xl mx-auto px-5 py-4">
           <Link href={`/student/checkpoint/${cpId}`} className="text-muted-foreground text-sm hover:text-muted-foreground">
-            ← {checkpoint?.name}
+            {t('backToCheckpoint', { name: checkpoint?.name ?? '' })}
           </Link>
         </div>
       </header>
@@ -77,8 +83,8 @@ export default function PracticeHistory() {
         {/* Header stats */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-foreground">Tu evolución</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">{sessions.length} sesión{sessions.length !== 1 ? 'es' : ''} grabada{sessions.length !== 1 ? 's' : ''}</p>
+            <h1 className="text-xl font-bold text-foreground">{t('title')}</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">{t('sessionsCount', { count: sessions.length })}</p>
           </div>
           {improvement !== null && (
             <div className={`text-right px-4 py-2 rounded-2xl border ${
@@ -91,7 +97,7 @@ export default function PracticeHistory() {
               }`}>
                 {improvement > 0 ? '+' : ''}{improvement}%
               </p>
-              <p className="text-muted-foreground text-xs">desde el inicio</p>
+              <p className="text-muted-foreground text-xs">{t('sinceStart')}</p>
             </div>
           )}
         </div>
@@ -99,22 +105,22 @@ export default function PracticeHistory() {
         {/* Chart */}
         {sessions.length >= 2 ? (
           <div className="bg-card border border-border rounded-2xl px-4 pt-4 pb-3 mb-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Puntuación por sesión</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">{t('scorePerSession')}</p>
             <ProgressChart data={chartData} height={130} />
             <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-px bg-ok inline-block" />
-                <span>80% — bueno</span>
+                <span>{t('thresholdGood')}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-px bg-warn inline-block" />
-                <span>50% — regular</span>
+                <span>{t('thresholdAverage')}</span>
               </span>
             </div>
           </div>
         ) : sessions.length === 1 ? (
           <div className="bg-card border border-border rounded-2xl px-4 py-4 mb-6 text-center">
-            <p className="text-muted-foreground text-sm">Graba una segunda sesión para ver tu evolución en el gráfico</p>
+            <p className="text-muted-foreground text-sm">{t('secondSessionHint')}</p>
           </div>
         ) : null}
 
@@ -122,8 +128,8 @@ export default function PracticeHistory() {
         {sessions.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-2xl text-muted-foreground">
             <div className="text-4xl mb-3">📋</div>
-            <p className="text-muted-foreground mb-1">Sin sesiones todavía</p>
-            <p className="text-sm">Graba tu primera práctica para empezar a ver tu progreso</p>
+            <p className="text-muted-foreground mb-1">{t('emptyTitle')}</p>
+            <p className="text-sm">{t('emptyDesc')}</p>
             <Link
               href={checkpoint?.checkpoint_type === 'swing'
                 ? `/student/checkpoint/${cpId}/practice`
@@ -132,13 +138,13 @@ export default function PracticeHistory() {
               className="inline-block mt-4"
             >
               <button className="bg-ok text-on-ok text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
-                {checkpoint?.checkpoint_type === 'swing' ? 'Grabar práctica' : 'Practicar'}
+                {checkpoint?.checkpoint_type === 'swing' ? t('recordPractice') : t('practice')}
               </button>
             </Link>
           </div>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Sesiones</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">{t('sessionsHeader')}</p>
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {[...sessions].reverse().map((session, i) => {
                 const metricEntries = Object.entries(session.results ?? {})
@@ -161,7 +167,7 @@ export default function PracticeHistory() {
                             <p className="text-foreground font-semibold">{formatDate(session.date)}</p>
                             {isLatest && (
                               <span className="text-xs text-ok bg-ok/10 border border-ok/20 rounded-full px-2 py-0.5">
-                                Última
+                                {t('latest')}
                               </span>
                             )}
                           </div>
@@ -181,7 +187,7 @@ export default function PracticeHistory() {
                           }`}>
                             {session.overall_score}%
                           </div>
-                          <p className="text-muted-foreground text-xs">en rango</p>
+                          <p className="text-muted-foreground text-xs">{t('inRange')}</p>
                         </div>
                       </div>
 
@@ -203,10 +209,9 @@ export default function PracticeHistory() {
                             let label: string
                             if (key.includes('__')) {
                               const [phase, metric] = key.split('__')
-                              const phaseLabel = PHASE_LABELS[phase as SwingPhaseName] ?? phase
-                              label = `${phaseLabel}: ${METRIC_LABELS[metric] ?? metric}`
+                              label = `${getPhaseLabel(phase as SwingPhaseName, tPhases)}: ${getMetricLabel(metric, tMetrics)}`
                             } else {
-                              label = METRIC_LABELS[key] ?? key
+                              label = getMetricLabel(key, tMetrics)
                             }
                             return (
                               <span

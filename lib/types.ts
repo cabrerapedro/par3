@@ -43,10 +43,13 @@ export interface CalibrationMark {
   phases?: SwingPhase[]  // Only present in swing mode
 }
 
+export type Locale = 'es' | 'en'
+
 export interface Instructor {
   id: string
   name: string
   email: string
+  preferred_locale?: Locale
   created_at: string
 }
 
@@ -62,6 +65,7 @@ export interface Student {
   years_playing?: number
   home_course?: string
   bio?: string
+  preferred_locale?: Locale
   created_at: string
 }
 

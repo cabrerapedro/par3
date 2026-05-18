@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,17 @@ import Link from 'next/link'
 export default function InstructorProfile() {
   const { instructor, updateInstructor, logout, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('instructor.profile')
+  const tErrors = useTranslations('auth.errors')
+
+  function resolveError(code?: string): string {
+    if (!code) return ''
+    try {
+      return tErrors(code as never)
+    } catch {
+      return code
+    }
+  }
 
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -41,7 +53,7 @@ export default function InstructorProfile() {
     setSaving(true)
     const result = await updateInstructor(name.trim())
     setSaving(false)
-    if (result.error) { setError(result.error) }
+    if (result.error) { setError(resolveError(result.error)) }
     else { setSaved(true); setTimeout(() => setSaved(false), 2500) }
   }
 
@@ -61,7 +73,7 @@ export default function InstructorProfile() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Dashboard
+            {t('backToDashboard')}
           </Link>
           <ThemeToggle />
         </div>
@@ -81,7 +93,7 @@ export default function InstructorProfile() {
 
         {/* Stats */}
         <div className="bg-card border border-border rounded-xl px-5 py-4 mb-8 flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">Alumnos activos</p>
+          <p className="text-muted-foreground text-sm">{t('activeStudents')}</p>
           <p className="text-foreground font-semibold font-mono text-lg">
             {studentCount === null ? '—' : studentCount}
           </p>
@@ -90,26 +102,26 @@ export default function InstructorProfile() {
         {/* Edit name form */}
         <form onSubmit={handleSave} className="flex flex-col gap-4 mb-8">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
+            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">{t('nameLabel')}</Label>
             <Input
               id="name"
               type="text"
               value={name}
               onChange={e => { setName(e.target.value); setSaved(false) }}
-              placeholder="Tu nombre"
+              placeholder={t('namePlaceholder')}
               required
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wide">Correo</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wide">{t('emailLabel')}</Label>
             <Input
               value={instructor.email}
               disabled
               className="bg-secondary border-border text-muted-foreground cursor-not-allowed h-11"
             />
-            <p className="text-muted-foreground/60 text-xs">El correo no se puede cambiar desde aquí.</p>
+            <p className="text-muted-foreground/60 text-xs">{t('emailHelp')}</p>
           </div>
 
           {error && (
@@ -125,7 +137,7 @@ export default function InstructorProfile() {
                 : 'bg-ok text-background hover:bg-ok/90'
             }`}
           >
-            {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
+            {saved ? t('saved') : saving ? t('saving') : t('saveCta')}
           </Button>
         </form>
 
@@ -134,21 +146,21 @@ export default function InstructorProfile() {
         {/* Sign out */}
         {confirmSignOut ? (
           <div className="bg-bad/5 border border-bad/20 rounded-xl px-4 py-4">
-            <p className="text-foreground text-sm font-medium mb-3">¿Cerrar sesión?</p>
+            <p className="text-foreground text-sm font-medium mb-3">{t('confirmSignOutPrompt')}</p>
             <div className="flex gap-2">
               <Button
                 onClick={() => { logout(); router.replace('/') }}
                 variant="destructive"
                 className="flex-1 h-10 text-sm"
               >
-                Cerrar sesión
+                {t('signOut')}
               </Button>
               <Button
                 onClick={() => setConfirmSignOut(false)}
                 variant="outline"
                 className="flex-1 h-10 text-sm border-border text-muted-foreground hover:text-foreground"
               >
-                Cancelar
+                {t('cancel')}
               </Button>
             </div>
           </div>
@@ -157,7 +169,7 @@ export default function InstructorProfile() {
             onClick={() => setConfirmSignOut(true)}
             className="w-full text-muted-foreground text-sm hover:text-bad transition-colors py-1"
           >
-            Cerrar sesión
+            {t('signOut')}
           </button>
         )}
       </div>

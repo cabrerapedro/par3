@@ -1,6 +1,6 @@
 {
-  "name": "Sweep — Tu copiloto de practica",
-  "short_name": "Sweep",
+  "name": "parell.golf",
+  "short_name": "parell.golf",
   "description": "Copiloto digital para instructores y alumnos de golf",
   "start_url": "/",
   "display": "standalone",

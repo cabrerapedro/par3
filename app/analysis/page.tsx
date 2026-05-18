@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import {
   analyzeFaceOn, analyzeDownLine, aggregateResults, generateSummary,
@@ -52,6 +53,8 @@ async function initPose(view: View, onFrame: (checks: Check[]) => void): Promise
 }
 
 export default function AnalysisPage() {
+  const t = useTranslations('poc.analysis')
+  const tMeta = useTranslations('meta')
   const [stage, setStage] = useState<Stage>('input')
   const [view, setView] = useState<View>('face-on')
   const [progress, setProgress] = useState(0)
@@ -206,10 +209,10 @@ export default function AnalysisPage() {
             <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
-        <span className="font-bold text-lg">Sweep</span>
+        <span className="font-bold text-lg">{tMeta('appName')}</span>
         {stage === 'results' ? (
           <button onClick={reset} className="font-mono text-xs text-dim hover:text-txt transition-colors">
-            Nuevo vídeo
+            {t('newVideo')}
           </button>
         ) : <div className="w-20" />}
       </header>
@@ -218,8 +221,8 @@ export default function AnalysisPage() {
       {stage === 'input' && (
         <div className="flex-1 flex flex-col items-center justify-center p-5 sm:p-8 gap-5 sm:gap-6">
           <div className="text-center mb-2">
-            <h2 className="text-txt text-xl font-semibold mb-1">Análisis de Video</h2>
-            <p className="text-dim text-sm">Selecciona el ángulo de cámara y sube tu vídeo</p>
+            <h2 className="text-txt text-xl font-semibold mb-1">{t('title')}</h2>
+            <p className="text-dim text-sm">{t('subtitle')}</p>
           </div>
 
           {/* View toggle */}
@@ -232,7 +235,7 @@ export default function AnalysisPage() {
                   view === v ? 'bg-s3 text-blue border border-blue/20' : 'text-dim hover:text-muted'
                 }`}
               >
-                {v === 'face-on' ? 'De frente' : 'De lado'}
+                {v === 'face-on' ? t('viewFaceOn') : t('viewDtl')}
               </button>
             ))}
           </div>
@@ -254,8 +257,8 @@ export default function AnalysisPage() {
                 </svg>
               </div>
               <div>
-                <p className="font-semibold text-txt mb-0.5">Subir vídeo</p>
-                <p className="text-dim text-xs">MP4, MOV, WebM</p>
+                <p className="font-semibold text-txt mb-0.5">{t('uploadVideo')}</p>
+                <p className="text-dim text-xs">{t('uploadFormats')}</p>
               </div>
               <input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
             </label>
@@ -276,8 +279,8 @@ export default function AnalysisPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-bad mb-0.5">Detener grabación</p>
-                    <p className="text-dim text-xs">Toca para finalizar</p>
+                    <p className="font-semibold text-bad mb-0.5">{t('stopRecording')}</p>
+                    <p className="text-dim text-xs">{t('stopRecordingHint')}</p>
                   </div>
                   <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-bad animate-pulse" />
                 </>
@@ -290,8 +293,8 @@ export default function AnalysisPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-txt mb-0.5">Grabar ahora</p>
-                    <p className="text-dim text-xs">Usa la cámara</p>
+                    <p className="font-semibold text-txt mb-0.5">{t('recordNow')}</p>
+                    <p className="text-dim text-xs">{t('recordNowHint')}</p>
                   </div>
                 </>
               )}
@@ -320,12 +323,12 @@ export default function AnalysisPage() {
             </svg>
           </div>
           <div className="text-center">
-            <h2 className="text-txt font-semibold text-lg mb-1">Analizando postura</h2>
-            <p className="text-muted text-sm">Procesando frame a frame con MediaPipe...</p>
+            <h2 className="text-txt font-semibold text-lg mb-1">{t('analyzing')}</h2>
+            <p className="text-muted text-sm">{t('processingFrames')}</p>
           </div>
           <div className="w-full max-w-sm">
             <div className="flex justify-between font-mono text-xs text-dim mb-2">
-              <span>Progreso</span>
+              <span>{t('progress')}</span>
               <span>{progress}%</span>
             </div>
             <div className="h-1.5 bg-s2 rounded-full overflow-hidden">
@@ -361,7 +364,7 @@ export default function AnalysisPage() {
           {/* Results panel */}
           <aside className="border-t lg:border-t-0 lg:border-l border-border lg:w-96 lg:flex-shrink-0 lg:overflow-y-auto bg-bg">
             <div className="p-4 sm:p-5 flex flex-col gap-4">
-              <p className="font-mono text-xs text-dim uppercase tracking-widest">Resultados por checkpoint</p>
+              <p className="font-mono text-xs text-dim uppercase tracking-widest">{t('resultsHeader')}</p>
 
               {results.map(r => (
                 <ResultCard key={r.id} result={r} />
@@ -372,7 +375,7 @@ export default function AnalysisPage() {
                 <div className="relative border border-blue/25 bg-blue/5 rounded-xl overflow-hidden">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue" />
                   <div className="pl-5 pr-4 py-4">
-                    <p className="font-mono text-xs text-blue uppercase tracking-widest mb-2">Copiloto Sweep</p>
+                    <p className="font-mono text-xs text-blue uppercase tracking-widest mb-2">{t('copilot')}</p>
                     <p className="text-sm text-txt leading-relaxed">{summary}</p>
                   </div>
                 </div>
@@ -386,6 +389,7 @@ export default function AnalysisPage() {
 }
 
 function ResultCard({ result }: { result: AggregatedCheck }) {
+  const t = useTranslations('poc.analysis')
   const isOk = result.status === 'ok'
   const isWarn = result.status === 'warn'
   const stripColor = isOk ? 'bg-ok' : isWarn ? 'bg-warn' : 'bg-bad'
@@ -413,9 +417,9 @@ function ResultCard({ result }: { result: AggregatedCheck }) {
 
         {/* Legend */}
         <div className="flex gap-3 mb-3">
-          {result.okPct > 0 && <span className="font-mono text-xs text-ok">{result.okPct}% correcto</span>}
-          {result.warnPct > 0 && <span className="font-mono text-xs text-warn">{result.warnPct}% ajustar</span>}
-          {result.badPct > 0 && <span className="font-mono text-xs text-bad">{result.badPct}% corregir</span>}
+          {result.okPct > 0 && <span className="font-mono text-xs text-ok">{result.okPct}{t('okPctSuffix')}</span>}
+          {result.warnPct > 0 && <span className="font-mono text-xs text-warn">{result.warnPct}{t('warnPctSuffix')}</span>}
+          {result.badPct > 0 && <span className="font-mono text-xs text-bad">{result.badPct}{t('badPctSuffix')}</span>}
         </div>
 
         <p className="text-sm text-muted leading-relaxed">{result.message}</p>

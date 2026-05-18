@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import type { Check, Status } from '@/lib/poseAnalysis'
 
 const STRIP: Record<Status, string> = {
@@ -21,11 +24,11 @@ const LABEL_COLOR: Record<Status, string> = {
   off:  'text-dim',
 }
 
-const BADGE_LABEL: Record<Status, string> = {
-  ok:   'OK',
-  warn: 'Ajustar',
-  bad:  'Corregir',
-  off:  '—',
+const BADGE_KEY: Record<Status, string> = {
+  ok:   'badgeOk',
+  warn: 'badgeWarn',
+  bad:  'badgeBad',
+  off:  'badgeOff',
 }
 
 function StatusIcon({ status }: { status: Status }) {
@@ -56,9 +59,10 @@ interface CheckPanelProps {
 }
 
 export function CheckPanel({ checks, tip }: CheckPanelProps) {
+  const t = useTranslations('components.checkPanel')
   return (
     <div className="flex flex-col gap-3 h-full">
-      <p className="font-mono text-xs text-dim uppercase tracking-widest">Análisis de postura</p>
+      <p className="font-mono text-xs text-dim uppercase tracking-widest">{t('title')}</p>
 
       {checks.map(check => (
         <div
@@ -75,7 +79,7 @@ export function CheckPanel({ checks, tip }: CheckPanelProps) {
                 <span className="font-semibold text-sm sm:text-base text-txt">{check.label}</span>
               </div>
               <span className={`font-mono text-xs font-bold ${LABEL_COLOR[check.status]}`}>
-                {BADGE_LABEL[check.status]}
+                {t(BADGE_KEY[check.status])}
               </span>
             </div>
             {check.status !== 'off' && (
@@ -90,7 +94,7 @@ export function CheckPanel({ checks, tip }: CheckPanelProps) {
         <div className="relative rounded-xl border border-ok/25 bg-ok/8 overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-ok" />
           <div className="pl-4 pr-3 py-3 sm:pl-5 sm:pr-4 sm:py-4">
-            <p className="font-mono text-xs text-ok uppercase tracking-widest mb-1.5 sm:mb-2">Consejo principal</p>
+            <p className="font-mono text-xs text-ok uppercase tracking-widest mb-1.5 sm:mb-2">{t('tipTitle')}</p>
             <p className="text-xs sm:text-sm text-txt leading-relaxed">{tip}</p>
           </div>
         </div>

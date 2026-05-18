@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { CameraAngle } from '@/lib/types'
-import { METRICS_BY_ANGLE, METRIC_LABELS } from '@/lib/baseline'
+import { METRICS_BY_ANGLE, getMetricLabel } from '@/lib/baseline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,6 +20,8 @@ export default function EditCheckpoint() {
   const params = useParams()
   const studentId = params.id as string
   const checkpointId = params.checkpointId as string
+  const t = useTranslations('instructor.checkpoints')
+  const tMetrics = useTranslations('metrics.labels')
 
   const [name, setName] = useState('')
   const [cameraAngle, setCameraAngle] = useState<CameraAngle>('face_on')
@@ -59,7 +62,7 @@ export default function EditCheckpoint() {
       })
       .eq('id', checkpointId)
     setSaving(false)
-    if (updateErr) { setError('Error al guardar los cambios.'); return }
+    if (updateErr) { setError(t('saveError')); return }
     router.push(`/instructor/students/${studentId}/checkpoints/${checkpointId}`)
   }
 
@@ -83,16 +86,16 @@ export default function EditCheckpoint() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Detalle del ejercicio
+            {t('editBackToDetail')}
           </Link>
-          <span className="text-sm font-medium text-muted-foreground">Editar ejercicio</span>
+          <span className="text-sm font-medium text-muted-foreground">{t('editTopLabel')}</span>
         </div>
       </header>
 
       <div className="max-w-2xl mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Editar ejercicio</h1>
-          <p className="text-muted-foreground text-sm">Nombre, ángulo y nota del instructor</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">{t('editTitle')}</h1>
+          <p className="text-muted-foreground text-sm">{t('editSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -102,24 +105,24 @@ export default function EditCheckpoint() {
             {/* LEFT — identity */}
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
+                <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">{t('nameLabel')}</Label>
                 <Input
                   id="name"
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Ej. Address de frente"
+                  placeholder={t('namePlaceholder')}
                   required
                   className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label className="text-muted-foreground text-xs uppercase tracking-wide">Ángulo de cámara</Label>
+                <Label className="text-muted-foreground text-xs uppercase tracking-wide">{t('cameraAngleLabel')}</Label>
                 <div className="flex flex-col gap-2">
                   {([
-                    { value: 'face_on' as CameraAngle, label: 'De frente' },
-                    { value: 'dtl' as CameraAngle, label: 'De perfil' },
+                    { value: 'face_on' as CameraAngle, label: t('angleFaceOn') },
+                    { value: 'dtl' as CameraAngle, label: t('angleDtl') },
                   ]).map(opt => (
                     <button
                       key={opt.value}
@@ -141,7 +144,7 @@ export default function EditCheckpoint() {
 
             {/* RIGHT — metrics */}
             <div className="flex flex-col gap-2">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wide">Métricas a evaluar</Label>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wide">{t('metricsLabel')}</Label>
               <div className="flex flex-wrap gap-2">
                 {METRICS_BY_ANGLE[cameraAngle].map(key => {
                   const selected = selectedMetrics.includes(key)
@@ -159,13 +162,13 @@ export default function EditCheckpoint() {
                           : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
                       )}
                     >
-                      {METRIC_LABELS[key]}
+                      {getMetricLabel(key, tMetrics)}
                     </button>
                   )
                 })}
               </div>
               {selectedMetrics.length === 0 && (
-                <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
+                <p className="text-xs text-muted-foreground/60">{t('noMetricsHint')}</p>
               )}
             </div>
           </div>
@@ -173,12 +176,12 @@ export default function EditCheckpoint() {
           {/* FULL WIDTH — Note */}
           <div className="flex flex-col gap-2">
             <Label className="text-muted-foreground text-xs uppercase tracking-wide">
-              Nota para el alumno <span className="normal-case font-normal text-muted-foreground/60">(opcional)</span>
+              {t('noteLabel')} <span className="normal-case font-normal text-muted-foreground/60">{t('noteOptional')}</span>
             </Label>
             <Textarea
               value={note}
               onChange={e => setNote(e.target.value)}
-              placeholder="Indicaciones o consejos..."
+              placeholder={t('noteEditSubtitle')}
               rows={2}
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 resize-none"
             />
@@ -195,12 +198,12 @@ export default function EditCheckpoint() {
               disabled={saving || !name.trim()}
               className="h-11 px-6 bg-ok text-on-ok font-semibold hover:bg-ok/90"
             >
-              {saving ? 'Guardando...' : 'Guardar cambios'}
+              {saving ? t('saving') : t('saveCta')}
             </Button>
 
             {confirmDelete ? (
               <div className="flex items-center gap-2 flex-1">
-                <span className="text-xs text-bad">¿Eliminar?</span>
+                <span className="text-xs text-bad">{t('deletePrompt')}</span>
                 <Button
                   type="button"
                   onClick={deleteCheckpoint}
@@ -209,7 +212,7 @@ export default function EditCheckpoint() {
                   size="sm"
                   className="h-9 text-xs"
                 >
-                  {deleting ? 'Eliminando...' : 'Confirmar'}
+                  {deleting ? t('deleting') : t('deleteConfirm')}
                 </Button>
                 <Button
                   type="button"
@@ -218,7 +221,7 @@ export default function EditCheckpoint() {
                   size="sm"
                   className="h-9 text-xs text-muted-foreground"
                 >
-                  Cancelar
+                  {t('deleteCancel')}
                 </Button>
               </div>
             ) : (
@@ -227,7 +230,7 @@ export default function EditCheckpoint() {
                 onClick={() => setConfirmDelete(true)}
                 className="text-muted-foreground text-xs hover:text-bad transition-colors ml-auto"
               >
-                Eliminar ejercicio
+                {t('deleteCheckpoint')}
               </button>
             )}
           </div>

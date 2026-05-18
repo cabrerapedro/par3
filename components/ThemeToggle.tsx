@@ -1,11 +1,13 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/lib/theme'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { theme, toggle } = useTheme()
+  const t = useTranslations('components.themeToggle')
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -28,7 +30,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="text-xs">
-        {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+        {theme === 'dark' ? t('switchToLight') : t('switchToDark')}
       </TooltipContent>
     </Tooltip>
   )

@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Checkpoint } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { METRIC_LABELS, METRIC_INFO, PHASE_LABELS, calculateBaseline, calculateSwingBaseline, isSwingBaseline } from '@/lib/baseline'
+import { METRIC_INFO, calculateBaseline, calculateSwingBaseline, isSwingBaseline, getMetricLabel, getPhaseLabel } from '@/lib/baseline'
 import type { SwingPhaseName, PracticeSession } from '@/lib/types'
 import { MarkGallery } from '@/components/MarkGallery'
 import { ProgressChart } from '@/components/ProgressChart'
@@ -21,6 +22,9 @@ export default function InstructorCheckpointDetail() {
   const params = useParams()
   const studentId = params.id as string
   const checkpointId = params.checkpointId as string
+  const t = useTranslations('instructor.checkpoints')
+  const tMetrics = useTranslations('metrics.labels')
+  const tPhases = useTranslations('metrics.phases')
 
   const [cp, setCp] = useState<Checkpoint | null>(null)
   const [sessions, setSessions] = useState<PracticeSession[]>([])
@@ -171,14 +175,14 @@ export default function InstructorCheckpointDetail() {
   if (loading) return <LoadingScreen />
   if (!cp) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <p className="text-muted-foreground">Ejercicio no encontrado.</p>
+      <p className="text-muted-foreground">{t('notFound')}</p>
     </div>
   )
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: 'calibration', label: 'Calibración', count: cp.calibration_marks?.length || 0 },
-    { key: 'baseline', label: 'Referencia' },
-    { key: 'practice', label: 'Práctica', count: sessions.length },
+    { key: 'calibration', label: t('tabCalibration'), count: cp.calibration_marks?.length || 0 },
+    { key: 'baseline', label: t('tabBaseline') },
+    { key: 'practice', label: t('tabPractice'), count: sessions.length },
   ]
 
   // Practice stats — computed once outside JSX
@@ -196,7 +200,7 @@ export default function InstructorCheckpointDetail() {
         <div className="max-w-6xl mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
           <Link href={`/instructor/students/${studentId}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Perfil del alumno
+            {t('detailBackToStudent')}
           </Link>
         </div>
       </header>
@@ -211,38 +215,38 @@ export default function InstructorCheckpointDetail() {
                 cp.status === 'archived' ? "text-warn border-warn/20 bg-warn/10" :
                 "text-muted-foreground border-border"
               )}>
-                {cp.status === 'calibrated' ? 'Calibrado' : cp.status === 'archived' ? 'Archivado' : 'Pendiente'}
+                {cp.status === 'calibrated' ? t('statusCalibrated') : cp.status === 'archived' ? t('statusArchived') : t('statusPending')}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground border-border text-xs">
-                {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
+                {cp.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
               </Badge>
             </div>
             <div className="flex items-center gap-1.5">
               <Link
                 href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/calibrate`}
-                title={cp.status === 'calibrated' ? 'Recalibrar' : 'Calibrar'}
+                title={cp.status === 'calibrated' ? t('recalibrate') : t('calibrate')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-ok/40 hover:text-ok hover:bg-ok/5 transition-all"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-                {cp.status === 'calibrated' ? 'Recalibrar' : 'Calibrar'}
+                {cp.status === 'calibrated' ? t('recalibrate') : t('calibrate')}
               </Link>
               <Link
                 href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/edit`}
-                title="Editar ejercicio"
+                title={t('editTitle')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-blue/40 hover:text-blue hover:bg-blue/5 transition-all"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
-                Editar
+                {t('editAction')}
               </Link>
               <button
                 onClick={toggleArchive}
-                title={cp.status === 'archived' ? 'Desarchivar ejercicio' : 'Archivar ejercicio'}
+                title={cp.status === 'archived' ? t('unarchive') : t('archive')}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
                   cp.status === 'archived'
@@ -257,7 +261,7 @@ export default function InstructorCheckpointDetail() {
                     <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></>
                   )}
                 </svg>
-                {cp.status === 'archived' ? 'Desarchivar' : 'Archivar'}
+                {cp.status === 'archived' ? t('unarchive') : t('archive')}
               </button>
               {confirmDelete ? (
                 <div className="flex items-center gap-1.5">
@@ -266,25 +270,25 @@ export default function InstructorCheckpointDetail() {
                     disabled={deleting}
                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-bad text-white hover:bg-bad/90 transition-all"
                   >
-                    {deleting ? 'Eliminando...' : 'Confirmar'}
+                    {deleting ? t('deleting') : t('deleteConfirm')}
                   </button>
                   <button
                     onClick={() => setConfirmDelete(false)}
                     className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Cancelar
+                    {t('deleteCancel')}
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  title="Eliminar ejercicio"
+                  title={t('deleteCheckpoint')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-bad/40 hover:text-bad hover:bg-bad/5 transition-all"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                   </svg>
-                  Eliminar
+                  {t('deleteAction')}
                 </button>
               )}
             </div>
@@ -292,7 +296,7 @@ export default function InstructorCheckpointDetail() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{cp.name}</h1>
           {cp.calibration_marks?.length > 0 && (
             <p className="text-muted-foreground text-sm mt-1">
-              {cp.calibration_marks.length} posicion{cp.calibration_marks.length !== 1 ? 'es' : ''} calibrada{cp.calibration_marks.length !== 1 ? 's' : ''} · referencia personal activa
+              {t('positionsCalibrated', { count: cp.calibration_marks.length })}
             </p>
           )}
         </div>
@@ -305,7 +309,7 @@ export default function InstructorCheckpointDetail() {
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
-            <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">Nota para el alumno</p>
+            <p className="text-xs font-semibold text-blue/80 uppercase tracking-wide">{t('noteTitle')}</p>
           </div>
 
           {/* Audio note */}
@@ -314,7 +318,7 @@ export default function InstructorCheckpointDetail() {
               <audio src={cp.instructor_audio_url} controls className="flex-1 h-9" style={{ accentColor: '#60a5fa' }} />
               <button
                 onClick={deleteAudio}
-                title="Eliminar audio"
+                title={t('audioDeleteTitle')}
                 className="shrink-0 w-9 h-9 rounded-lg border border-border bg-secondary text-muted-foreground hover:text-bad hover:border-bad/30 flex items-center justify-center transition-all"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -332,7 +336,7 @@ export default function InstructorCheckpointDetail() {
               if (dictating) return
               saveNote(e.target.value)
             }}
-            placeholder="Escribe una nota para el alumno..."
+            placeholder={t('noteEditPlaceholder')}
             className="w-full text-sm bg-background/50 border border-blue/15 rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground/40 resize-none focus:outline-none focus:border-blue/40 leading-relaxed"
             rows={2}
           />
@@ -353,7 +357,7 @@ export default function InstructorCheckpointDetail() {
                 <path d="M5 10a7 7 0 0 0 14 0" />
                 <line x1="12" y1="19" x2="12" y2="22" />
               </svg>
-              {dictating ? 'Dictando...' : 'Dictar'}
+              {dictating ? t('dictating') : t('dictate')}
             </button>
             <button
               onClick={toggleRecording}
@@ -370,7 +374,7 @@ export default function InstructorCheckpointDetail() {
                   : <circle cx="12" cy="12" r="6" />
                 }
               </svg>
-              {recording ? 'Grabando...' : 'Nota de voz'}
+              {recording ? t('recording') : t('voiceNote')}
             </button>
           </div>
         </div>
@@ -421,14 +425,14 @@ export default function InstructorCheckpointDetail() {
           ) : (
             <EmptyState
               icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>}
-              title="Sin marcas de calibración"
-              description="Calibra este ejercicio para crear la referencia personal del alumno."
+              title={t('emptyMarksTitle')}
+              description={t('emptyMarksDesc')}
               action={
                 <Link
                   href={`/instructor/students/${studentId}/checkpoints/${checkpointId}/calibrate`}
                   className="inline-flex items-center gap-1.5 bg-ok text-black text-sm font-semibold rounded-lg px-4 py-2 hover:bg-ok/90 transition-all"
                 >
-                  Calibrar ahora
+                  {t('calibrateNow')}
                 </Link>
               }
             />
@@ -441,7 +445,7 @@ export default function InstructorCheckpointDetail() {
               <div className="flex flex-col gap-4">
                 {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
                   <div key={phase} className="bg-card border border-border rounded-xl px-4 py-4">
-                    <p className="text-xs text-muted-foreground font-medium mb-2">{PHASE_LABELS[phase as SwingPhaseName] ?? phase}</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-2">{getPhaseLabel(phase as SwingPhaseName, tPhases)}</p>
                     <div className="flex flex-col gap-1.5">
                       {Object.entries(phaseBaseline as Record<string, any>)
                         .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
@@ -450,7 +454,7 @@ export default function InstructorCheckpointDetail() {
                           const unitSuffix = info?.unit === 'grados' ? '°' : ''
                           return (
                             <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
-                              <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}</span>
+                              <span className="text-muted-foreground">{getMetricLabel(key, tMetrics)}</span>
                               <span className="text-ok font-mono font-semibold">
                                 {val.mean.toFixed(1)}{unitSuffix}
                                 <span className="text-muted-foreground/60 font-normal ml-1.5">
@@ -474,7 +478,7 @@ export default function InstructorCheckpointDetail() {
                       const unitSuffix = info?.unit === 'grados' ? '°' : ''
                       return (
                         <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
-                          <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}</span>
+                          <span className="text-muted-foreground">{getMetricLabel(key, tMetrics)}</span>
                           <span className="text-ok font-mono font-semibold">
                             {val.mean.toFixed(1)}{unitSuffix}
                             <span className="text-muted-foreground/60 font-normal ml-1.5">
@@ -490,8 +494,8 @@ export default function InstructorCheckpointDetail() {
           ) : (
             <EmptyState
               icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" /></svg>}
-              title="Sin referencia personal"
-              description="Calibra al menos una posición para generar la referencia."
+              title={t('emptyBaselineTitle')}
+              description={t('emptyBaselineDesc')}
             />
           )
         )}
@@ -503,11 +507,11 @@ export default function InstructorCheckpointDetail() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-card border border-border rounded-xl px-3 py-3 text-center">
                   <p className={`text-xl font-bold font-mono ${practiceAvg >= 80 ? 'text-ok' : practiceAvg >= 50 ? 'text-warn' : 'text-bad'}`}>{practiceAvg}%</p>
-                  <p className="text-xs text-muted-foreground">Promedio</p>
+                  <p className="text-xs text-muted-foreground">{t('statAverage')}</p>
                 </div>
                 <div className="bg-card border border-border rounded-xl px-3 py-3 text-center">
                   <p className={`text-xl font-bold font-mono ${practiceLatest!.overall_score >= 80 ? 'text-ok' : practiceLatest!.overall_score >= 50 ? 'text-warn' : 'text-bad'}`}>{practiceLatest!.overall_score}%</p>
-                  <p className="text-xs text-muted-foreground">Última</p>
+                  <p className="text-xs text-muted-foreground">{t('statLatest')}</p>
                 </div>
                 <div className="bg-card border border-border rounded-xl px-3 py-3 text-center">
                   {practiceTrend !== null ? (
@@ -517,7 +521,7 @@ export default function InstructorCheckpointDetail() {
                   ) : (
                     <p className="text-xl font-bold font-mono text-muted-foreground">—</p>
                   )}
-                  <p className="text-xs text-muted-foreground">Tendencia</p>
+                  <p className="text-xs text-muted-foreground">{t('statTrend')}</p>
                 </div>
               </div>
 
@@ -533,7 +537,7 @@ export default function InstructorCheckpointDetail() {
 
               {/* Sessions list */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Sesiones recientes</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t('recentSessions')}</p>
                 <div className="flex flex-col gap-2">
                   {[...sessions].reverse().slice(0, 8).map((s, i) => {
                     const metricEntries = Object.entries(s.results ?? {})
@@ -560,9 +564,9 @@ export default function InstructorCheckpointDetail() {
                             let label: string
                             if (key.includes('__')) {
                               const [phase, metric] = key.split('__')
-                              label = `${PHASE_LABELS[phase as SwingPhaseName] ?? phase}: ${METRIC_LABELS[metric] ?? metric}`
+                              label = `${getPhaseLabel(phase as SwingPhaseName, tPhases)}: ${getMetricLabel(metric, tMetrics)}`
                             } else {
-                              label = METRIC_LABELS[key] ?? key
+                              label = getMetricLabel(key, tMetrics)
                             }
                             return (
                               <span
@@ -584,7 +588,7 @@ export default function InstructorCheckpointDetail() {
                   })}
                   {sessions.length > 8 && (
                     <p className="text-xs text-muted-foreground text-center mt-1">
-                      +{sessions.length - 8} sesiones anteriores
+                      {t('moreSessions', { count: sessions.length - 8 })}
                     </p>
                   )}
                 </div>
@@ -593,8 +597,8 @@ export default function InstructorCheckpointDetail() {
           ) : (
             <EmptyState
               icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" /></svg>}
-              title="Sin sesiones de práctica"
-              description="El alumno aún no ha practicado este ejercicio."
+              title={t('emptyPracticeTitle')}
+              description={t('emptyPracticeDesc')}
             />
           )
         )}

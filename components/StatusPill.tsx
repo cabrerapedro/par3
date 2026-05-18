@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import type { Status } from '@/lib/poseAnalysis'
 
 const PILL: Record<Status, string> = {
@@ -14,22 +17,16 @@ const DOT: Record<Status, string> = {
   off:  'bg-dim',
 }
 
-const LABEL: Record<Status, string> = {
-  ok:   'Postura correcta',
-  warn: 'Ajustar postura',
-  bad:  'Corregir postura',
-  off:  'Detectando...',
-}
-
 interface StatusPillProps {
   status: Status
 }
 
 export function StatusPill({ status }: StatusPillProps) {
+  const t = useTranslations('components.statusPill')
   return (
     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border font-mono text-xs font-medium backdrop-blur-sm ${PILL[status]}`}>
       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${DOT[status]}`} />
-      {LABEL[status]}
+      {t(status)}
     </div>
   )
 }

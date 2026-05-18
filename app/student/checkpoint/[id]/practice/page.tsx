@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
   calculateMetrics, compareToBaseline, baselineOverallStatus,
   generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
   detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
-  PHASE_LABELS
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import type { Checkpoint, Baseline, Landmark, SwingBaseline } from '@/lib/types'
@@ -26,6 +26,9 @@ export default function StudentPractice() {
   const router = useRouter()
   const params = useParams()
   const cpId = params.id as string
+  const t = useTranslations('student.practice')
+  const tBaselineSummary = useTranslations('baselineSummary')
+  const tSwingSummary = useTranslations('swingSummary')
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -76,7 +79,7 @@ export default function StudentPractice() {
 
   async function loadCheckpoint() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
-    if (!data?.baseline) { setError('Este ejercicio aún no tiene referencia.'); return }
+    if (!data?.baseline) { setError(t('noBaseline')); return }
     setCheckpoint(data)
     checkpointRef.current = data
   }
@@ -140,7 +143,7 @@ export default function StudentPractice() {
       // Start live visibility checking
       startVisibilityCheck()
     } catch {
-      setError('No se pudo acceder a la cámara. Verifica los permisos.')
+      setError(t('cameraError'))
       setStage('input')
     }
   }
@@ -215,7 +218,7 @@ export default function StudentPractice() {
   }
 
   async function processVideo() {
-    if (!chunksRef.current.length) { setError('No se grabó video.'); return }
+    if (!chunksRef.current.length) { setError(t('noVideoCaptured')); return }
     const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'video/webm' })
     await analyzeVideoBlob(blob)
   }
@@ -254,7 +257,7 @@ export default function StudentPractice() {
   }
 
   async function analyzeVideoBlob(blob: Blob) {
-    if (!checkpoint?.baseline) { setError('Sin referencia personal.'); return }
+    if (!checkpoint?.baseline) { setError(t('noPersonalBaseline')); return }
     setStage('processing')
     setProgress(0)
     setSwingPhaseChecks([])
@@ -270,7 +273,7 @@ export default function StudentPractice() {
     video.load()
 
     const duration = await resolveVideoDuration(video)
-    if (duration <= 0) { setError('No se pudo leer el video.'); URL.revokeObjectURL(url); return }
+    if (duration <= 0) { setError(t('couldntReadVideo')); URL.revokeObjectURL(url); return }
 
     const fps = 10
     const step = 1 / fps
@@ -329,14 +332,14 @@ export default function StudentPractice() {
     if (isSwingMode) {
       // Swing mode: detect phases and compare
       if (allLandmarks.length < 10) {
-        setError('No se detectó suficiente pose en el video. Asegúrate de que te veas completo.')
+        setError(t('swingNotEnoughPose'))
         URL.revokeObjectURL(url)
         return
       }
 
       const phases = detectSwingPhases(allLandmarks, checkpoint.camera_angle)
       if (!phases) {
-        setError('No se detectó un swing en el video. Graba un swing completo de principio a fin.')
+        setError(t('swingNotDetected'))
         URL.revokeObjectURL(url)
         return
       }
@@ -346,7 +349,7 @@ export default function StudentPractice() {
 
       setPreviewUrl(url)
       setSwingPhaseChecks(phaseChecks)
-      setSummary(generateSwingSummary(phaseChecks))
+      setSummary(generateSwingSummary(phaseChecks, tSwingSummary))
 
       if (student && checkpoint) {
         const allChecks = phaseChecks.flatMap(pc => pc.checks)
@@ -372,7 +375,7 @@ export default function StudentPractice() {
     } else {
       // Position mode: aggregate frame results
       if (!results.length) {
-        setError('No se detectó pose en el video. Asegúrate de que te veas completo.')
+        setError(t('positionNotDetected'))
         URL.revokeObjectURL(url)
         return
       }
@@ -381,7 +384,7 @@ export default function StudentPractice() {
 
       setPreviewUrl(url)
       setFrameResults(results)
-      setSummary(generateBaselineSummary(aggregated))
+      setSummary(generateBaselineSummary(aggregated, tBaselineSummary))
 
       if (student && checkpoint) {
         const overall_score = Math.round(
@@ -441,7 +444,7 @@ export default function StudentPractice() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            {checkpoint?.name ?? 'Volver'}
+            {checkpoint?.name ?? t('backFallback')}
           </Link>
         </header>
       )}
@@ -449,7 +452,7 @@ export default function StudentPractice() {
       {/* INPUT stage */}
       {stage === 'input' && (
         <div className="max-w-md mx-auto px-5 py-8 flex flex-col gap-4">
-          <h1 className="text-xl font-bold text-foreground mb-4">Grabar práctica</h1>
+          <h1 className="text-xl font-bold text-foreground mb-4">{t('title')}</h1>
 
           {/* Phone restriction for recording */}
           <div className="flex md:hidden flex-col items-center text-center gap-3 py-4">
@@ -458,8 +461,8 @@ export default function StudentPractice() {
                 <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
               </svg>
             </div>
-            <p className="text-foreground font-semibold text-sm">Usa un iPad o tablet para grabar</p>
-            <p className="text-muted-foreground text-xs max-w-xs">La grabación funciona mejor en una pantalla grande con trípode.</p>
+            <p className="text-foreground font-semibold text-sm">{t('useTabletTitle')}</p>
+            <p className="text-muted-foreground text-xs max-w-xs">{t('useTabletDesc')}</p>
           </div>
 
           <button
@@ -471,9 +474,9 @@ export default function StudentPractice() {
                 <circle cx="12" cy="12" r="10" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-              <p className="text-foreground font-semibold">Grabar con cámara</p>
+              <p className="text-foreground font-semibold">{t('recordWithCamera')}</p>
             </div>
-            <p className="text-muted-foreground text-sm">Coloca el celular en un trípode y graba tu swing</p>
+            <p className="text-muted-foreground text-sm">{t('recordWithCameraDesc')}</p>
           </button>
 
           <button
@@ -486,9 +489,9 @@ export default function StudentPractice() {
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <p className="text-foreground font-semibold">Subir video</p>
+              <p className="text-foreground font-semibold">{t('uploadVideo')}</p>
             </div>
-            <p className="text-muted-foreground text-sm">Selecciona un video ya grabado</p>
+            <p className="text-muted-foreground text-sm">{t('uploadVideoDesc')}</p>
           </button>
           <input
             ref={fileInputRef}
@@ -499,7 +502,7 @@ export default function StudentPractice() {
           />
 
           <p className="text-muted-foreground text-xs text-center mt-2">
-            Ángulo: {checkpoint?.camera_angle === 'face_on' ? 'de frente' : 'de perfil'} · Captura todo el cuerpo
+            {t('angleHint', { angle: checkpoint?.camera_angle === 'face_on' ? t('angleFaceOnLower') : t('angleDtlLower') })}
           </p>
         </div>
       )}
@@ -519,7 +522,7 @@ export default function StudentPractice() {
             {!cameraReady && (
               <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-blue border-t-transparent animate-spin" />
-                <p className="text-muted-foreground text-sm">Iniciando cámara...</p>
+                <p className="text-muted-foreground text-sm">{t('startingCamera')}</p>
               </div>
             )}
 
@@ -536,7 +539,7 @@ export default function StudentPractice() {
                 <button
                   onClick={flipCamera}
                   className="absolute top-4 right-4 w-10 h-10 rounded-full bg-background/60 backdrop-blur flex items-center justify-center text-foreground hover:bg-background/80 transition-all"
-                  title="Cambiar cámara"
+                  title={t('flipCameraTitle')}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
@@ -555,7 +558,7 @@ export default function StudentPractice() {
                   if (expected.length > 0 && recordingVisibleCount < expected.length) return (
                     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
                       <span className="text-black text-sm font-medium">
-                        Muestra todo el cuerpo — {recordingVisibleCount}/{expected.length} métricas
+                        {t('showFullBody', { visible: recordingVisibleCount, total: expected.length })}
                       </span>
                     </div>
                   )
@@ -563,7 +566,7 @@ export default function StudentPractice() {
                 })()}
                 {/* Angle hint */}
                 <div className="absolute bottom-4 left-4 bg-background/60 backdrop-blur text-muted-foreground text-xs px-3 py-1.5 rounded-full">
-                  {checkpoint?.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
+                  {checkpoint?.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
                 </div>
               </>
             )}
@@ -576,7 +579,7 @@ export default function StudentPractice() {
               disabled={!cameraReady}
               className="w-full bg-bad text-foreground font-bold text-lg rounded-2xl py-5 active:scale-[0.98] transition-all disabled:opacity-40"
             >
-              Detener y analizar
+              {t('stopAndAnalyze')}
             </button>
           </div>
         </div>
@@ -588,21 +591,21 @@ export default function StudentPractice() {
           <div className="w-10 h-10 rounded-full border-2 border-ok border-t-transparent animate-spin" />
           <div className="w-full max-w-xs">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-muted-foreground">Analizando frames</span>
+              <span className="text-muted-foreground">{t('analyzingFrames')}</span>
               <span className="text-ok font-mono">{progress}%</span>
             </div>
             <div className="h-2 bg-card rounded-full overflow-hidden">
               <div className="h-full bg-ok rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <p className="text-muted-foreground text-sm text-center">Comparando con tu referencia personal...</p>
+          <p className="text-muted-foreground text-sm text-center">{t('comparingBaseline')}</p>
         </div>
       )}
 
       {/* RESULTS stage */}
       {stage === 'results' && checkpoint && (
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
-          <h1 className="text-xl font-bold text-foreground mb-6">Resultados</h1>
+          <h1 className="text-xl font-bold text-foreground mb-6">{t('resultsTitle')}</h1>
 
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-80 flex-shrink-0">
@@ -635,7 +638,7 @@ export default function StudentPractice() {
                             phaseStatus === 'ok' ? 'text-ok bg-ok/10' :
                             phaseStatus === 'bad' ? 'text-bad bg-bad/10' : 'text-warn bg-warn/10'
                           }`}>
-                            {phaseStatus === 'ok' ? 'Bien' : phaseStatus === 'bad' ? 'Corregir' : 'Ajustar'}
+                            {phaseStatus === 'ok' ? t('statusOk') : phaseStatus === 'bad' ? t('statusBad') : t('statusWarn')}
                           </span>
                         </div>
                         <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-2">
@@ -676,10 +679,10 @@ export default function StudentPractice() {
                 if (missing.length > 0) return (
                   <div className="bg-warn/10 border border-warn/20 rounded-xl px-4 py-3 mb-4">
                     <p className="text-warn text-sm font-medium">
-                      {detected.length}/{expected.length} métricas detectadas
+                      {t('metricsDetected', { detected: detected.length, total: expected.length })}
                     </p>
                     <p className="text-muted-foreground text-xs mt-1">
-                      Asegúrate de que la cámara capture todo el cuerpo para un análisis completo.
+                      {t('metricsDetectedDesc')}
                     </p>
                   </div>
                 )
@@ -700,7 +703,7 @@ export default function StudentPractice() {
                             check.status === 'ok' ? 'text-ok bg-ok/10' :
                             check.status === 'warn' ? 'text-warn bg-warn/10' : 'text-bad bg-bad/10'
                           }`}>
-                            {check.status === 'ok' ? 'Bien' : check.status === 'warn' ? 'Ajustar' : 'Corregir'}
+                            {check.status === 'ok' ? t('statusOk') : check.status === 'warn' ? t('statusWarn') : t('statusBad')}
                           </span>
                         </div>
                         <div className="h-1.5 bg-secondary rounded-full overflow-hidden flex">
@@ -708,7 +711,7 @@ export default function StudentPractice() {
                           <div className="h-full bg-warn" style={{ width: `${warnPct}%` }} />
                           <div className="h-full bg-bad" style={{ width: `${badPct}%` }} />
                         </div>
-                        <p className="text-muted-foreground text-xs mt-1.5">{okPct}% dentro de tu rango</p>
+                        <p className="text-muted-foreground text-xs mt-1.5">{t('withinRange', { percent: okPct })}</p>
                       </div>
                     )
                   })}
@@ -717,7 +720,7 @@ export default function StudentPractice() {
 
               {summary && (
                 <div className="bg-blue/10 border border-blue/20 rounded-2xl px-4 py-4">
-                  <p className="text-xs text-blue/80 uppercase tracking-wide mb-2">Recomendación</p>
+                  <p className="text-xs text-blue/80 uppercase tracking-wide mb-2">{t('recommendation')}</p>
                   <p className="text-muted-foreground text-sm leading-relaxed">{summary}</p>
                 </div>
               )}
@@ -727,11 +730,11 @@ export default function StudentPractice() {
                   onClick={() => { setStage('input'); setFrameResults([]); setSwingPhaseChecks([]); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
                   className="flex-1 bg-card border border-border text-muted-foreground font-semibold rounded-xl py-3 hover:bg-secondary transition-all text-sm"
                 >
-                  Volver a grabar
+                  {t('recordAgain')}
                 </button>
                 <Link href={`/student/checkpoint/${cpId}`} className="flex-1">
                   <button className="w-full bg-ok text-on-ok font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
-                    Ver ejercicio
+                    {t('viewCheckpoint')}
                   </button>
                 </Link>
               </div>

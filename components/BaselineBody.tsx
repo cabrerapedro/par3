@@ -1,6 +1,7 @@
 'use client'
 
-import { METRIC_LABELS, METRIC_INFO, PHASE_LABELS } from '@/lib/baseline'
+import { useTranslations } from 'next-intl'
+import { METRIC_INFO, getMetricLabel, getPhaseLabel } from '@/lib/baseline'
 import type { CameraAngle, SwingPhaseName, SwingBaseline } from '@/lib/types'
 
 interface Props {
@@ -70,6 +71,7 @@ const LBL: Record<string, { x: number; y: number; side: 'r' | 'l' }> = {
 }
 
 export function BaselineBody({ baseline, cameraAngle, selectedMetrics }: Props) {
+  const tMetrics = useTranslations('metrics.labels')
   const entries = Object.entries(baseline)
     .filter(([key]) => !selectedMetrics?.length || selectedMetrics.includes(key))
 
@@ -125,7 +127,7 @@ export function BaselineBody({ baseline, cameraAngle, selectedMetrics }: Props) 
               textAnchor={anchor} fontSize="11"
               fill="var(--color-muted-foreground)"
             >
-              {METRIC_LABELS[key] ?? key}
+              {getMetricLabel(key, tMetrics)}
             </text>
             <text
               x={lbl.x} y={lbl.y + 12}
@@ -310,6 +312,8 @@ interface SwingProps {
 }
 
 export function SwingPhaseFigures({ baseline, cameraAngle, selectedMetrics }: SwingProps) {
+  const tMetrics = useTranslations('metrics.labels')
+  const tPhases = useTranslations('metrics.phases')
   const isFO = cameraAngle === 'face_on'
   const phases = PHASE_ORDER.filter(p => baseline.phases[p])
 
@@ -323,7 +327,7 @@ export function SwingPhaseFigures({ baseline, cameraAngle, selectedMetrics }: Sw
         return (
           <div key={phase} className="bg-secondary/50 border border-border rounded-xl p-3 flex flex-col items-center">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-              {PHASE_LABELS[phase]}
+              {getPhaseLabel(phase, tPhases)}
             </p>
             <div className="w-full max-w-[140px]">
               <MiniSwingFigure phase={phase} isFO={isFO} />
@@ -331,7 +335,7 @@ export function SwingPhaseFigures({ baseline, cameraAngle, selectedMetrics }: Sw
             <div className="flex flex-col gap-1 mt-2 w-full">
               {entries.map(([key, val]) => (
                 <div key={key} className="flex items-baseline justify-between gap-1 text-xs">
-                  <span className="text-muted-foreground truncate">{METRIC_LABELS[key] ?? key}</span>
+                  <span className="text-muted-foreground truncate">{getMetricLabel(key, tMetrics)}</span>
                   <span className="text-ok font-mono font-semibold shrink-0">
                     {fmtVal(key, val.mean, val.std)}
                   </span>

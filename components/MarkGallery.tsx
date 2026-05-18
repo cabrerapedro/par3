@@ -1,9 +1,10 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import type { CalibrationMark } from '@/lib/types'
 import type { CameraAngle } from '@/lib/types'
-import { METRIC_LABELS, METRIC_INFO } from '@/lib/baseline'
+import { METRIC_INFO, getMetricLabel } from '@/lib/baseline'
 
 interface MarkGalleryProps {
   videoUrl?: string
@@ -19,6 +20,8 @@ interface MarkGalleryProps {
 export function MarkGallery({
   videoUrl, skeletonUrl, marks, cameraAngle, selectedMetrics, onDeleteMark, onNoteChange, className,
 }: MarkGalleryProps) {
+  const t = useTranslations('components.markGallery')
+  const tMetrics = useTranslations('metrics.labels')
   const videoRef = useRef<HTMLVideoElement>(null)
   const hasBoth = !!(videoUrl && skeletonUrl)
   const [activeSource, setActiveSource] = useState<'video' | 'skeleton'>(skeletonUrl ? 'skeleton' : 'video')
@@ -251,14 +254,14 @@ export function MarkGallery({
         <div className="flex-1" />
         <button
           onClick={() => setMirrored(!mirrored)}
-          title={mirrored ? 'Video normal' : 'Espejo'}
+          title={mirrored ? t('playerMirrorOn') : t('playerMirrorOff')}
           className={`shrink-0 p-1 rounded transition-colors ${mirrored ? 'text-ok' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3" /><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" /><line x1="12" y1="2" x2="12" y2="22" />
           </svg>
         </button>
-        <button onClick={toggleFullscreen} title="Pantalla completa" className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1">
+        <button onClick={toggleFullscreen} title={t('playerFullscreen')} className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
           </svg>
@@ -272,7 +275,7 @@ export function MarkGallery({
           <polygon points="6 3 20 12 6 21" />
         </svg>
       </div>
-      <p className="text-muted-foreground text-sm">Toca <span className="text-ok font-medium">Ver clip</span> en una marca</p>
+      <p className="text-muted-foreground text-sm">{t('tapVerClip')} <span className="text-ok font-medium">{t('verClipLink')}</span> {t('tapVerClipDesc')}</p>
     </div>
   ) : null
 
@@ -287,7 +290,7 @@ export function MarkGallery({
             : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
         }`}
       >
-        Video + Ejes
+        {t('sourceVideoAxes')}
       </button>
       <button
         onClick={() => switchSource('video')}
@@ -297,7 +300,7 @@ export function MarkGallery({
             : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
         }`}
       >
-        Video
+        {t('sourceVideo')}
       </button>
     </div>
   ) : null
@@ -320,7 +323,7 @@ export function MarkGallery({
       <div className="flex flex-col gap-2 mt-3 lg:mt-0">
         {marks.length === 1 && (
           <p className="text-xs text-warn/80 bg-warn/5 border border-warn/15 rounded-lg px-3 py-2">
-            Solo 1 marca. Se recomiendan 3–5 para una referencia confiable.
+            {t('onlyOneMarkWarning')}
           </p>
         )}
 
@@ -352,7 +355,7 @@ export function MarkGallery({
                     className="text-xs text-ok hover:text-ok/80 flex items-center gap-1 transition-colors"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21" /></svg>
-                    Ver clip
+                    {t('viewClip')}
                   </button>
                 )}
                 {onDeleteMark && (
@@ -371,16 +374,16 @@ export function MarkGallery({
             {/* Delete confirmation */}
             {confirmDeleteIndex === i && onDeleteMark && (
               <div className="flex items-center justify-between bg-bad/5 border border-bad/20 rounded-lg px-3 py-2 mb-2">
-                <span className="text-xs text-bad">Eliminar esta marca?</span>
+                <span className="text-xs text-bad">{t('deletePrompt')}</span>
                 <div className="flex gap-3">
                   <button onClick={() => setConfirmDeleteIndex(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    Cancelar
+                    {t('deleteCancel')}
                   </button>
                   <button
                     onClick={() => { onDeleteMark(i); setConfirmDeleteIndex(null); if (selectedIndex === i) setSelectedIndex(null) }}
                     className="text-xs text-bad font-semibold hover:underline"
                   >
-                    Eliminar
+                    {t('deleteConfirm')}
                   </button>
                 </div>
               </div>
@@ -394,7 +397,7 @@ export function MarkGallery({
                     .filter(([key]) => !selectedMetrics?.length || selectedMetrics.includes(key))
                     .map(([key, value]) => (
                       <div key={key} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}</span>
+                        <span className="text-muted-foreground">{getMetricLabel(key, tMetrics)}</span>
                         <span className="font-mono text-foreground">{formatMetricValue(key, value)}</span>
                       </div>
                     ))}
@@ -409,13 +412,13 @@ export function MarkGallery({
                         const val = e.target.value.trim()
                         if (val !== (mark.note ?? '')) onNoteChange(i, val)
                       }}
-                      placeholder="Nota para el alumno..."
+                      placeholder={t('notePlaceholder')}
                       className="flex-1 text-xs bg-secondary border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/40 resize-none focus:outline-none focus:border-ok/30"
                       rows={2}
                     />
                     <button
                       onClick={() => toggleDictation(i)}
-                      title={dictatingIndex === i ? 'Detener dictado' : 'Dictar nota'}
+                      title={dictatingIndex === i ? t('dictateStop') : t('dictateStart')}
                       className={`shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-all ${
                         dictatingIndex === i
                           ? 'bg-bad/20 border-bad/40 text-bad animate-pulse'
@@ -442,7 +445,7 @@ export function MarkGallery({
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Posición de referencia
+                  {t('studentEmptyNote')}
                 </p>
               )
             )}
@@ -464,7 +467,7 @@ export function MarkGallery({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
               <polygon points="6 3 20 12 6 21" />
             </svg>
-            Ver grabación completa
+            {t('viewFullRecording')}
           </button>
         </div>
       )}

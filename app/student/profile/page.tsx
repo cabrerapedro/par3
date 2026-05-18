@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,17 @@ export default function StudentProfile() {
   const { student, updateStudent, logout, loading } = useAuth()
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const t = useTranslations('student.profile')
+  const tErrors = useTranslations('auth.errors')
+
+  function resolveError(code?: string): string {
+    if (!code) return ''
+    try {
+      return tErrors(code as never)
+    } catch {
+      return code
+    }
+  }
 
   const [name, setName] = useState('')
   const [handicap, setHandicap] = useState('')
@@ -78,7 +90,7 @@ export default function StudentProfile() {
     if (pendingFile) {
       const url = await uploadAvatar(pendingFile)
       if (url) avatar_url = url
-      else { setError('Error al subir la foto. Los demás cambios se guardarán.'); }
+      else { setError(t('avatarUploadError')); }
     }
 
     const result = await updateStudent({
@@ -93,7 +105,7 @@ export default function StudentProfile() {
 
     setSaving(false)
 
-    if (result.error) { setError(result.error); return }
+    if (result.error) { setError(resolveError(result.error)); return }
     setPendingFile(null)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -115,7 +127,7 @@ export default function StudentProfile() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Mis ejercicios
+            {t('backLink')}
           </Link>
           <ThemeToggle />
         </div>
@@ -148,7 +160,7 @@ export default function StudentProfile() {
             onClick={() => fileRef.current?.click()}
             className="text-xs text-blue hover:underline underline-offset-2 font-medium"
           >
-            {currentAvatar ? 'Cambiar foto' : 'Agregar foto'}
+            {currentAvatar ? t('changePhoto') : t('addPhoto')}
           </button>
         </div>
 
@@ -156,7 +168,7 @@ export default function StudentProfile() {
 
           {/* Name */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
+            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">{t('nameLabel')}</Label>
             <Input
               id="name"
               value={name}
@@ -169,15 +181,15 @@ export default function StudentProfile() {
           <Separator />
 
           {/* Golf info */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest -mb-1">Info de golf</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest -mb-1">{t('golfInfoLabel')}</p>
 
           {/* Dominant hand */}
           <div className="flex flex-col gap-2">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wide">Mano dominante</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wide">{t('dominantHandLabel')}</Label>
             <div className="grid grid-cols-2 gap-2">
               {([
-                { value: 'right', label: 'Diestro', icon: '🏌️' },
-                { value: 'left',  label: 'Zurdo',   icon: '🏌️‍♂️' },
+                { value: 'right', label: t('handRight'), icon: '🏌️' },
+                { value: 'left',  label: t('handLeft'),   icon: '🏌️‍♂️' },
               ] as const).map(opt => (
                 <button
                   key={opt.value}
@@ -199,17 +211,17 @@ export default function StudentProfile() {
           {/* Handicap + Years in a row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="handicap" className="text-muted-foreground text-xs uppercase tracking-wide">Handicap</Label>
+              <Label htmlFor="handicap" className="text-muted-foreground text-xs uppercase tracking-wide">{t('handicapLabel')}</Label>
               <Input
                 id="handicap"
                 value={handicap}
                 onChange={e => { setHandicap(e.target.value); setSaved(false) }}
-                placeholder="Ej. 12, +2"
+                placeholder={t('handicapPlaceholder')}
                 className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 h-11"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="years" className="text-muted-foreground text-xs uppercase tracking-wide">Años jugando</Label>
+              <Label htmlFor="years" className="text-muted-foreground text-xs uppercase tracking-wide">{t('yearsLabel')}</Label>
               <Input
                 id="years"
                 type="number"
@@ -225,12 +237,12 @@ export default function StudentProfile() {
 
           {/* Home course */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="course" className="text-muted-foreground text-xs uppercase tracking-wide">Club / Campo base</Label>
+            <Label htmlFor="course" className="text-muted-foreground text-xs uppercase tracking-wide">{t('homeCourseLabel')}</Label>
             <Input
               id="course"
               value={homeCourse}
               onChange={e => { setHomeCourse(e.target.value); setSaved(false) }}
-              placeholder="Ej. Club de Golf Los Encinos"
+              placeholder={t('homeCoursePlaceholder')}
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 h-11"
             />
           </div>
@@ -238,13 +250,13 @@ export default function StudentProfile() {
           {/* Bio */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="bio" className="text-muted-foreground text-xs uppercase tracking-wide">
-              Sobre mí <span className="normal-case font-normal text-muted-foreground/60">(opcional)</span>
+              {t('bioLabel')} <span className="normal-case font-normal text-muted-foreground/60">{t('bioOptional')}</span>
             </Label>
             <Textarea
               id="bio"
               value={bio}
               onChange={e => { setBio(e.target.value); setSaved(false) }}
-              placeholder="Cuéntanos algo sobre ti o tu juego..."
+              placeholder={t('bioPlaceholder')}
               rows={3}
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 resize-none"
             />
@@ -264,7 +276,7 @@ export default function StudentProfile() {
                 : 'bg-blue text-white hover:bg-blue/90'
             )}
           >
-            {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
+            {saved ? t('saved') : saving ? t('saving') : t('saveCta')}
           </Button>
         </form>
 
@@ -273,21 +285,21 @@ export default function StudentProfile() {
         {/* Sign out */}
         {confirmSignOut ? (
           <div className="bg-bad/5 border border-bad/20 rounded-xl px-4 py-4">
-            <p className="text-foreground text-sm font-medium mb-3">¿Cerrar sesión?</p>
+            <p className="text-foreground text-sm font-medium mb-3">{t('confirmSignOutPrompt')}</p>
             <div className="flex gap-2">
               <Button
                 onClick={() => { logout(); router.replace('/') }}
                 variant="destructive"
                 className="flex-1 h-10 text-sm"
               >
-                Cerrar sesión
+                {t('signOut')}
               </Button>
               <Button
                 onClick={() => setConfirmSignOut(false)}
                 variant="outline"
                 className="flex-1 h-10 text-sm border-border text-muted-foreground hover:text-foreground"
               >
-                Cancelar
+                {t('cancel')}
               </Button>
             </div>
           </div>
@@ -296,7 +308,7 @@ export default function StudentProfile() {
             onClick={() => setConfirmSignOut(true)}
             className="w-full text-muted-foreground text-sm hover:text-bad transition-colors py-1"
           >
-            Cerrar sesión
+            {t('signOut')}
           </button>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface VideoTogglePlayerProps {
   videoUrl?: string
@@ -9,6 +10,7 @@ interface VideoTogglePlayerProps {
 }
 
 export function VideoTogglePlayer({ videoUrl, skeletonUrl, className }: VideoTogglePlayerProps) {
+  const t = useTranslations('components.videoTogglePlayer')
   const hasBoth = !!(videoUrl && skeletonUrl)
   const [active, setActive] = useState<'video' | 'skeleton'>(skeletonUrl ? 'skeleton' : 'video')
 
@@ -27,7 +29,7 @@ export function VideoTogglePlayer({ videoUrl, skeletonUrl, className }: VideoTog
                 : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
             }`}
           >
-            Video + Ejes
+            {t('sourceVideoAxes')}
           </button>
           <button
             onClick={() => setActive('video')}
@@ -37,7 +39,7 @@ export function VideoTogglePlayer({ videoUrl, skeletonUrl, className }: VideoTog
                 : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
             }`}
           >
-            Video
+            {t('sourceVideo')}
           </button>
         </div>
       )}
