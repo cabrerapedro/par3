@@ -158,7 +158,7 @@ export default function MirrorPage() {
           ))}
         </div>
 
-        <span className="font-bold text-base">Sweep</span>
+        <span className="font-bold text-base">parell.golf</span>
       </header>
 
       {/* ── Body ── */}

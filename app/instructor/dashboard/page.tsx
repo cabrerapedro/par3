@@ -59,8 +59,8 @@ export default function InstructorDashboard() {
     e.stopPropagation()
     const url = `${window.location.origin}/student/login?code=${s.access_code}`
     const shareData = {
-      title: 'Sweep - Acceso de práctica',
-      text: `${s.name}, usa este enlace para acceder a tus ejercicios de práctica en Sweep`,
+      title: 'parell.golf - Acceso de práctica',
+      text: `${s.name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf`,
       url,
     }
     if (navigator.share) {
@@ -95,7 +95,7 @@ export default function InstructorDashboard() {
               <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
             </svg>
             <span className="text-sm font-bold text-foreground tracking-tight">
-              Sweep
+              parell.golf
             </span>
           </Link>
           <div className="flex items-center gap-2">

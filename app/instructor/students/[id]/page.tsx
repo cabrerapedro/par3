@@ -68,8 +68,8 @@ export default function StudentProfile() {
     if (!student) return
     const url = `${window.location.origin}/student/login?code=${student.access_code}`
     const shareData = {
-      title: 'Sweep - Acceso de práctica',
-      text: `${student.name}, usa este enlace para acceder a tus ejercicios de práctica en Sweep`,
+      title: 'parell.golf - Acceso de práctica',
+      text: `${student.name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf`,
       url,
     }
     if (navigator.share) {

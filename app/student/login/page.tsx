@@ -149,7 +149,7 @@ function StudentLogin() {
             </svg>
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            Sweep
+            parell.golf
           </span>
         </Link>
       </div>

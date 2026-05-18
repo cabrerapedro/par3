@@ -34,7 +34,7 @@ export default function Home() {
             <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
           </svg>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            Sweep
+            parell.golf
           </span>
         </div>
         <ThemeToggle />
@@ -63,7 +63,7 @@ export default function Home() {
           className="text-[52px] sm:text-6xl tracking-[-0.04em] text-foreground leading-none mb-5"
           style={{ fontFamily: 'var(--font-display)', animation: 'fade-up 0.8s ease-out 80ms both' }}
         >
-          Sweep
+          parell.golf
         </h1>
 
         {/* Tagline + subtitle */}
@@ -75,7 +75,7 @@ export default function Home() {
             Practica con la guía de tu profesor
           </p>
           <p className="text-base text-muted-foreground leading-relaxed mx-auto" style={{ maxWidth: '380px' }}>
-            Tu profesor te enseña. Sweep te ayuda a practicar bien entre clases.
+            Tu profesor te enseña. parell.golf te ayuda a practicar bien entre clases.
           </p>
         </div>
 
@@ -163,7 +163,7 @@ export default function Home() {
 
       {/* Footer */}
       <div className="relative z-10 px-6 py-5 text-center">
-        <p className="text-xs text-muted-foreground/50 font-mono">sweep.coach</p>
+        <p className="text-xs text-muted-foreground/50 font-mono">parell.golf</p>
       </div>
     </div>
   )

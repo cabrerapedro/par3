@@ -46,7 +46,7 @@ export default function StudentJourney() {
               <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
             </svg>
             <span className="text-sm font-bold text-foreground tracking-tight">
-              Sweep
+              parell.golf
             </span>
           </Link>
           <div className="flex items-center gap-2">
