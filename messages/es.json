@@ -23,6 +23,42 @@
     "es": "Español",
     "en": "English"
   },
+  "metrics": {
+    "labels": {
+      "head_lateral": "Posición de cabeza",
+      "arm_angle": "Extensión de brazos",
+      "shoulder_level": "Nivel de hombros",
+      "hip_sway": "Balanceo de cadera",
+      "stance_width": "Ancho de stance",
+      "weight_shift": "Distribución de peso",
+      "spine_angle": "Inclinación de columna",
+      "knee_flex": "Flexión de rodillas",
+      "head_forward": "Cabeza adelante",
+      "hip_hinge": "Bisagra de cadera",
+      "trail_arm": "Brazo trasero",
+      "head_height": "Altura de cabeza"
+    },
+    "descriptions": {
+      "head_lateral": "Posición lateral de la cabeza respecto a las caderas",
+      "arm_angle": "Ángulo promedio de extensión de ambos brazos",
+      "shoulder_level": "Diferencia de altura entre hombros",
+      "hip_sway": "Desplazamiento lateral de las caderas respecto a los pies",
+      "stance_width": "Distancia entre tobillos relativa al ancho de hombros",
+      "weight_shift": "Posición de hombros respecto a los pies",
+      "spine_angle": "Ángulo de inclinación del torso respecto a la vertical",
+      "knee_flex": "Ángulo promedio de flexión de ambas rodillas",
+      "head_forward": "Distancia horizontal de la cabeza respecto a los hombros",
+      "hip_hinge": "Ángulo de la articulación de cadera (hombro-cadera-rodilla)",
+      "trail_arm": "Ángulo del brazo más alejado de la cámara",
+      "head_height": "Posición vertical de la cabeza respecto a las caderas"
+    },
+    "phases": {
+      "address": "Address",
+      "top": "Top del backswing",
+      "impact": "Impacto",
+      "finish": "Finish"
+    }
+  },
   "components": {
     "statusPill": {
       "ok": "Postura correcta",

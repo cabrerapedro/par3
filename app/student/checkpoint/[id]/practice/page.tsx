@@ -9,7 +9,6 @@ import {
   calculateMetrics, compareToBaseline, baselineOverallStatus,
   generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
   detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
-  PHASE_LABELS
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import type { Checkpoint, Baseline, Landmark, SwingBaseline } from '@/lib/types'

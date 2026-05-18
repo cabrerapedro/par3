@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { ProgressChart } from '@/components/ProgressChart'
-import { METRIC_LABELS, PHASE_LABELS } from '@/lib/baseline'
+import { getMetricLabel, getPhaseLabel } from '@/lib/baseline'
 import type { SwingPhaseName } from '@/lib/types'
 import type { Checkpoint, PracticeSession } from '@/lib/types'
 import Link from 'next/link'
@@ -17,6 +17,8 @@ export default function PracticeHistory() {
   const params = useParams()
   const cpId = params.id as string
   const t = useTranslations('student.history')
+  const tMetrics = useTranslations('metrics.labels')
+  const tPhases = useTranslations('metrics.phases')
   const locale = useLocale()
   const dateLocale = locale === 'en' ? 'en-US' : 'es-MX'
 
@@ -207,10 +209,9 @@ export default function PracticeHistory() {
                             let label: string
                             if (key.includes('__')) {
                               const [phase, metric] = key.split('__')
-                              const phaseLabel = PHASE_LABELS[phase as SwingPhaseName] ?? phase
-                              label = `${phaseLabel}: ${METRIC_LABELS[metric] ?? metric}`
+                              label = `${getPhaseLabel(phase as SwingPhaseName, tPhases)}: ${getMetricLabel(metric, tMetrics)}`
                             } else {
-                              label = METRIC_LABELS[key] ?? key
+                              label = getMetricLabel(key, tMetrics)
                             }
                             return (
                               <span

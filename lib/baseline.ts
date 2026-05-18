@@ -44,6 +44,25 @@ export const METRIC_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(METRIC_INFO).map(([k, v]) => [k, v.label])
 )
 
+// ─── i18n helpers ───────────────────────────────────────────────────────────
+// Stable metric / phase keys (head_lateral, address, ...) live in this module
+// because analysis code keys baselines by them. Their human-facing labels live
+// in messages/{es,en}.json under metrics.labels and metrics.phases.
+//
+// These helpers accept a `t` function from next-intl (useTranslations or
+// getTranslations) and return the translated label, falling back to the raw
+// key if the namespace doesn't have an entry.
+
+type TFn = (key: string) => string
+
+export function getMetricLabel(key: string, t: TFn): string {
+  try { return t(key) } catch { return key }
+}
+
+export function getPhaseLabel(phase: SwingPhaseName, t: TFn): string {
+  try { return t(phase) } catch { return phase }
+}
+
 // Minimum visibility threshold — landmarks below this are considered unreliable
 const MIN_VIS = 0.65
 

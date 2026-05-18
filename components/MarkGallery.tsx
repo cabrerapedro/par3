@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { CalibrationMark } from '@/lib/types'
 import type { CameraAngle } from '@/lib/types'
-import { METRIC_LABELS, METRIC_INFO } from '@/lib/baseline'
+import { METRIC_INFO, getMetricLabel } from '@/lib/baseline'
 
 interface MarkGalleryProps {
   videoUrl?: string
@@ -21,6 +21,7 @@ export function MarkGallery({
   videoUrl, skeletonUrl, marks, cameraAngle, selectedMetrics, onDeleteMark, onNoteChange, className,
 }: MarkGalleryProps) {
   const t = useTranslations('components.markGallery')
+  const tMetrics = useTranslations('metrics.labels')
   const videoRef = useRef<HTMLVideoElement>(null)
   const hasBoth = !!(videoUrl && skeletonUrl)
   const [activeSource, setActiveSource] = useState<'video' | 'skeleton'>(skeletonUrl ? 'skeleton' : 'video')
@@ -396,7 +397,7 @@ export function MarkGallery({
                     .filter(([key]) => !selectedMetrics?.length || selectedMetrics.includes(key))
                     .map(([key, value]) => (
                       <div key={key} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}</span>
+                        <span className="text-muted-foreground">{getMetricLabel(key, tMetrics)}</span>
                         <span className="font-mono text-foreground">{formatMetricValue(key, value)}</span>
                       </div>
                     ))}

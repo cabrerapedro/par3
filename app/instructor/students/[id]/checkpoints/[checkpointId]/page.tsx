@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 import type { Checkpoint } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { METRIC_LABELS, METRIC_INFO, PHASE_LABELS, calculateBaseline, calculateSwingBaseline, isSwingBaseline } from '@/lib/baseline'
+import { METRIC_INFO, calculateBaseline, calculateSwingBaseline, isSwingBaseline, getMetricLabel, getPhaseLabel } from '@/lib/baseline'
 import type { SwingPhaseName, PracticeSession } from '@/lib/types'
 import { MarkGallery } from '@/components/MarkGallery'
 import { ProgressChart } from '@/components/ProgressChart'
@@ -23,6 +23,8 @@ export default function InstructorCheckpointDetail() {
   const studentId = params.id as string
   const checkpointId = params.checkpointId as string
   const t = useTranslations('instructor.checkpoints')
+  const tMetrics = useTranslations('metrics.labels')
+  const tPhases = useTranslations('metrics.phases')
 
   const [cp, setCp] = useState<Checkpoint | null>(null)
   const [sessions, setSessions] = useState<PracticeSession[]>([])
@@ -443,7 +445,7 @@ export default function InstructorCheckpointDetail() {
               <div className="flex flex-col gap-4">
                 {Object.entries(cp.baseline.phases).map(([phase, phaseBaseline]) => (
                   <div key={phase} className="bg-card border border-border rounded-xl px-4 py-4">
-                    <p className="text-xs text-muted-foreground font-medium mb-2">{PHASE_LABELS[phase as SwingPhaseName] ?? phase}</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-2">{getPhaseLabel(phase as SwingPhaseName, tPhases)}</p>
                     <div className="flex flex-col gap-1.5">
                       {Object.entries(phaseBaseline as Record<string, any>)
                         .filter(([key]) => !cp.selected_metrics?.length || cp.selected_metrics.includes(key))
@@ -452,7 +454,7 @@ export default function InstructorCheckpointDetail() {
                           const unitSuffix = info?.unit === 'grados' ? '°' : ''
                           return (
                             <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
-                              <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key}</span>
+                              <span className="text-muted-foreground">{getMetricLabel(key, tMetrics)}</span>
                               <span className="text-ok font-mono font-semibold">
                                 {val.mean.toFixed(1)}{unitSuffix}
                                 <span className="text-muted-foreground/60 font-normal ml-1.5">
@@ -476,7 +478,7 @@ export default function InstructorCheckpointDetail() {
                       const unitSuffix = info?.unit === 'grados' ? '°' : ''
                       return (
                         <div key={key} className="flex items-center justify-between bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
-                          <span className="text-muted-foreground">{METRIC_LABELS[key] ?? key.replace(/_/g, ' ')}</span>
+                          <span className="text-muted-foreground">{getMetricLabel(key, tMetrics)}</span>
                           <span className="text-ok font-mono font-semibold">
                             {val.mean.toFixed(1)}{unitSuffix}
                             <span className="text-muted-foreground/60 font-normal ml-1.5">
@@ -562,9 +564,9 @@ export default function InstructorCheckpointDetail() {
                             let label: string
                             if (key.includes('__')) {
                               const [phase, metric] = key.split('__')
-                              label = `${PHASE_LABELS[phase as SwingPhaseName] ?? phase}: ${METRIC_LABELS[metric] ?? metric}`
+                              label = `${getPhaseLabel(phase as SwingPhaseName, tPhases)}: ${getMetricLabel(metric, tMetrics)}`
                             } else {
-                              label = METRIC_LABELS[key] ?? key
+                              label = getMetricLabel(key, tMetrics)
                             }
                             return (
                               <span

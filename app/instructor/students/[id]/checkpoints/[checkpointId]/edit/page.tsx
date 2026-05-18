@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { CameraAngle } from '@/lib/types'
-import { METRICS_BY_ANGLE, METRIC_LABELS } from '@/lib/baseline'
+import { METRICS_BY_ANGLE, getMetricLabel } from '@/lib/baseline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -21,6 +21,7 @@ export default function EditCheckpoint() {
   const studentId = params.id as string
   const checkpointId = params.checkpointId as string
   const t = useTranslations('instructor.checkpoints')
+  const tMetrics = useTranslations('metrics.labels')
 
   const [name, setName] = useState('')
   const [cameraAngle, setCameraAngle] = useState<CameraAngle>('face_on')
@@ -161,7 +162,7 @@ export default function EditCheckpoint() {
                           : "bg-card border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
                       )}
                     >
-                      {METRIC_LABELS[key]}
+                      {getMetricLabel(key, tMetrics)}
                     </button>
                   )
                 })}

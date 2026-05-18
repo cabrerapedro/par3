@@ -23,6 +23,42 @@
     "es": "Español",
     "en": "English"
   },
+  "metrics": {
+    "labels": {
+      "head_lateral": "Head position",
+      "arm_angle": "Arm extension",
+      "shoulder_level": "Shoulder level",
+      "hip_sway": "Hip sway",
+      "stance_width": "Stance width",
+      "weight_shift": "Weight distribution",
+      "spine_angle": "Spine angle",
+      "knee_flex": "Knee flex",
+      "head_forward": "Head forward",
+      "hip_hinge": "Hip hinge",
+      "trail_arm": "Trail arm",
+      "head_height": "Head height"
+    },
+    "descriptions": {
+      "head_lateral": "Side-to-side head position relative to the hips",
+      "arm_angle": "Average extension angle of both arms",
+      "shoulder_level": "Height difference between shoulders",
+      "hip_sway": "Side-to-side hip movement relative to the feet",
+      "stance_width": "Ankle distance relative to shoulder width",
+      "weight_shift": "Shoulder position relative to the feet",
+      "spine_angle": "Torso tilt relative to vertical",
+      "knee_flex": "Average flex angle of both knees",
+      "head_forward": "Horizontal head position relative to the shoulders",
+      "hip_hinge": "Hip joint angle (shoulder–hip–knee)",
+      "trail_arm": "Angle of the arm farthest from the camera",
+      "head_height": "Vertical head position relative to the hips"
+    },
+    "phases": {
+      "address": "Address",
+      "top": "Top of backswing",
+      "impact": "Impact",
+      "finish": "Finish"
+    }
+  },
   "components": {
     "statusPill": {
       "ok": "Posture correct",
