@@ -12,9 +12,9 @@
     "focusOn": "Focus on improving {metric} in {phase}."
   },
   "meta": {
-    "appName": "parell.golf",
-    "tagline": "Practice with your coach's guidance",
-    "description": "Digital copilot for golf instructors and their students"
+    "appName": "Parell",
+    "tagline": "The notebook for the golf you teach",
+    "description": "A practice notebook for golf instructors and their students"
   },
   "common": {
     "cancel": "Cancel",

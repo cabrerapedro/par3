@@ -1,8 +1,8 @@
 {
   "meta": {
-    "appName": "parell.golf",
-    "tagline": "Practica con la guía de tu profesor",
-    "description": "Copiloto digital para instructores y alumnos de golf"
+    "appName": "Parell",
+    "tagline": "El cuaderno del golf que se enseña",
+    "description": "Cuaderno de práctica para instructores de golf y sus alumnos"
   },
   "baselineSummary": {
     "allInRange": "Todas las métricas dentro de tu rango personal. Excelente consistencia.",
