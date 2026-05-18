@@ -32,5 +32,72 @@
     "logoutConfirmDescription": "Podés volver a entrar en cualquier momento.",
     "logoutConfirmCancel": "Cancelar",
     "logoutConfirmAction": "Salir"
+  },
+  "landing": {
+    "tagline": "Practica con la guía de tu profesor",
+    "subtitle": "Tu profesor te enseña. parell.golf te ayuda a practicar bien entre clases.",
+    "instructorCardTitle": "Soy Instructor",
+    "instructorCardDescription": "Graba, analiza y guía la práctica de tus alumnos",
+    "studentCardTitle": "Soy Alumno",
+    "studentCardDescription": "Ingresa con el código que te dio tu profesor",
+    "orDivider": "o"
+  },
+  "auth": {
+    "back": "Volver",
+    "instructor": {
+      "loginTitle": "Bienvenido, instructor",
+      "loginSubtitle": "Accede a tu panel de alumnos",
+      "signupTitle": "Crear cuenta",
+      "signupSubtitle": "Configura tu cuenta de instructor",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Tu nombre completo",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "tu@correo.com",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "Mínimo 6 caracteres",
+      "loading": "Cargando...",
+      "loginCta": "Entrar",
+      "signupCta": "Crear cuenta",
+      "switchToSignupPrompt": "¿Primera vez?",
+      "switchToLoginPrompt": "¿Ya tienes cuenta?",
+      "switchToSignup": "Crear cuenta",
+      "switchToLogin": "Iniciar sesión"
+    },
+    "student": {
+      "tabCode": "Código",
+      "tabEmail": "Email",
+      "entering": "Entrando...",
+      "codePromptText": "Escribe el código de 6 letras que te dio tu instructor",
+      "codePlaceholder": "ABC123",
+      "verifying": "Verificando...",
+      "codeCta": "Entrar a mis ejercicios",
+      "codeHelp": "Si no tienes código, pídele a tu instructor que cree tu perfil.",
+      "emailPromptText": "Ingresa el email con el que te registró tu instructor",
+      "emailPlaceholder": "tu@email.com",
+      "sending": "Enviando...",
+      "sendCodeCta": "Enviar código",
+      "emailHelp": "Te enviaremos un código de 6 dígitos a tu email.",
+      "otpPromptText": "Ingresa el código de 6 dígitos que enviamos a",
+      "otpPlaceholder": "123456",
+      "verifyCta": "Verificar",
+      "resendIn": "Reenviar en {seconds}s",
+      "resend": "Reenviar código",
+      "changeEmail": "Cambiar email",
+      "invalidLink": "El enlace no es válido. Pedí uno nuevo a tu instructor."
+    },
+    "errors": {
+      "invalidCredentials": "Correo o contraseña incorrectos.",
+      "signupGeneric": "Error al crear cuenta.",
+      "confirmEmail": "Revisa tu correo para confirmar la cuenta. Después iniciá sesión normalmente.",
+      "noSession": "No hay sesión activa.",
+      "profileUpdate": "Error al actualizar el perfil.",
+      "wrongCode": "Código incorrecto. Verifica con tu instructor.",
+      "otpSendFailed": "Error al enviar el código.",
+      "connection": "Error de conexión.",
+      "otpInvalid": "Código incorrecto o expirado.",
+      "otpVerifyFailed": "Error al verificar el código.",
+      "emailRequired": "Email requerido",
+      "emailAndCodeRequired": "Email y código requeridos"
+    }
   }
 }

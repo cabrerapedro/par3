@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function instructorLogin(email: string, password: string): Promise<{ error?: string }> {
     // authClient has no persisted session → no blocking on stale token refresh.
     const { data, error } = await authClient.auth.signInWithPassword({ email, password })
-    if (error) return { error: 'Correo o contraseña incorrectos.' }
+    if (error) return { error: 'invalidCredentials' }
 
     // Fetch instructor using authClient (it has the fresh session in memory).
     if (data.user) {
@@ -133,9 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { data: { name } },
     })
     if (error) return { error: error.message }
-    if (!data.user) return { error: 'Error al crear cuenta.' }
+    if (!data.user) return { error: 'signupGeneric' }
     if (!data.session) {
-      return { error: 'Revisa tu correo para confirmar la cuenta. Después iniciá sesión normalmente.' }
+      return { error: 'confirmEmail' }
     }
 
     // Capture the auto-detected locale of the user at signup time and persist
@@ -185,14 +185,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function updateInstructor(name: string): Promise<{ error?: string }> {
-    if (!instructor) return { error: 'No hay sesión activa.' }
+    if (!instructor) return { error: 'noSession' }
     const { data, error } = await supabase
       .from('instructors')
       .update({ name })
       .eq('id', instructor.id)
       .select()
       .single()
-    if (error) return { error: 'Error al actualizar el perfil.' }
+    if (error) return { error: 'profileUpdate' }
     if (data) cacheInstructor(data)
     return {}
   }
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('access_code', clean)
       .single()
 
-    if (error || !data) return { error: 'Código incorrecto. Verifica con tu instructor.' }
+    if (error || !data) return { error: 'wrongCode' }
 
     localStorage.setItem('sweep_student', JSON.stringify(data))
     setStudent(data)
@@ -220,10 +220,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       })
-      if (!res.ok) return { error: 'Error al enviar el código.' }
+      if (!res.ok) return { error: 'otpSendFailed' }
       return {}
     } catch {
-      return { error: 'Error de conexión.' }
+      return { error: 'connection' }
     }
   }
 
@@ -235,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim() }),
       })
       const data = await res.json()
-      if (!res.ok || data.error) return { error: data.error || 'Código incorrecto o expirado.' }
+      if (!res.ok || data.error) return { error: data.error || 'otpInvalid' }
       if (data.student) {
         localStorage.setItem('sweep_student', JSON.stringify(data.student))
         setStudent(data.student)
@@ -243,19 +243,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return {}
     } catch {
-      return { error: 'Error de conexión.' }
+      return { error: 'connection' }
     }
   }
 
   async function updateStudent(updates: StudentUpdates): Promise<{ error?: string }> {
-    if (!student) return { error: 'No hay sesión activa.' }
+    if (!student) return { error: 'noSession' }
     const { data, error } = await supabase
       .from('students')
       .update(updates)
       .eq('id', student.id)
       .select()
       .single()
-    if (error) return { error: 'Error al actualizar el perfil.' }
+    if (error) return { error: 'profileUpdate' }
     if (data) {
       const updated = { ...student, ...data }
       localStorage.setItem('sweep_student', JSON.stringify(updated))

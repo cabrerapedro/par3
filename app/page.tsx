@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import Link from 'next/link'
@@ -9,6 +10,8 @@ import Link from 'next/link'
 export default function Home() {
   const { instructor, student, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('landing')
+  const tMeta = useTranslations('meta')
 
   useEffect(() => {
     if (loading) return
@@ -34,7 +37,7 @@ export default function Home() {
             <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
           </svg>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            parell.golf
+            {tMeta('appName')}
           </span>
         </div>
         <ThemeToggle />
@@ -63,7 +66,7 @@ export default function Home() {
           className="text-[52px] sm:text-6xl tracking-[-0.04em] text-foreground leading-none mb-5"
           style={{ fontFamily: 'var(--font-display)', animation: 'fade-up 0.8s ease-out 80ms both' }}
         >
-          parell.golf
+          {tMeta('appName')}
         </h1>
 
         {/* Tagline + subtitle */}
@@ -72,10 +75,10 @@ export default function Home() {
             className="text-[22px] text-foreground mb-3 leading-snug mx-auto"
             style={{ fontFamily: 'var(--font-display)', maxWidth: '380px' }}
           >
-            Practica con la guía de tu profesor
+            {t('tagline')}
           </p>
           <p className="text-base text-muted-foreground leading-relaxed mx-auto" style={{ maxWidth: '380px' }}>
-            Tu profesor te enseña. parell.golf te ayuda a practicar bien entre clases.
+            {t('subtitle')}
           </p>
         </div>
 
@@ -103,9 +106,9 @@ export default function Home() {
 
                 {/* Text */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-lg font-semibold text-foreground mb-1">Soy Instructor</p>
+                  <p className="text-lg font-semibold text-foreground mb-1">{t('instructorCardTitle')}</p>
                   <p className="text-[15px] text-muted-foreground leading-snug">
-                    Graba, analiza y guía la práctica de tus alumnos
+                    {t('instructorCardDescription')}
                   </p>
                 </div>
 
@@ -122,7 +125,7 @@ export default function Home() {
           {/* Divider — mobile only */}
           <div className="flex items-center gap-4 md:hidden">
             <div className="flex-1 h-px bg-border/50" />
-            <span className="text-xs text-muted-foreground/50 uppercase tracking-[0.12em] font-medium">o</span>
+            <span className="text-xs text-muted-foreground/50 uppercase tracking-[0.12em] font-medium">{t('orDivider')}</span>
             <div className="flex-1 h-px bg-border/50" />
           </div>
 
@@ -143,9 +146,9 @@ export default function Home() {
 
                 {/* Text */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-lg font-semibold text-foreground mb-1">Soy Alumno</p>
+                  <p className="text-lg font-semibold text-foreground mb-1">{t('studentCardTitle')}</p>
                   <p className="text-[15px] text-muted-foreground leading-snug">
-                    Ingresa con el código que te dio tu profesor
+                    {t('studentCardDescription')}
                   </p>
                 </div>
 
@@ -163,7 +166,7 @@ export default function Home() {
 
       {/* Footer */}
       <div className="relative z-10 px-6 py-5 text-center">
-        <p className="text-xs text-muted-foreground/50 font-mono">parell.golf</p>
+        <p className="text-xs text-muted-foreground/50 font-mono">{tMeta('appName')}</p>
       </div>
     </div>
   )

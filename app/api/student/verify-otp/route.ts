@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   try {
     const { email, code } = await req.json()
     if (!email || !code) {
-      return NextResponse.json({ error: 'Email y código requeridos' }, { status: 400 })
+      return NextResponse.json({ error: 'emailAndCodeRequired' }, { status: 400 })
     }
 
     const clean = email.trim().toLowerCase()
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       .single()
 
     if (!student) {
-      return NextResponse.json({ error: 'Código incorrecto o expirado.' }, { status: 401 })
+      return NextResponse.json({ error: 'otpInvalid' }, { status: 401 })
     }
 
     // Find valid OTP
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       .single()
 
     if (!otp) {
-      return NextResponse.json({ error: 'Código incorrecto o expirado.' }, { status: 401 })
+      return NextResponse.json({ error: 'otpInvalid' }, { status: 401 })
     }
 
     // Mark OTP as used
@@ -48,6 +48,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ student })
   } catch {
-    return NextResponse.json({ error: 'Error al verificar el código.' }, { status: 500 })
+    return NextResponse.json({ error: 'otpVerifyFailed' }, { status: 500 })
   }
 }

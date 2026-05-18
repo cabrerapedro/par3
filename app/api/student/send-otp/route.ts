@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   try {
     const { email } = await req.json()
     if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
+      return NextResponse.json({ error: 'emailRequired' }, { status: 400 })
     }
 
     const clean = email.trim().toLowerCase()

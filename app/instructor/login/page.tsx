@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +11,10 @@ import Link from 'next/link'
 export default function InstructorLogin() {
   const { instructorLogin, instructorSignup } = useAuth()
   const router = useRouter()
+  const t = useTranslations('auth.instructor')
+  const tAuth = useTranslations('auth')
+  const tErrors = useTranslations('auth.errors')
+  const tMeta = useTranslations('meta')
 
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [name, setName] = useState('')
@@ -17,6 +22,16 @@ export default function InstructorLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  function resolveError(code?: string): string {
+    if (!code) return ''
+    // Known error codes have translations; otherwise show raw message (e.g. Supabase auth errors).
+    try {
+      return tErrors(code as never)
+    } catch {
+      return code
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,7 +42,7 @@ export default function InstructorLogin() {
       : await instructorSignup(email, password, name)
     setLoading(false)
     if (result.error) {
-      setError(result.error)
+      setError(resolveError(result.error))
     } else {
       router.replace('/instructor/dashboard')
     }
@@ -40,7 +55,7 @@ export default function InstructorLogin() {
       <div className="relative z-10 w-full max-w-sm mb-4">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          Volver
+          {tAuth('back')}
         </Link>
       </div>
 
@@ -58,7 +73,7 @@ export default function InstructorLogin() {
             </svg>
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            parell.golf
+            {tMeta('appName')}
           </span>
         </Link>
       </div>
@@ -71,12 +86,10 @@ export default function InstructorLogin() {
         {/* Header */}
         <div className="px-6 pt-6 pb-5 border-b border-border">
           <h1 className="text-xl font-bold text-foreground">
-            {mode === 'login' ? 'Bienvenido, instructor' : 'Crear cuenta'}
+            {mode === 'login' ? t('loginTitle') : t('signupTitle')}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {mode === 'login'
-              ? 'Accede a tu panel de alumnos'
-              : 'Configura tu cuenta de instructor'}
+            {mode === 'login' ? t('loginSubtitle') : t('signupSubtitle')}
           </p>
         </div>
 
@@ -86,14 +99,14 @@ export default function InstructorLogin() {
             {mode === 'signup' && (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name" className="text-sm font-medium text-foreground">
-                  Nombre
+                  {t('nameLabel')}
                 </Label>
                 <Input
                   id="name"
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Tu nombre completo"
+                  placeholder={t('namePlaceholder')}
                   required
                   className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
                 />
@@ -102,14 +115,14 @@ export default function InstructorLogin() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                Correo electrónico
+                {t('emailLabel')}
               </Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="tu@correo.com"
+                placeholder={t('emailPlaceholder')}
                 required
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
               />
@@ -117,14 +130,14 @@ export default function InstructorLogin() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                Contraseña
+                {t('passwordLabel')}
               </Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder={t('passwordPlaceholder')}
                 required
                 minLength={6}
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
@@ -143,18 +156,18 @@ export default function InstructorLogin() {
               className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
             >
               {loading
-                ? 'Cargando...'
-                : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+                ? t('loading')
+                : mode === 'login' ? t('loginCta') : t('signupCta')}
             </button>
           </form>
 
           <p className="text-center text-muted-foreground text-sm mt-6">
-            {mode === 'login' ? '¿Primera vez?' : '¿Ya tienes cuenta?'}{' '}
+            {mode === 'login' ? t('switchToSignupPrompt') : t('switchToLoginPrompt')}{' '}
             <button
               onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
               className="text-ok hover:underline underline-offset-2 font-medium"
             >
-              {mode === 'login' ? 'Crear cuenta' : 'Iniciar sesión'}
+              {mode === 'login' ? t('switchToSignup') : t('switchToLogin')}
             </button>
           </p>
         </div>

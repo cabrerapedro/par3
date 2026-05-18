@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
@@ -22,6 +23,19 @@ function StudentLogin() {
   const { studentLogin, studentOtpRequest, studentOtpVerify } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('auth.student')
+  const tAuth = useTranslations('auth')
+  const tErrors = useTranslations('auth.errors')
+  const tMeta = useTranslations('meta')
+
+  function resolveError(code?: string): string {
+    if (!code) return ''
+    try {
+      return tErrors(code as never)
+    } catch {
+      return code
+    }
+  }
 
   // Shared state
   const [tab, setTab] = useState<'code' | 'email'>('code')
@@ -48,7 +62,7 @@ function StudentLogin() {
     studentLogin(urlCode).then(result => {
       if (result.error) {
         setAutoLogging(false)
-        setError('El enlace no es válido. Pedí uno nuevo a tu instructor.')
+        setError(t('invalidLink'))
       } else {
         router.replace('/student/journey')
       }
@@ -68,7 +82,7 @@ function StudentLogin() {
     setLoading(true)
     const result = await studentLogin(code)
     setLoading(false)
-    if (result.error) { setError(result.error) }
+    if (result.error) { setError(resolveError(result.error)) }
     else { router.replace('/student/journey') }
   }
 
@@ -78,7 +92,7 @@ function StudentLogin() {
     setLoading(true)
     const result = await studentOtpRequest(email)
     setLoading(false)
-    if (result.error) { setError(result.error); return }
+    if (result.error) { setError(resolveError(result.error)); return }
     setOtpSent(true)
     setResendCooldown(60)
   }
@@ -89,7 +103,7 @@ function StudentLogin() {
     setLoading(true)
     const result = await studentOtpVerify(email, otp)
     setLoading(false)
-    if (result.error) { setError(result.error) }
+    if (result.error) { setError(resolveError(result.error)) }
     else { router.replace('/student/journey') }
   }
 
@@ -99,7 +113,7 @@ function StudentLogin() {
     setLoading(true)
     const result = await studentOtpRequest(email)
     setLoading(false)
-    if (result.error) { setError(result.error); return }
+    if (result.error) { setError(resolveError(result.error)); return }
     setOtp('')
     setResendCooldown(60)
   }
@@ -120,7 +134,7 @@ function StudentLogin() {
   if (autoLogging) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <div className="w-5 h-5 rounded-full border-2 border-blue border-t-transparent animate-spin" />
-      <p className="text-muted-foreground text-sm">Entrando...</p>
+      <p className="text-muted-foreground text-sm">{t('entering')}</p>
     </div>
   )
 
@@ -131,7 +145,7 @@ function StudentLogin() {
       <div className="relative z-10 w-full max-w-sm mb-4">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          Volver
+          {tAuth('back')}
         </Link>
       </div>
 
@@ -149,7 +163,7 @@ function StudentLogin() {
             </svg>
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            parell.golf
+            {tMeta('appName')}
           </span>
         </Link>
       </div>
@@ -165,13 +179,13 @@ function StudentLogin() {
             onClick={() => switchTab('code')}
             className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${tab === 'code' ? 'text-foreground border-b-2 border-blue' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Código
+            {t('tabCode')}
           </button>
           <button
             onClick={() => switchTab('email')}
             className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${tab === 'email' ? 'text-foreground border-b-2 border-blue' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Email
+            {t('tabEmail')}
           </button>
         </div>
 
@@ -180,14 +194,14 @@ function StudentLogin() {
           {tab === 'code' ? (
             <>
               <p className="text-muted-foreground text-sm text-center mb-5">
-                Escribe el código de 6 letras que te dio tu instructor
+                {t('codePromptText')}
               </p>
               <form onSubmit={handleCodeSubmit} className="flex flex-col gap-5">
                 <Input
                   type="text"
                   value={code}
                   onChange={e => handleCodeInput(e.target.value)}
-                  placeholder="ABC123"
+                  placeholder={t('codePlaceholder')}
                   maxLength={6}
                   required
                   autoFocus
@@ -205,25 +219,25 @@ function StudentLogin() {
                   disabled={loading || code.length < 4}
                   className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                 >
-                  {loading ? 'Verificando...' : 'Entrar a mis ejercicios'}
+                  {loading ? t('verifying') : t('codeCta')}
                 </button>
               </form>
 
               <p className="text-muted-foreground text-sm text-center mt-6 leading-relaxed">
-                Si no tienes código, pídele a tu instructor que cree tu perfil.
+                {t('codeHelp')}
               </p>
             </>
           ) : !otpSent ? (
             <>
               <p className="text-muted-foreground text-sm text-center mb-5">
-                Ingresa el email con el que te registró tu instructor
+                {t('emailPromptText')}
               </p>
               <form onSubmit={handleSendOtp} className="flex flex-col gap-5">
                 <Input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder={t('emailPlaceholder')}
                   required
                   autoFocus
                   className="bg-secondary border-border text-foreground h-12 focus-visible:border-blue/50 focus-visible:ring-blue/10"
@@ -240,18 +254,18 @@ function StudentLogin() {
                   disabled={loading || !email.includes('@')}
                   className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                 >
-                  {loading ? 'Enviando...' : 'Enviar código'}
+                  {loading ? t('sending') : t('sendCodeCta')}
                 </button>
               </form>
 
               <p className="text-muted-foreground text-sm text-center mt-6 leading-relaxed">
-                Te enviaremos un código de 6 dígitos a tu email.
+                {t('emailHelp')}
               </p>
             </>
           ) : (
             <>
               <p className="text-muted-foreground text-sm text-center mb-5">
-                Ingresa el código de 6 dígitos que enviamos a <span className="text-foreground font-medium">{email}</span>
+                {t('otpPromptText')} <span className="text-foreground font-medium">{email}</span>
               </p>
               <form onSubmit={handleVerifyOtp} className="flex flex-col gap-5">
                 <Input
@@ -259,7 +273,7 @@ function StudentLogin() {
                   inputMode="numeric"
                   value={otp}
                   onChange={e => handleOtpInput(e.target.value)}
-                  placeholder="123456"
+                  placeholder={t('otpPlaceholder')}
                   maxLength={6}
                   required
                   autoFocus
@@ -277,7 +291,7 @@ function StudentLogin() {
                   disabled={loading || otp.length < 6}
                   className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                 >
-                  {loading ? 'Verificando...' : 'Verificar'}
+                  {loading ? t('verifying') : t('verifyCta')}
                 </button>
               </form>
 
@@ -287,14 +301,14 @@ function StudentLogin() {
                   disabled={resendCooldown > 0}
                   className="text-sm text-blue hover:text-blue/80 disabled:text-muted-foreground transition-colors"
                 >
-                  {resendCooldown > 0 ? `Reenviar en ${resendCooldown}s` : 'Reenviar código'}
+                  {resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resend')}
                 </button>
                 <span className="text-muted-foreground/30">|</span>
                 <button
                   onClick={() => { setOtpSent(false); setOtp(''); setError('') }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Cambiar email
+                  {t('changeEmail')}
                 </button>
               </div>
             </>

@@ -32,5 +32,72 @@
     "logoutConfirmDescription": "You can sign back in any time.",
     "logoutConfirmCancel": "Cancel",
     "logoutConfirmAction": "Sign out"
+  },
+  "landing": {
+    "tagline": "Practice with your coach's guidance",
+    "subtitle": "Your coach teaches you. parell.golf helps you practice well between lessons.",
+    "instructorCardTitle": "I'm a Coach",
+    "instructorCardDescription": "Record, analyze, and guide your students' practice",
+    "studentCardTitle": "I'm a Student",
+    "studentCardDescription": "Sign in with the code your coach gave you",
+    "orDivider": "or"
+  },
+  "auth": {
+    "back": "Back",
+    "instructor": {
+      "loginTitle": "Welcome, coach",
+      "loginSubtitle": "Access your students dashboard",
+      "signupTitle": "Create account",
+      "signupSubtitle": "Set up your coach account",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your full name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@email.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 6 characters",
+      "loading": "Loading...",
+      "loginCta": "Sign in",
+      "signupCta": "Create account",
+      "switchToSignupPrompt": "First time?",
+      "switchToLoginPrompt": "Already have an account?",
+      "switchToSignup": "Create account",
+      "switchToLogin": "Sign in"
+    },
+    "student": {
+      "tabCode": "Code",
+      "tabEmail": "Email",
+      "entering": "Signing in...",
+      "codePromptText": "Enter the 6-letter code your coach gave you",
+      "codePlaceholder": "ABC123",
+      "verifying": "Verifying...",
+      "codeCta": "Go to my practice",
+      "codeHelp": "If you don't have a code, ask your coach to create your profile.",
+      "emailPromptText": "Enter the email your coach registered for you",
+      "emailPlaceholder": "you@email.com",
+      "sending": "Sending...",
+      "sendCodeCta": "Send code",
+      "emailHelp": "We'll send a 6-digit code to your email.",
+      "otpPromptText": "Enter the 6-digit code we sent to",
+      "otpPlaceholder": "123456",
+      "verifyCta": "Verify",
+      "resendIn": "Resend in {seconds}s",
+      "resend": "Resend code",
+      "changeEmail": "Change email",
+      "invalidLink": "This link isn't valid. Ask your coach for a new one."
+    },
+    "errors": {
+      "invalidCredentials": "Wrong email or password.",
+      "signupGeneric": "Couldn't create the account.",
+      "confirmEmail": "Check your email to confirm the account, then sign in.",
+      "noSession": "No active session.",
+      "profileUpdate": "Couldn't update your profile.",
+      "wrongCode": "Wrong code. Check with your coach.",
+      "otpSendFailed": "Couldn't send the code.",
+      "connection": "Connection error.",
+      "otpInvalid": "Wrong or expired code.",
+      "otpVerifyFailed": "Couldn't verify the code.",
+      "emailRequired": "Email required",
+      "emailAndCodeRequired": "Email and code required"
+    }
   }
 }
