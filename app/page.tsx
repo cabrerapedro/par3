@@ -29,6 +29,7 @@ export default function Home() {
       <ComoFunciona />
       <TresPrincipios />
       <Acceso />
+      <Cierre />
       <Footer />
     </div>
   )
@@ -63,13 +64,13 @@ function Hero() {
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-16 md:py-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
         <div>
           <p className="small-caps font-mono text-[11px] text-accent">
-            Para instructores de golf y sus alumnos
+            Una app para instructores de golf
           </p>
-          <h1 className="font-display font-semibold text-[44px] md:text-[68px] leading-[1.02] tracking-[-0.025em] mt-6">
-            La clase del sábado<br />sigue viva el martes.
+          <h1 className="font-display font-semibold text-[40px] md:text-[60px] leading-[1.05] tracking-[-0.025em] mt-6">
+            Tu alumno practica con tu referencia exacta,<br className="hidden md:inline" /> no con un estándar genérico.
           </h1>
-          <p className="text-lg md:text-[19px] text-ink-soft leading-[1.55] mt-7 max-w-[540px]">
-            <span className="text-ink font-medium">Parell</span> es un cuaderno de práctica que tu alumno lleva en el bolsillo. Vos calibrás su técnica durante la clase; él practica con tu referencia exacta en el rango. La app compara, prioriza, y te devuelve la semana entera el sábado siguiente.
+          <p className="text-lg md:text-[19px] text-ink-soft leading-[1.55] mt-7 max-w-[560px]">
+            Grabás 15 segundos del movimiento correcto del alumno durante la clase, lo anotás con voz y dibujo sobre el frame clave, y lo guardás. Él practica solo en el rango con esa referencia en su teléfono. La app compara cada ensayo contra tu calibración y te devuelve su semana el sábado siguiente.
           </p>
 
           <div className="flex flex-wrap gap-3 mt-9">
@@ -164,7 +165,7 @@ function ComoFunciona() {
         <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
           <p className="small-caps font-mono text-[11px] text-accent">Cómo funciona</p>
           <h2 className="font-display font-semibold text-3xl md:text-[40px] leading-[1.1] max-w-[640px]">
-            Tres momentos. Uno por persona, uno por día, uno por semana.
+            Tres momentos: la clase, la práctica, el repaso.
           </h2>
         </div>
 
@@ -449,7 +450,7 @@ function Acceso() {
         <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
           <p className="small-caps font-mono text-[11px] text-accent">Acceso</p>
           <h2 className="font-display font-semibold text-3xl md:text-[40px] leading-[1.1]">
-            Dos puertas. La que te corresponda.
+            Empezá según tu rol.
           </h2>
         </div>
 
@@ -515,6 +516,20 @@ function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryTex
         </Link>
       </div>
     </div>
+  )
+}
+
+/* ─── Cierre aspiracional ──────────────────────────────────────────────── */
+
+function Cierre() {
+  return (
+    <section className="border-b border-rule py-16 md:py-24">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8 text-center">
+        <p className="font-display italic font-medium text-[28px] md:text-[40px] leading-[1.2] text-ink max-w-[760px] mx-auto">
+          Tu método sigue vivo cuando vos no estás.
+        </p>
+      </div>
+    </section>
   )
 }
 
