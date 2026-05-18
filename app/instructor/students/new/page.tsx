@@ -59,7 +59,7 @@ export default function NewStudent() {
           style={{ animation: 'fade-up 0.8s ease-out both' }}
         >
           <div className="px-6 pt-6 pb-5 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">{t('newTitle')}</h1>
+            <h1 className="text-xl font-display font-semibold">{t('newTitle')}</h1>
             <p className="text-muted-foreground text-sm mt-1">
               {t('newSubtitle')}
             </p>

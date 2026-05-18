@@ -148,7 +148,7 @@ export default function StudentProfile() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{student.name}</h1>
+            <h1 className="text-2xl font-display font-semibold">{student.name}</h1>
             {student.email && <p className="text-muted-foreground text-sm mt-0.5">{student.email}</p>}
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <Tooltip>
@@ -206,7 +206,7 @@ export default function StudentProfile() {
 
         {/* "Esta semana" — replaces the old all-time practice stats */}
         <Separator className="mb-6" />
-        <section className="bg-card border border-border rounded-2xl px-5 py-4 mb-8">
+        <section className="bg-card border border-border rounded-md px-5 py-4 mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">{t('weekTitle')}</h2>
             {week.lastSessionAt && (
@@ -267,7 +267,7 @@ export default function StudentProfile() {
           </div>
 
           {classes.length === 0 ? (
-            <div className="border border-dashed border-border rounded-2xl py-10 text-center">
+            <div className="border border-dashed border-border rounded-md py-10 text-center">
               <p className="text-sm text-muted-foreground">{t('classesEmpty')}</p>
             </div>
           ) : (
@@ -277,7 +277,7 @@ export default function StudentProfile() {
                 const isExpanded = expandedClassId === cls.id
                 const date = new Date(cls.date)
                 return (
-                  <li key={cls.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <li key={cls.id} className="bg-card border border-border rounded-md overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setExpandedClassId(isExpanded ? null : cls.id)}

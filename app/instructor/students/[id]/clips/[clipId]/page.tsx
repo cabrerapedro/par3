@@ -296,7 +296,7 @@ export default function ClipDetailPage() {
         )}
 
         {/* Video stage with annotation marker timeline */}
-        <div ref={stageRef} className="relative bg-black rounded-2xl overflow-hidden">
+        <div ref={stageRef} className="relative bg-black rounded-md overflow-hidden">
           {clip.video_url ? (
             <video
               ref={videoRef}

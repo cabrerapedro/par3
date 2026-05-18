@@ -238,7 +238,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 flex-wrap rounded-2xl bg-card/95 backdrop-blur border border-border px-3 py-2.5">
+      <div className="flex items-center gap-3 flex-wrap rounded-md bg-card/95 backdrop-blur border border-border px-3 py-2.5">
         {/* Tool group */}
         <div className="flex items-center gap-1">
           <ToolButton active={tool === 'arrow'} onClick={() => setTool('arrow')} label={t('toolArrow')}>

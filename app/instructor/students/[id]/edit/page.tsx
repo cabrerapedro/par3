@@ -71,7 +71,7 @@ export default function EditStudent() {
 
       <div className="max-w-sm mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">{t('editTitle')}</h1>
+          <h1 className="text-2xl font-display font-semibold mb-1">{t('editTitle')}</h1>
           <p className="text-muted-foreground text-sm">{t('editSubtitle')}</p>
         </div>
 

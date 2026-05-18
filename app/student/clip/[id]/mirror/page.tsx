@@ -210,7 +210,7 @@ export default function StudentClipMirror() {
     <main className="min-h-screen bg-background flex flex-col md:flex-row overflow-hidden" style={{ height: '100dvh' }}>
       {/* Phone restriction — show message instead of camera on small screens */}
       <div className="flex md:hidden flex-col items-center justify-center flex-1 px-6 text-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-blue/10 border border-blue/20 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-md bg-paper-2 border border-rule flex items-center justify-center">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
             <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
           </svg>
@@ -269,7 +269,7 @@ export default function StudentClipMirror() {
 
         {/* Visibility warning — top center, where clip name used to be */}
         {poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-2xl px-5 py-2.5 text-center">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-md px-5 py-2.5 text-center">
             <p className="text-black text-sm md:text-base font-medium">{t('showBodyTitle')}</p>
             <p className="text-black/70 text-xs md:text-sm">{t('metricsVisible', { visible: detectedCount, total: expectedCount })}</p>
           </div>

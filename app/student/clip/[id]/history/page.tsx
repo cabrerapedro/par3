@@ -83,11 +83,11 @@ export default function ClipPracticeHistory() {
         {/* Header stats */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-foreground">{t('title')}</h1>
+            <h1 className="text-xl font-display font-semibold">{t('title')}</h1>
             <p className="text-muted-foreground text-sm mt-0.5">{t('sessionsCount', { count: sessions.length })}</p>
           </div>
           {improvement !== null && (
-            <div className={`text-right px-4 py-2 rounded-2xl border ${
+            <div className={`text-right px-4 py-2 rounded-md border ${
               improvement > 0 ? 'bg-ok/10 border-ok/20' :
               improvement < 0 ? 'bg-bad/10 border-bad/20' :
               'bg-card border-border'
@@ -104,7 +104,7 @@ export default function ClipPracticeHistory() {
 
         {/* Chart */}
         {sessions.length >= 2 ? (
-          <div className="bg-card border border-border rounded-2xl px-4 pt-4 pb-3 mb-6">
+          <div className="bg-card border border-border rounded-md px-4 pt-4 pb-3 mb-6">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">{t('scorePerSession')}</p>
             <ProgressChart data={chartData} height={130} />
             <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
@@ -119,14 +119,14 @@ export default function ClipPracticeHistory() {
             </div>
           </div>
         ) : sessions.length === 1 ? (
-          <div className="bg-card border border-border rounded-2xl px-4 py-4 mb-6 text-center">
+          <div className="bg-card border border-border rounded-md px-4 py-4 mb-6 text-center">
             <p className="text-muted-foreground text-sm">{t('secondSessionHint')}</p>
           </div>
         ) : null}
 
         {/* Session list */}
         {sessions.length === 0 ? (
-          <div className="text-center py-16 bg-card border border-border rounded-2xl text-muted-foreground">
+          <div className="text-center py-16 bg-card border border-border rounded-md text-muted-foreground">
             <div className="text-4xl mb-3">📋</div>
             <p className="text-muted-foreground mb-1">{t('emptyTitle')}</p>
             <p className="text-sm">{t('emptyDesc')}</p>
@@ -159,7 +159,7 @@ export default function ClipPracticeHistory() {
 
                 return (
                   <li key={session.id}>
-                    <div className={`bg-card rounded-2xl px-5 py-4 border ${isLatest ? 'border-ok/30' : 'border-border'}`}>
+                    <div className={`bg-card rounded-md px-5 py-4 border ${isLatest ? 'border-ok/30' : 'border-border'}`}>
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div>
                           <div className="flex items-center gap-2">

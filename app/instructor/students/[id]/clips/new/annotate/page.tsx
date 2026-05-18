@@ -413,7 +413,7 @@ export default function ClipAnnotatePage() {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 p-4 lg:p-6">
         {/* Video stage — 60% on lg+ */}
         <div className="lg:basis-3/5 flex flex-col gap-3">
-          <div ref={videoStageRef} className="relative bg-black rounded-2xl overflow-hidden flex items-center justify-center">
+          <div ref={videoStageRef} className="relative bg-black rounded-md overflow-hidden flex items-center justify-center">
             <video
               ref={videoRef}
               src={videoUrl}
@@ -506,7 +506,7 @@ export default function ClipAnnotatePage() {
         {/* Right panel — 40% on lg+ */}
         <aside className="lg:basis-2/5 flex flex-col gap-4">
           {/* Metadata form */}
-          <div className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3">
+          <div className="bg-card border border-border rounded-md p-4 flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="clip-name" className="text-sm">{t('nameLabel')}</Label>
               <Input
@@ -536,7 +536,7 @@ export default function ClipAnnotatePage() {
           </div>
 
           {/* Annotations list */}
-          <div className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 min-h-[140px]">
+          <div className="bg-card border border-border rounded-md p-4 flex flex-col gap-3 min-h-[140px]">
             <h2 className="text-sm font-semibold text-foreground">
               {t('annotationsTitle')} {annotations.length > 0 && <span className="text-muted-foreground font-normal">({annotations.length})</span>}
             </h2>
@@ -603,7 +603,7 @@ export default function ClipAnnotatePage() {
       {/* Saving overlay — blocks the whole page during the long save flow */}
       {saveStage !== 'idle' && (
         <div className="fixed inset-0 z-50 bg-background/85 backdrop-blur-sm flex items-center justify-center px-6">
-          <div className="bg-card border border-border rounded-2xl px-8 py-7 max-w-sm w-full flex flex-col items-center gap-4 text-center">
+          <div className="bg-card border border-border rounded-md px-8 py-7 max-w-sm w-full flex flex-col items-center gap-4 text-center">
             <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             <p className="text-base font-medium text-foreground">
               {saveStage === 'upload'   && t('savingUpload')}

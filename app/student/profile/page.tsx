@@ -273,7 +273,7 @@ export default function StudentProfile() {
               'h-11 font-semibold transition-all',
               saved
                 ? 'bg-ok/10 border border-ok/30 text-ok hover:bg-ok/10'
-                : 'bg-blue text-white hover:bg-blue/90'
+                : 'bg-primary text-primary-foreground hover:opacity-85'
             )}
           >
             {saved ? t('saved') : saving ? t('saving') : t('saveCta')}

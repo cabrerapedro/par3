@@ -155,7 +155,7 @@ export default function ClipDetail() {
                   className={cn(
                     "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all",
                     isSwing
-                      ? "bg-blue text-white border-blue hover:bg-blue/90"
+                      ? "bg-primary text-primary-foreground border-primary hover:opacity-85"
                       : "bg-ok text-black border-ok hover:opacity-85"
                   )}
                 >
@@ -175,7 +175,7 @@ export default function ClipDetail() {
               </div>
             ) : null}
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">{clip.name}</h1>
+          <h1 className="text-2xl font-display font-semibold">{clip.name}</h1>
           {hasBaseline && (
             <p className="text-muted-foreground text-sm mt-1">
               {isSwing ? t('swingsCalibratedSummary', { count: annotations.length }) : t('positionsCalibratedSummary', { count: annotations.length })}

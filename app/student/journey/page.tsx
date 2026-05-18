@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { UserMenu } from '@/components/UserMenu'
+import { Wordmark } from '@/components/Wordmark'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -38,7 +39,6 @@ export default function StudentJourney() {
   const { student, logout, loading } = useAuth()
   const router = useRouter()
   const t = useTranslations('student.journey')
-  const tMeta = useTranslations('meta')
   const timeAgo = useTimeAgo()
 
   const [classes, setClasses] = useState<Class[]>([])
@@ -111,15 +111,11 @@ export default function StudentJourney() {
   if (loading || !student) return <LoadingScreen />
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-rule">
         <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-1.5 shrink-0">
-            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-ok">
-              <path d="M6 30 Q6 6 30 6" />
-              <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
-            </svg>
-            <span className="text-sm font-bold text-foreground tracking-tight">{tMeta('appName')}</span>
+          <Link href="/" aria-label="Parell — inicio">
+            <Wordmark size="md" />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -138,10 +134,9 @@ export default function StudentJourney() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-10">
-        {/* Greeting */}
-        <div className="mb-8">
-          <p className="text-sm text-muted-foreground mb-1">{t('greeting', { name: student.name.split(' ')[0] })}</p>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">{t('title')}</h1>
+        <div className="mb-10">
+          <p className="small-caps font-mono text-[11px] text-accent mb-2">{t('greeting', { name: student.name.split(' ')[0] })}</p>
+          <h1 className="font-display font-semibold text-2xl md:text-[40px] leading-tight">{t('title')}</h1>
         </div>
 
         {fetching ? (
@@ -149,19 +144,18 @@ export default function StudentJourney() {
             <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
         ) : clips.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl text-center">
-            <div className="text-5xl mb-4">🏌️</div>
-            <p className="text-foreground font-semibold mb-1">{t('emptyTitle')}</p>
-            <p className="text-muted-foreground text-sm max-w-xs">{t('emptyDescription')}</p>
+          <div className="flex flex-col items-center justify-center py-24 border-t border-b border-rule text-center">
+            <p className="small-caps font-mono text-[11px] text-ink-mute">{t('emptyTitle')}</p>
+            <p className="font-display font-semibold text-xl mt-2 max-w-sm">{t('emptyDescription')}</p>
           </div>
         ) : (
           <>
             {/* Practicá esto hoy */}
             {topToday.length > 0 && (
-              <section className="mb-10">
-                <div className="mb-4">
-                  <h2 className="text-base font-semibold text-foreground">{t('todayTitle')}</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('todaySubtitle')}</p>
+              <section className="mb-12">
+                <div className="mb-5 border-t border-rule pt-6">
+                  <p className="small-caps font-mono text-[10px] text-accent">{t('todaySubtitle')}</p>
+                  <h2 className="font-display font-semibold text-2xl mt-1">{t('todayTitle')}</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {topToday.map((clip) => (
@@ -173,10 +167,10 @@ export default function StudentJourney() {
 
             {/* Tu última clase */}
             {mostRecentClass && (
-              <section className="mb-10">
-                <div className="flex items-baseline justify-between mb-3">
-                  <h2 className="text-base font-semibold text-foreground">{t('lastClassTitle')}</h2>
-                  <span className="text-xs text-muted-foreground">
+              <section className="mb-12 border-t border-rule pt-6">
+                <div className="flex items-baseline justify-between mb-4">
+                  <h2 className="font-display font-semibold text-2xl">{t('lastClassTitle')}</h2>
+                  <span className="small-caps font-mono text-[10px] text-ink-mute">
                     {t('lastClassDate', {
                       date: new Intl.DateTimeFormat(undefined, {
                         day: 'numeric',
@@ -274,7 +268,7 @@ function PriorityCard({ clip, timeAgo, t }: PriorityCardProps) {
   return (
     <Link
       href={`/student/clip/${clip.id}`}
-      className="group block bg-card border border-border rounded-2xl overflow-hidden hover:border-blue/40 hover:bg-secondary/40 transition-all"
+      className="group block bg-card border border-border rounded-md overflow-hidden hover:border-blue/40 hover:bg-secondary/40 transition-all"
     >
       <div className="aspect-video bg-black flex items-center justify-center relative overflow-hidden">
         {clip.video_url ? (
@@ -303,7 +297,7 @@ function PriorityCard({ clip, timeAgo, t }: PriorityCardProps) {
             {clip.clip_type === 'swing' && <span> · {t('typeSwing')}</span>}
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue text-white text-xs font-semibold group-hover:bg-blue/90 transition-colors">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium group-hover:opacity-85 transition-opacity">
           {t('practiceCta')}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6" />
