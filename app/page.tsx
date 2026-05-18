@@ -94,12 +94,19 @@ function Hero() {
         <div className="relative">
           <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
             <Image
-              src="/images/hero-address.png"
+              src="/images/hero-address-light.png"
               alt="Postura de dirección — vista de perfil, con anotaciones técnicas del instructor"
               fill
               priority
               sizes="(min-width: 768px) 40vw, 100vw"
-              className="object-cover"
+              className="object-cover block dark:hidden"
+            />
+            <Image
+              src="/images/hero-address-dark.png"
+              alt=""
+              fill
+              sizes="(min-width: 768px) 40vw, 100vw"
+              className="object-cover hidden dark:block"
             />
             <div className="absolute top-6 right-6 z-10">
               <Stamp>PAR</Stamp>
@@ -166,7 +173,7 @@ function ComoFunciona() {
             who="Durante la clase"
             title="El instructor calibra."
             body="Con el iPad en mano, graba 15 segundos del movimiento correcto del alumno. Pausa, dibuja con el dedo sobre el frame clave, habla. Lo guarda. La técnica queda como un manual técnico — exacto, suyo."
-            imageSrc="/images/como-calibra.png"
+            imageBase="como-calibra"
             imageAlt="Instructor con iPad junto a alumno en posición de address"
           />
           <Panel
@@ -174,7 +181,7 @@ function ComoFunciona() {
             who="Entre clases"
             title="El alumno practica."
             body="Abre el teléfono en el rango. Ve la referencia de su profesor, la escucha, la entiende. Activa el espejo. La app le dice qué corregir, una cosa a la vez, en lenguaje corporal — sin jerga, sin números."
-            imageSrc="/images/como-practica.png"
+            imageBase="como-practica"
             imageAlt="Alumno practicando solo en el rango con el teléfono en un trípode mostrando feedback"
             divider
           />
@@ -183,7 +190,7 @@ function ComoFunciona() {
             who="El sábado siguiente"
             title="La conversación se reanuda."
             body="El instructor abre el perfil del alumno y ve la semana entera como un yardage book: qué practicó, qué le costó, qué mejoró. La clase del sábado deja de empezar de cero."
-            imageSrc="/images/como-revisa.png"
+            imageBase="como-revisa"
             imageAlt="Dos pares de manos revisando un iPad con el scorecard semanal del alumno"
             divider
           />
@@ -193,16 +200,23 @@ function ComoFunciona() {
   )
 }
 
-function Panel({ numeral, who, title, body, imageSrc, imageAlt, divider }: { numeral: string; who: string; title: string; body: string; imageSrc: string; imageAlt: string; divider?: boolean }) {
+function Panel({ numeral, who, title, body, imageBase, imageAlt, divider }: { numeral: string; who: string; title: string; body: string; imageBase: string; imageAlt: string; divider?: boolean }) {
   return (
     <div className={`px-7 py-10 ${divider ? 'md:border-l border-rule' : ''}`}>
       <div className="relative aspect-[4/3] bg-paper-2 border border-rule mb-6 overflow-hidden">
         <Image
-          src={imageSrc}
+          src={`/images/${imageBase}-light.png`}
           alt={imageAlt}
           fill
           sizes="(min-width: 768px) 33vw, 100vw"
-          className="object-cover"
+          className="object-cover block dark:hidden"
+        />
+        <Image
+          src={`/images/${imageBase}-dark.png`}
+          alt=""
+          fill
+          sizes="(min-width: 768px) 33vw, 100vw"
+          className="object-cover hidden dark:block"
         />
       </div>
       <p className="small-caps font-mono text-[10px] text-accent">{numeral} · {who}</p>
@@ -241,7 +255,22 @@ function PlanVisual() {
 
         <div className="grid md:grid-cols-[200px_1fr] gap-8 md:gap-10 items-start">
           <div>
-            <HoleMapLarge />
+            <div className="relative w-full max-w-[200px] aspect-[4/5]">
+              <Image
+                src="/images/hole-map-light.png"
+                alt="Mapa aéreo del hoyo — vista desde arriba con contornos del green, bandera, distancias y flecha de viento"
+                fill
+                sizes="200px"
+                className="object-contain block dark:hidden"
+              />
+              <Image
+                src="/images/hole-map-dark.png"
+                alt=""
+                fill
+                sizes="200px"
+                className="object-contain hidden dark:block"
+              />
+            </div>
             <p className="small-caps font-mono text-[10px] text-ink-mute mt-4">Pedro Cabrera · Sem. 19</p>
             <p className="text-sm leading-[1.5] text-ink-soft mt-2">Cuatro hoyos. Siete días. Una página.</p>
           </div>
@@ -277,37 +306,6 @@ function PlanVisual() {
         </div>
       </div>
     </section>
-  )
-}
-
-function HoleMapLarge() {
-  return (
-    <svg viewBox="0 0 200 240" className="w-full max-w-[200px] block text-ink">
-      <rect x="84" y="220" width="32" height="8" fill="none" stroke="currentColor" strokeWidth="0.7" />
-      <text x="72" y="238" fontSize="7" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.5">TEE</text>
-
-      <path d="M 100,220 C 94,170 112,130 118,90" fill="none" style={{ stroke: 'var(--color-rule)' }} strokeWidth="16" strokeLinecap="round" />
-
-      <path d="M 100,36 C 76,36 64,60 76,80 C 88,98 124,96 134,76 C 146,60 132,36 110,36 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-      <path d="M 104,46 C 90,48 82,62 92,76 C 104,88 124,80 126,68 C 128,56 118,44 104,46 Z" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.55" />
-      <path d="M 106,56 C 98,58 96,68 104,72 C 114,76 118,68 116,62 C 114,58 112,54 106,56 Z" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.55" />
-
-      <line x1="110" y1="46" x2="110" y2="68" stroke="currentColor" strokeWidth="0.9" />
-      <polygon points="110,46 120,50 110,55" style={{ fill: 'var(--color-accent)' }} />
-
-      <text x="130" y="54" fontSize="7.5" style={{ fill: 'var(--color-accent)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.5" fontWeight="500">163y</text>
-
-      <g style={{ stroke: 'var(--color-ink-mute)' }} fill="none" strokeWidth="0.7">
-        <line x1="20" y1="26" x2="46" y2="44" />
-        <polyline points="40,40 46,44 41,49" />
-      </g>
-      <text x="20" y="18" fontSize="6.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.4">SW · 12mph</text>
-
-      <line x1="92" y1="130" x2="108" y2="130" stroke="currentColor" strokeWidth="0.5" />
-      <text x="114" y="133" fontSize="6.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)">100</text>
-      <line x1="98" y1="180" x2="108" y2="180" stroke="currentColor" strokeWidth="0.5" />
-      <text x="114" y="183" fontSize="6.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)">50</text>
-    </svg>
   )
 }
 
