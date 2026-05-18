@@ -13,8 +13,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light')
 
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as Theme) ?? 'light'
-    apply(saved)
+    // One-time migration from the pre-Parell key. Drop after a few releases.
+    let saved = localStorage.getItem(STORAGE_KEY) as Theme | null
+    if (!saved) {
+      const legacy = localStorage.getItem('sweep_theme') as Theme | null
+      if (legacy) {
+        saved = legacy
+        localStorage.removeItem('sweep_theme')
+      }
+    }
+    apply(saved ?? 'light')
   }, [])
 
   function apply(t: Theme) {

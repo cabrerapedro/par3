@@ -211,7 +211,7 @@ export default function StudentClipMirror() {
       {/* Phone restriction — show message instead of camera on small screens */}
       <div className="flex md:hidden flex-col items-center justify-center flex-1 px-6 text-center gap-4">
         <div className="w-16 h-16 rounded-md bg-paper-2 border border-rule flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
             <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
           </svg>
         </div>

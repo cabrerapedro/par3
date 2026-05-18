@@ -120,7 +120,7 @@ export default function ClipDetail() {
                 {clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
               </Badge>
               {isSwing && (
-                <Badge variant="outline" className="text-blue border-blue/20 bg-blue/10 text-xs">
+                <Badge variant="outline" className="text-ink-soft border-rule bg-paper-2 text-xs">
                   {t('swingBadge')}
                 </Badge>
               )}
@@ -156,7 +156,7 @@ export default function ClipDetail() {
                     "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all",
                     isSwing
                       ? "bg-primary text-primary-foreground border-primary hover:opacity-85"
-                      : "bg-ok text-black border-ok hover:opacity-85"
+                      : "bg-primary text-primary-foreground hover:opacity-85"
                   )}
                 >
                   {isSwing ? (

@@ -268,7 +268,7 @@ function PriorityCard({ clip, timeAgo, t }: PriorityCardProps) {
   return (
     <Link
       href={`/student/clip/${clip.id}`}
-      className="group block bg-card border border-border rounded-md overflow-hidden hover:border-blue/40 hover:bg-secondary/40 transition-all"
+      className="group block bg-card border border-border rounded-md overflow-hidden hover:border-primary hover:bg-secondary/40 transition-all"
     >
       <div className="aspect-video bg-black flex items-center justify-center relative overflow-hidden">
         {clip.video_url ? (
@@ -367,7 +367,7 @@ function ClipStatusDot({ status }: { status: Clip['status'] }) {
 function TrendBadge({ trend, t }: { trend: ClipTrend; t: ReturnType<typeof useTranslations> }) {
   if (trend === 'noData' || trend === 'newish') {
     return (
-      <Badge variant="outline" className="text-xs text-blue border-blue/30 bg-blue/10">
+      <Badge variant="outline" className="text-xs text-ink-soft border-rule bg-paper-2">
         {t('chipNew')}
       </Badge>
     )

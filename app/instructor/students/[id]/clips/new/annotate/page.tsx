@@ -593,7 +593,7 @@ export default function ClipAnnotatePage() {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="h-12 rounded-xl bg-ok text-black font-semibold hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="h-12 rounded-xl bg-primary text-primary-foreground hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             {t('save')}
           </button>

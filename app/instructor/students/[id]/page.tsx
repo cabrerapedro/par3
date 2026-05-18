@@ -164,7 +164,7 @@ export default function StudentProfile() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all", shared ? "bg-ok/10 border-ok/30 text-ok" : "bg-secondary border-border text-muted-foreground hover:border-blue/30 hover:text-foreground")}>
+                  <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all", shared ? "bg-ok/10 border-ok/30 text-ok" : "bg-secondary border-border text-muted-foreground hover:border-primary hover:text-foreground")}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       {shared ? <polyline points="20 6 9 17 4 12" /> : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>}
                     </svg>
@@ -184,7 +184,7 @@ export default function StudentProfile() {
           <div className="flex items-center gap-1.5 shrink-0">
             <Link
               href={`/instructor/students/${studentId}/edit`}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-blue/40 hover:text-blue hover:bg-blue/5 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-ink hover:bg-paper-3 transition-all"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -222,7 +222,7 @@ export default function StudentProfile() {
             <div className="flex flex-wrap gap-2">
               <span className={cn(
                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border",
-                week.sessionsCount > 0 ? "bg-blue/10 border-blue/30 text-blue" : "bg-secondary border-border text-muted-foreground"
+                week.sessionsCount > 0 ? "bg-paper-3 border-primary text-ink" : "bg-secondary border-border text-muted-foreground"
               )}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
@@ -256,7 +256,7 @@ export default function StudentProfile() {
             <h2 className="text-sm font-semibold text-foreground">{t('classesTitle')}</h2>
             <Link
               href={`/instructor/students/${studentId}/clips/new/record`}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:opacity-85 transition-all"
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-85 transition-opacity"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3.5" />
@@ -392,7 +392,7 @@ function TrendChip({ trend, t }: { trend: ClipTrend; t: ReturnType<typeof useTra
     improved: { label: t('clipTrendImproved'), className: 'bg-ok/10 text-ok border-ok/30' },
     declining: { label: t('clipTrendDeclining'), className: 'bg-bad/10 text-bad border-bad/30' },
     stagnant: { label: t('clipTrendStagnant'), className: 'bg-warn/10 text-warn border-warn/30' },
-    newish: { label: t('clipTrendNewish'), className: 'bg-blue/10 text-blue border-blue/30' },
+    newish: { label: t('clipTrendNewish'), className: 'bg-paper-3 text-ink border-primary' },
   }
   const { label, className } = cfg[trend]
   return (

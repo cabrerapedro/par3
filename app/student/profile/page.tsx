@@ -143,7 +143,7 @@ export default function StudentProfile() {
           >
             <Avatar className="w-20 h-20">
               {currentAvatar && <AvatarImage src={currentAvatar} alt={student.name} className="object-cover" />}
-              <AvatarFallback className="bg-blue/10 text-blue text-2xl font-bold border-2 border-blue/20">
+              <AvatarFallback className="bg-paper-3 text-ink-soft text-2xl font-semibold border border-rule">
                 {initials(student.name)}
               </AvatarFallback>
             </Avatar>
@@ -158,7 +158,7 @@ export default function StudentProfile() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="text-xs text-blue hover:underline underline-offset-2 font-medium"
+            className="text-xs text-primary hover:underline underline-offset-2 font-medium"
           >
             {currentAvatar ? t('changePhoto') : t('addPhoto')}
           </button>
@@ -174,7 +174,7 @@ export default function StudentProfile() {
               value={name}
               onChange={e => { setName(e.target.value); setSaved(false) }}
               required
-              className="bg-card border-border text-foreground focus-visible:border-blue/50 focus-visible:ring-0 h-11"
+              className="bg-card border-border text-foreground focus-visible:border-primary focus-visible:ring-0 h-11"
             />
           </div>
 
@@ -198,8 +198,8 @@ export default function StudentProfile() {
                   className={cn(
                     'rounded-xl border px-4 py-3 text-sm font-medium transition-all text-left',
                     dominantHand === opt.value
-                      ? 'bg-blue/10 border-blue/40 text-blue'
-                      : 'bg-card border-border text-muted-foreground hover:border-blue/20 hover:text-foreground'
+                      ? 'bg-paper-3 border-primary text-ink'
+                      : 'bg-card border-border text-muted-foreground hover:border-rule hover:text-foreground'
                   )}
                 >
                   {opt.label}
@@ -217,7 +217,7 @@ export default function StudentProfile() {
                 value={handicap}
                 onChange={e => { setHandicap(e.target.value); setSaved(false) }}
                 placeholder={t('handicapPlaceholder')}
-                className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 h-11"
+                className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-0 h-11"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -230,7 +230,7 @@ export default function StudentProfile() {
                 value={yearsPlaying}
                 onChange={e => { setYearsPlaying(e.target.value); setSaved(false) }}
                 placeholder="0"
-                className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 h-11"
+                className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-0 h-11"
               />
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function StudentProfile() {
               value={homeCourse}
               onChange={e => { setHomeCourse(e.target.value); setSaved(false) }}
               placeholder={t('homeCoursePlaceholder')}
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 h-11"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-0 h-11"
             />
           </div>
 
@@ -258,7 +258,7 @@ export default function StudentProfile() {
               onChange={e => { setBio(e.target.value); setSaved(false) }}
               placeholder={t('bioPlaceholder')}
               rows={3}
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-blue/50 focus-visible:ring-0 resize-none"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-0 resize-none"
             />
           </div>
 

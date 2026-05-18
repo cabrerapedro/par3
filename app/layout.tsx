@@ -44,7 +44,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
-        <meta name="theme-color" content="#EFE9DC" />
+        <meta name="theme-color" content="#EFE9DC" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#13110E" media="(prefers-color-scheme: dark)" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

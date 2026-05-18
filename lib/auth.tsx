@@ -47,6 +47,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // One-time migration of pre-Parell keys so existing logged-in users
+    // don't get force-logged-out by the rebrand. Drop after a few releases.
+    try {
+      if (!localStorage.getItem('parell_student')) {
+        const legacy = localStorage.getItem('sweep_student')
+        if (legacy) {
+          localStorage.setItem('parell_student', legacy)
+          localStorage.removeItem('sweep_student')
+        }
+      }
+      if (!localStorage.getItem('parell_instructor')) {
+        const legacy = localStorage.getItem('sweep_instructor')
+        if (legacy) {
+          localStorage.setItem('parell_instructor', legacy)
+          localStorage.removeItem('sweep_instructor')
+        }
+      }
+    } catch {}
+
     // 1. Instant hydration from localStorage — no network.
     try {
       const s = localStorage.getItem('parell_student')

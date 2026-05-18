@@ -340,7 +340,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          className="h-11 px-6 rounded-xl bg-ok text-black font-semibold hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           {t('save')}
         </button>

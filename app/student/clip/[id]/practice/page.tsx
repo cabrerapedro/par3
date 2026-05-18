@@ -544,7 +544,7 @@ export default function StudentClipPractice() {
           {/* Phone restriction for recording */}
           <div className="flex md:hidden flex-col items-center text-center gap-3 py-4">
             <div className="w-14 h-14 rounded-md bg-paper-2 border border-rule flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
                 <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
               </svg>
             </div>
@@ -557,7 +557,7 @@ export default function StudentClipPractice() {
             className="bg-paper-2 border border-rule rounded-md p-6 text-left hover:bg-paper-3 transition-all hidden md:block"
           >
             <div className="flex items-center gap-3 mb-2">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
                 <circle cx="12" cy="12" r="10" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
@@ -850,7 +850,7 @@ export default function StudentClipPractice() {
 
               {summary && (
                 <div className="bg-paper-2 border border-rule rounded-md px-4 py-4">
-                  <p className="text-xs text-blue/80 uppercase tracking-wide mb-2">{t('recommendation')}</p>
+                  <p className="text-xs text-ink-soft uppercase tracking-wide mb-2">{t('recommendation')}</p>
                   <p className="text-muted-foreground text-sm leading-relaxed">{summary}</p>
                 </div>
               )}
