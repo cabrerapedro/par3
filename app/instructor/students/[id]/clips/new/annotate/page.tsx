@@ -26,6 +26,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AnnotationCanvas, type AnnotationDraft } from '@/components/AnnotationCanvas'
+import { useAuth } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { getOrCreateTodayClass } from '@/lib/classes'
+import { processClip, type ProcessedFrame } from '@/lib/processClip'
+import { insertClipFrames } from '@/lib/frames'
+import {
+  METRICS_BY_ANGLE,
+  calculateBaseline,
+  calculateSwingBaseline,
+  detectSwingPhases,
+} from '@/lib/baseline'
+import type { CalibrationMark } from '@/lib/types'
 import { useClipFlow } from '../layout'
 
 type CameraAngle = 'face_on' | 'dtl'
@@ -47,13 +59,19 @@ function formatTime(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${tenths}`
 }
 
+type SaveStage = 'idle' | 'upload' | 'insert' | 'frames' | 'baseline'
+
 export default function ClipAnnotatePage() {
   const t = useTranslations('instructor.clips.annotate')
   const params = useParams()
   const router = useRouter()
   const studentId = params.id as string
+  const { instructor } = useAuth()
 
   const { recorded, getVideoUrl, reset } = useClipFlow()
+
+  const [saveStage, setSaveStage] = useState<SaveStage>('idle')
+  const [framesPct, setFramesPct] = useState(0)
 
   // ---- Guard: no recording → bounce back to /record ---------------
   useEffect(() => {
@@ -159,21 +177,183 @@ export default function ClipAnnotatePage() {
 
   // ---- Save / discard ---------------------------------------------
 
-  const canSave = useMemo(() => name.trim().length > 0, [name])
+  const canSave = useMemo(() => name.trim().length > 0 && saveStage === 'idle', [name, saveStage])
 
-  const handleSave = () => {
+  // Persist a single annotation row. Best-effort on each piece — if Whisper
+  // is down we still keep the audio file + drawing; if audio upload fails
+  // we still keep the strokes + transcript text. Returns void.
+  const persistAnnotation = useCallback(
+    async (clipId: string, draft: DraftAnnotation): Promise<void> => {
+      let audioUrl: string | null = null
+      let transcript: string | null = null
+
+      if (draft.audio_blob) {
+        const ext = (draft.audio_mime ?? '').includes('mp4') ? 'm4a' : 'webm'
+        const path = `${clipId}/${crypto.randomUUID()}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('clip-annotations-audio')
+          .upload(path, draft.audio_blob, {
+            contentType: draft.audio_mime || 'audio/webm',
+          })
+        if (!upErr) {
+          audioUrl = supabase.storage.from('clip-annotations-audio').getPublicUrl(path).data.publicUrl
+        }
+
+        // Fire-and-forget transcribe. If Whisper is unavailable we just
+        // keep the audio without text — the row still persists.
+        try {
+          const fd = new FormData()
+          fd.append('audio', draft.audio_blob, `audio.${ext}`)
+          const res = await fetch('/api/transcribe', { method: 'POST', body: fd })
+          if (res.ok) {
+            const data = (await res.json()) as { transcript?: string }
+            transcript = data.transcript ?? null
+          }
+        } catch {
+          /* leave transcript null */
+        }
+      }
+
+      await supabase.from('clip_annotations').insert({
+        clip_id: clipId,
+        frame_timestamp_ms: draft.frame_timestamp_ms,
+        strokes: draft.strokes,
+        audio_url: audioUrl,
+        audio_transcript: transcript,
+        text_note: draft.text_note ?? null,
+      })
+    },
+    [],
+  )
+
+  // Build the per-clip baseline from MediaPipe frames. Position clips
+  // average every frame (the student is meant to be static). Swing clips
+  // try to find address/top/impact/finish and build a phase-wise baseline;
+  // if phase detection fails we leave the clip in 'pending' so the
+  // instructor can retry — rather than persisting a bogus baseline.
+  const buildBaseline = useCallback(
+    (frames: ProcessedFrame[], selectedMetrics: string[]) => {
+      if (frames.length === 0) return null
+
+      const marks: CalibrationMark[] = frames.map((f) => ({
+        timestamp_ms: f.timestamp_ms,
+        landmarks: f.landmarks,
+        metrics: f.metrics,
+      }))
+
+      if (clipType === 'position') {
+        return calculateBaseline(marks, selectedMetrics)
+      }
+
+      // Swing: detect phases from the landmark trajectory.
+      const phases = detectSwingPhases(frames.map((f) => f.landmarks), angle)
+      if (!phases) return null
+
+      const swingMarks: CalibrationMark[] = [
+        { timestamp_ms: 0, landmarks: marks[0].landmarks, metrics: marks[0].metrics, phases },
+      ]
+      return calculateSwingBaseline(swingMarks, selectedMetrics)
+    },
+    [angle, clipType],
+  )
+
+  const handleSave = async () => {
+    if (saveStage !== 'idle') return
     if (!name.trim()) {
       setError(t('missingName'))
       return
     }
-    if (!recorded) {
+    if (!recorded || !instructor) {
       setError(t('missingVideo'))
       return
     }
-    // Save logic lands in the next commit; for now confirm we have everything.
+
     setError(null)
-    // eslint-disable-next-line no-alert
-    alert('TODO(C3): wire upload + clip insert + annotations insert + processClip')
+    const selectedMetrics = METRICS_BY_ANGLE[angle] ?? []
+
+    try {
+      // 1. Class for today (creates one if 24h since the last).
+      setSaveStage('upload')
+      const cls = await getOrCreateTodayClass(studentId, instructor.id)
+
+      // 2. Upload the video to clip-videos. Path namespaced by student + class
+      // so we don't collide and so a single cascading delete cleans up.
+      const ext = recorded.mime.includes('webm') ? 'webm' : recorded.mime.includes('mp4') ? 'mp4' : 'bin'
+      const videoPath = `${studentId}/${cls.id}/${crypto.randomUUID()}.${ext}`
+      const { error: vidErr } = await supabase.storage
+        .from('clip-videos')
+        .upload(videoPath, recorded.blob, {
+          contentType: recorded.mime,
+          upsert: false,
+        })
+      if (vidErr) throw vidErr
+      const videoUrl = supabase.storage.from('clip-videos').getPublicUrl(videoPath).data.publicUrl
+
+      // 3. Insert the clip row.
+      setSaveStage('insert')
+      const { data: clip, error: clipErr } = await supabase
+        .from('clips')
+        .insert({
+          class_id: cls.id,
+          student_id: studentId,
+          instructor_id: instructor.id,
+          name: name.trim(),
+          camera_angle: angle,
+          clip_type: clipType,
+          video_url: videoUrl,
+          selected_metrics: selectedMetrics,
+          status: 'pending',
+        })
+        .select()
+        .single()
+      if (clipErr || !clip) throw clipErr ?? new Error('Failed to insert clip')
+
+      // 4. Persist annotations one by one. Each is best-effort; we don't
+      // want a flaky single audio upload to bury the whole clip.
+      for (const a of annotations) {
+        try {
+          await persistAnnotation(clip.id, a)
+        } catch {
+          /* skip this annotation, keep going */
+        }
+      }
+
+      // 5. Run MediaPipe over every frame and write to clip_frames.
+      setSaveStage('frames')
+      setFramesPct(0)
+      const frames = await processClip({
+        videoBlob: recorded.blob,
+        cameraAngle: angle,
+        fps: 10,
+        onProgress: (p) => setFramesPct(Math.round(p * 100)),
+      })
+      if (frames.length > 0) {
+        try {
+          await insertClipFrames(clip.id, frames)
+        } catch {
+          /* frames are nice-to-have for ML; don't fail the save */
+        }
+      }
+
+      // 6. Build the baseline and flip the clip to calibrated.
+      setSaveStage('baseline')
+      const baseline = buildBaseline(frames, selectedMetrics)
+      await supabase
+        .from('clips')
+        .update({
+          baseline,
+          status: baseline ? 'calibrated' : 'pending',
+        })
+        .eq('id', clip.id)
+
+      // 7. Done. Clean the in-memory blob and bounce.
+      reset()
+      router.replace(`/instructor/students/${studentId}`)
+    } catch (e: unknown) {
+      setSaveStage('idle')
+      const reason = e instanceof Error ? e.message : String(e)
+      setError(`${t('saveErrorTitle')}: ${reason}`)
+    }
   }
 
   const handleDiscard = () => {
@@ -407,6 +587,29 @@ export default function ClipAnnotatePage() {
           </button>
         </aside>
       </div>
+
+      {/* Saving overlay — blocks the whole page during the long save flow */}
+      {saveStage !== 'idle' && (
+        <div className="fixed inset-0 z-50 bg-background/85 backdrop-blur-sm flex items-center justify-center px-6">
+          <div className="bg-card border border-border rounded-2xl px-8 py-7 max-w-sm w-full flex flex-col items-center gap-4 text-center">
+            <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <p className="text-base font-medium text-foreground">
+              {saveStage === 'upload'   && t('savingUpload')}
+              {saveStage === 'insert'   && t('savingInsert')}
+              {saveStage === 'frames'   && t('savingFrames', { pct: framesPct })}
+              {saveStage === 'baseline' && t('savingBaseline')}
+            </p>
+            {saveStage === 'frames' && (
+              <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full bg-ok transition-all duration-200"
+                  style={{ width: `${framesPct}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Discard confirmation */}
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
