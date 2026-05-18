@@ -351,6 +351,7 @@
       "exercisesEmptyHint": "Crea el primer ejercicio para comenzar",
       "exercisesCount": "{count, plural, one {# técnica} other {# técnicas}}",
       "addExercise": "Ejercicio",
+      "addClip": "Clip nuevo",
       "exercisesEmptyTitle": "Sin ejercicios todavía",
       "exercisesEmptySubtitle": "Empieza calibrando la primera técnica de {firstName}",
       "createFirstExercise": "Crear primer ejercicio",

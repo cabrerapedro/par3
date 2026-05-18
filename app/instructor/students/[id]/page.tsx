@@ -216,13 +216,25 @@ export default function StudentProfile() {
             <h2 className="text-sm font-semibold text-foreground">{t('exercisesTitle')}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{checkpoints.length === 0 ? t('exercisesEmptyHint') : t('exercisesCount', { count: checkpoints.length })}</p>
           </div>
-          <Link
-            href={`/instructor/students/${studentId}/checkpoints/new`}
-            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            {t('addExercise')}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/instructor/students/${studentId}/clips/new/record`}
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3.5" />
+                <path d="M19 6h-2.5L15 4h-6L7.5 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" />
+              </svg>
+              {t('addClip')}
+            </Link>
+            <Link
+              href={`/instructor/students/${studentId}/checkpoints/new`}
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-border/60 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              {t('addExercise')}
+            </Link>
+          </div>
         </div>
 
         {checkpoints.length === 0 ? (
