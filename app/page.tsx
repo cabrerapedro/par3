@@ -140,7 +140,7 @@ function Manifesto() {
           <div className="border-t border-rule mt-12 pt-12">
             <p className="font-display font-semibold text-[28px] md:text-[34px] leading-[1.2] relative pl-9">
               <span aria-hidden className="absolute left-[-2px] top-[-12px] text-[80px] leading-none text-accent font-semibold">“</span>
-              No reemplazamos al instructor. Lo extendemos.
+              No reemplazamos al instructor.<br />Lo extendemos.
             </p>
             <p className="small-caps font-mono text-[11px] text-ink-mute mt-4 ml-9">
               Principio irrenunciable
@@ -161,7 +161,7 @@ function ComoFunciona() {
         <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
           <p className="small-caps font-mono text-[11px] text-accent">Cómo funciona</p>
           <h2 className="font-display font-semibold text-3xl md:text-[40px] leading-[1.1] max-w-[640px]">
-            Tres momentos: la clase, la práctica, el repaso.
+            Tres momentos:<br />la clase, la práctica, el repaso.
           </h2>
         </div>
 
@@ -224,215 +224,152 @@ function Panel({ numeral, who, title, body, imageBase, imageAlt, divider }: { nu
   )
 }
 
-/* ─── Tres principios (Inteligencia artificial) ──────────────────────────── */
+/* ─── Inteligencia artificial ─────────────────────────────────────────── */
 
 function TresPrincipios() {
   return (
     <section id="principios" className="border-b border-rule py-20 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
-        <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
-          <p className="small-caps font-mono text-[11px] text-accent">Inteligencia artificial</p>
-          <div className="max-w-[680px]">
-            <h2 className="font-display font-semibold text-3xl md:text-[40px] leading-[1.1]">
-              Tres principios.
-            </h2>
-            <p className="text-base md:text-[17px] leading-[1.6] text-ink-soft mt-5">
-              La IA que mide, compara y traduce — sin reemplazar tu criterio.
+        <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
+          {/* Image — body schematic with landmarks + callout */}
+          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
+            {/* Light mode: real illustration */}
+            <Image
+              src="/images/sistema-ia-light.png"
+              alt="Esquema editorial — silueta con 33 landmarks cognac y la traducción «inclinate desde la cadera»"
+              fill
+              sizes="(min-width: 768px) 45vw, 100vw"
+              className="object-cover block dark:hidden"
+            />
+            {/* Dark mode: SVG fallback until sistema-ia-dark.png is generated */}
+            <div className="hidden dark:block absolute inset-0">
+              <SistemaIA />
+            </div>
+          </div>
+
+          {/* Text */}
+          <div>
+            <p className="small-caps font-mono text-[11px] text-accent">
+              Inteligencia artificial
             </p>
+            <h2 className="font-display font-semibold text-3xl md:text-[44px] leading-[1.05] tracking-[-0.015em] mt-4">
+              Tu corrección, en cada ensayo del alumno.
+            </h2>
+            <p className="text-[17px] md:text-[18px] leading-[1.6] text-ink-soft mt-7 max-w-[520px]">
+              Una IA propia compara cada ensayo del alumno contra la calibración que hiciste para él y le devuelve una instrucción a la vez en lenguaje corporal: <em className="not-italic text-ink">"inclinate desde la cadera"</em>, no "−4° spine angle". Mientras él practica, tu mirada está en el rango.
+            </p>
+            <div className="border-t border-rule mt-10 pt-6">
+              <p className="font-display italic text-[22px] md:text-[26px] text-accent leading-[1.35]">
+                La IA mide. Vos enseñás.
+              </p>
+            </div>
           </div>
         </div>
-
-        <div className="grid md:grid-cols-3 border-t border-b border-rule">
-          <Principio
-            numeral="I"
-            kicker="Observación"
-            title="La IA lee 33 puntos del cuerpo, en el dispositivo."
-            body="El esqueleto del alumno se dibuja en tiempo real desde su teléfono — cabeza, hombros, codos, muñecas, cadera, rodillas, tobillos. El análisis de pose ocurre on-device, no en un servidor de IA externo. El video se guarda en tu cuenta privada solo para tu revisión."
-            diagram={<DiagramObservacion />}
-          />
-          <Principio
-            numeral="II"
-            kicker="Comparación"
-            title="Tu calibración es el patrón. La IA mide cada ensayo."
-            body="Un modelo propio compara cada práctica del alumno contra la referencia exacta que vos calibraste para él. No hay un “estándar de golf” — hay tu estándar para él. Cada frame se mide; cada ensayo recibe un score."
-            diagram={<DiagramComparacion />}
-            divider
-          />
-          <Principio
-            numeral="III"
-            kicker="Traducción"
-            title="La IA traduce ángulos a lenguaje corporal."
-            body="Los grados y centímetros no le sirven al alumno. La IA convierte la medición técnica en una sola instrucción que entiende: “inclinate desde la cadera”, no “−4° spine angle”. La técnica viaja; los grados no."
-            diagram={<DiagramTraduccion />}
-            divider
-          />
-        </div>
-
-        <p
-          className="font-display italic text-[20px] md:text-[24px] text-accent leading-[1.4] mt-10 md:mt-12"
-        >
-          La IA mide. Vos enseñás.
-        </p>
       </div>
     </section>
   )
 }
 
-function Principio({ numeral, kicker, title, body, diagram, divider }: { numeral: string; kicker: string; title: string; body: string; diagram: React.ReactNode; divider?: boolean }) {
+function SistemaIA() {
+  // Esquema editorial: silueta frontal del alumno + 33 landmarks cognac +
+  // pequeño callout cognac con la traducción ("Inclinate desde la cadera.")
+  // saliendo del cuerpo. Es "AI como valor" en una sola imagen: el cuerpo
+  // medido junto a la frase que el alumno recibe.
   return (
-    <div className={`px-7 py-10 ${divider ? 'md:border-l border-rule' : ''}`}>
-      <div className="aspect-[4/3] bg-paper-2 border border-rule mb-6 flex items-center justify-center">
-        {diagram}
-      </div>
-      <p className="small-caps font-mono text-[10px] text-accent">{numeral} · {kicker}</p>
-      <h3 className="font-display font-semibold text-[20px] md:text-[22px] leading-[1.2] mt-2">{title}</h3>
-      <p className="text-sm leading-[1.6] text-ink-soft mt-3">{body}</p>
-    </div>
-  )
-}
+    <svg viewBox="0 0 240 320" className="absolute inset-0 w-full h-full text-ink">
+      {/* Marco/label superior — plate de manual */}
+      <text x="16" y="22" fontSize="6.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="1.2">
+        ESQUEMA · 33 LANDMARKS
+      </text>
+      <line x1="16" y1="28" x2="100" y2="28" stroke="currentColor" strokeWidth="0.4" opacity="0.4" />
 
-/* ─── Diagramas para los tres principios (estilo Hogan, sin imágenes) ─── */
-
-function DiagramObservacion() {
-  // Silueta frontal con landmarks cognac. Suficientes para sugerir los 33 puntos
-  // sin volverse decorativo. Ink = cuerpo; cognac = landmarks; mono = label.
-  return (
-    <svg viewBox="0 0 120 90" className="w-[80%] h-[85%] text-ink">
-      <g stroke="currentColor" strokeWidth="0.7" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {/* Body silhouette — front view */}
+      <g stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round">
         {/* Cabeza */}
-        <circle cx="60" cy="14" r="6" />
-        {/* Cuello + torso */}
-        <line x1="60" y1="20" x2="60" y2="28" />
-        <line x1="60" y1="28" x2="60" y2="54" />
-        {/* Hombros */}
-        <line x1="42" y1="30" x2="78" y2="30" />
+        <circle cx="120" cy="64" r="14" />
+        {/* Cuello */}
+        <line x1="120" y1="78" x2="120" y2="92" />
+        {/* Línea de hombros */}
+        <line x1="92" y1="96" x2="148" y2="96" />
+        {/* Torso (espina visible suavemente) */}
+        <line x1="120" y1="92" x2="120" y2="188" />
         {/* Brazos */}
-        <line x1="42" y1="30" x2="36" y2="50" />
-        <line x1="36" y1="50" x2="34" y2="68" />
-        <line x1="78" y1="30" x2="84" y2="50" />
-        <line x1="84" y1="50" x2="86" y2="68" />
-        {/* Caderas */}
-        <line x1="46" y1="54" x2="74" y2="54" />
+        <line x1="92" y1="96" x2="84" y2="148" />
+        <line x1="84" y1="148" x2="82" y2="202" />
+        <line x1="148" y1="96" x2="156" y2="148" />
+        <line x1="156" y1="148" x2="158" y2="202" />
+        {/* Línea de cadera */}
+        <line x1="100" y1="188" x2="140" y2="188" />
         {/* Piernas */}
-        <line x1="50" y1="54" x2="48" y2="72" />
-        <line x1="48" y1="72" x2="46" y2="86" />
-        <line x1="70" y1="54" x2="72" y2="72" />
-        <line x1="72" y1="72" x2="74" y2="86" />
+        <line x1="108" y1="188" x2="106" y2="244" />
+        <line x1="106" y1="244" x2="104" y2="296" />
+        <line x1="132" y1="188" x2="134" y2="244" />
+        <line x1="134" y1="244" x2="136" y2="296" />
+        {/* Pies */}
+        <line x1="92" y1="296" x2="116" y2="296" strokeWidth="1.5" />
+        <line x1="124" y1="296" x2="148" y2="296" strokeWidth="1.5" />
       </g>
-      {/* Landmarks en cognac — selección visible para representar los 33 puntos */}
+
+      {/* 33 landmarks en cognac */}
       <g style={{ fill: 'var(--color-accent)' }}>
-        <circle cx="60" cy="14" r="1.6" />
-        <circle cx="57" cy="13" r="0.8" />
-        <circle cx="63" cy="13" r="0.8" />
-        <circle cx="55" cy="15" r="0.6" />
-        <circle cx="65" cy="15" r="0.6" />
-        <circle cx="42" cy="30" r="1.6" />
-        <circle cx="78" cy="30" r="1.6" />
-        <circle cx="36" cy="50" r="1.6" />
-        <circle cx="84" cy="50" r="1.6" />
-        <circle cx="34" cy="68" r="1.6" />
-        <circle cx="86" cy="68" r="1.6" />
-        <circle cx="46" cy="54" r="1.6" />
-        <circle cx="74" cy="54" r="1.6" />
-        <circle cx="48" cy="72" r="1.6" />
-        <circle cx="72" cy="72" r="1.6" />
-        <circle cx="46" cy="86" r="1.6" />
-        <circle cx="74" cy="86" r="1.6" />
-      </g>
-      {/* Anotación cognac */}
-      <g style={{ stroke: 'var(--color-accent)' }}>
-        <line x1="78" y1="30" x2="100" y2="22" strokeWidth="0.4" />
-      </g>
-      <text x="100" y="20" fontSize="4.5" style={{ fill: 'var(--color-accent)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.4">33 pts</text>
-    </svg>
-  )
-}
-
-function DiagramComparacion() {
-  // Dos siluetas — referencia (instructor calibró) y ensayo (alumno).
-  // Línea cognac marca la diferencia.
-  return (
-    <svg viewBox="0 0 120 90" className="w-[80%] h-[85%] text-ink">
-      {/* Silueta izquierda — REF */}
-      <g stroke="currentColor" strokeWidth="0.7" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="30" cy="16" r="4" />
-        <line x1="30" y1="20" x2="34" y2="46" />
-        <line x1="34" y1="46" x2="42" y2="62" />
-        <line x1="42" y1="62" x2="48" y2="76" />
-        <line x1="30" y1="24" x2="44" y2="58" />
-        <line x1="44" y1="58" x2="52" y2="68" />
-        <line x1="34" y1="46" x2="28" y2="62" />
-        <line x1="28" y1="62" x2="28" y2="78" />
-      </g>
-      <text x="22" y="86" fontSize="4" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.4">REF</text>
-
-      {/* Silueta derecha — ENSAYO (postura ligeramente distinta) */}
-      <g stroke="currentColor" strokeWidth="0.7" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="80" cy="18" r="4" />
-        <line x1="80" y1="22" x2="86" y2="48" />
-        <line x1="86" y1="48" x2="92" y2="64" />
-        <line x1="92" y1="64" x2="96" y2="76" />
-        <line x1="80" y1="26" x2="92" y2="58" />
-        <line x1="92" y1="58" x2="100" y2="66" />
-        <line x1="86" y1="48" x2="80" y2="62" />
-        <line x1="80" y1="62" x2="80" y2="78" />
-      </g>
-      <text x="70" y="86" fontSize="4" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.4">ENSAYO</text>
-
-      {/* Línea de comparación cognac */}
-      <g style={{ stroke: 'var(--color-accent)' }}>
-        <line x1="34" y1="30" x2="86" y2="32" strokeWidth="0.5" strokeDasharray="2 1.5" />
-        <line x1="34" y1="46" x2="86" y2="48" strokeWidth="0.5" strokeDasharray="2 1.5" />
-      </g>
-      <text x="56" y="36" fontSize="4.5" style={{ fill: 'var(--color-accent)' }} fontFamily="var(--font-jb-mono)" fontWeight="500">+1</text>
-    </svg>
-  )
-}
-
-function DiagramTraduccion() {
-  // Ángulo numérico (32°) → flecha cognac → instrucción corporal (handwritten-feel).
-  return (
-    <svg viewBox="0 0 120 90" className="w-[85%] h-[85%]">
-      {/* Lado izquierdo: ángulo técnico */}
-      <g style={{ stroke: 'var(--color-ink)' }} fill="none" strokeLinecap="round">
-        <line x1="14" y1="60" x2="44" y2="60" strokeWidth="0.7" />
-        <line x1="14" y1="60" x2="40" y2="38" strokeWidth="0.7" />
-        <path d="M 24 60 A 10 10 0 0 0 30 53" strokeWidth="0.5" />
-      </g>
-      <text x="30" y="56" fontSize="5.5" style={{ fill: 'var(--color-ink)' }} fontFamily="var(--font-jb-mono)" fontWeight="500">32°</text>
-      <text x="12" y="72" fontSize="3.8" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.4">SPINE ANGLE</text>
-
-      {/* Flecha cognac al centro */}
-      <g style={{ stroke: 'var(--color-accent)' }} fill="none" strokeLinecap="round">
-        <line x1="52" y1="50" x2="68" y2="50" strokeWidth="0.7" />
-        <polyline points="65,47 68,50 65,53" strokeWidth="0.7" />
+        {/* Cara — nariz, ojos, orejas, comisuras */}
+        <circle cx="120" cy="64" r="2" />
+        <circle cx="113" cy="58" r="1.2" />
+        <circle cx="127" cy="58" r="1.2" />
+        <circle cx="109" cy="60" r="1" />
+        <circle cx="131" cy="60" r="1" />
+        <circle cx="107" cy="66" r="0.9" />
+        <circle cx="133" cy="66" r="0.9" />
+        <circle cx="115" cy="72" r="1" />
+        <circle cx="125" cy="72" r="1" />
+        {/* Hombros */}
+        <circle cx="92" cy="96" r="2.2" />
+        <circle cx="148" cy="96" r="2.2" />
+        {/* Codos */}
+        <circle cx="84" cy="148" r="2.2" />
+        <circle cx="156" cy="148" r="2.2" />
+        {/* Muñecas */}
+        <circle cx="82" cy="202" r="2.2" />
+        <circle cx="158" cy="202" r="2.2" />
+        {/* Manos — dedos representativos */}
+        <circle cx="78" cy="210" r="1.2" />
+        <circle cx="84" cy="212" r="1.2" />
+        <circle cx="156" cy="210" r="1.2" />
+        <circle cx="162" cy="212" r="1.2" />
+        {/* Caderas */}
+        <circle cx="108" cy="188" r="2.2" />
+        <circle cx="132" cy="188" r="2.2" />
+        {/* Rodillas */}
+        <circle cx="106" cy="244" r="2.2" />
+        <circle cx="134" cy="244" r="2.2" />
+        {/* Tobillos */}
+        <circle cx="104" cy="296" r="2.2" />
+        <circle cx="136" cy="296" r="2.2" />
+        {/* Pies — talón + punta por lado */}
+        <circle cx="92" cy="296" r="1.6" />
+        <circle cx="116" cy="296" r="1.6" />
+        <circle cx="124" cy="296" r="1.6" />
+        <circle cx="148" cy="296" r="1.6" />
       </g>
 
-      {/* Lado derecho: instrucción corporal — italic Bricolage */}
-      <text
-        x="72"
-        y="44"
-        fontSize="6.5"
-        style={{ fill: 'var(--color-ink)' }}
-        fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif"
-        fontStyle="italic"
-      >Inclinate</text>
-      <text
-        x="72"
-        y="52"
-        fontSize="6.5"
-        style={{ fill: 'var(--color-ink)' }}
-        fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif"
-        fontStyle="italic"
-      >desde la</text>
-      <text
-        x="72"
-        y="60"
-        fontSize="6.5"
-        style={{ fill: 'var(--color-ink)' }}
-        fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif"
-        fontStyle="italic"
-      >cadera.</text>
+      {/* Callout cognac — la traducción saliendo del cuerpo */}
+      <g style={{ stroke: 'var(--color-accent)' }} fill="none">
+        <line x1="156" y1="148" x2="186" y2="138" strokeWidth="0.6" strokeDasharray="2 2" />
+      </g>
+      <text x="186" y="130" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
+        Inclinate
+      </text>
+      <text x="186" y="142" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
+        desde la
+      </text>
+      <text x="186" y="154" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
+        cadera.
+      </text>
+
+      {/* Bottom label */}
+      <text x="16" y="312" fontSize="5.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.8">
+        REF · TU CALIBRACIÓN
+      </text>
     </svg>
   )
 }
@@ -541,8 +478,13 @@ function Footer() {
           <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Privacidad</a>
           <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Términos</a>
         </div>
-        <span className="small-caps font-mono text-[10px] text-ink-mute">
-          Hecho con tempo · Barcelona
+        <span className="small-caps font-mono text-[10px] text-ink-mute inline-flex items-center gap-2">
+          <span>Hecho con tempo</span>
+          <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden className="shrink-0">
+            <line x1="1.5" y1="11" x2="1.5" y2="1" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+            <polygon points="1.5,1 7.5,2.5 1.5,4.5" style={{ fill: 'var(--color-accent)' }} />
+          </svg>
+          <span>Barcelona</span>
         </span>
       </div>
     </footer>
