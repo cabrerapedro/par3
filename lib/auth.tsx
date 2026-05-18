@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, authClient } from './supabase'
+import { supabase, authClient, setStudentAccessCode } from './supabase'
 import type { Instructor, Locale, Student } from './types'
 
 type StudentUpdates = Partial<Pick<Student, 'name' | 'email' | 'avatar_url' | 'handicap' | 'dominant_hand' | 'years_playing' | 'home_course' | 'bio'>>
@@ -50,7 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 1. Instant hydration from localStorage — no network.
     try {
       const s = localStorage.getItem('sweep_student')
-      if (s) setStudent(JSON.parse(s))
+      if (s) {
+        const parsed = JSON.parse(s) as Student
+        setStudent(parsed)
+        // Sync the supabase client header so post-hydration queries hit
+        // RLS as the right student (B3 fix).
+        setStudentAccessCode(parsed.access_code ?? null)
+      }
     } catch {}
     try {
       const i = localStorage.getItem('sweep_instructor')
@@ -199,17 +205,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function studentLogin(code: string): Promise<{ error?: string }> {
     const clean = code.trim().toUpperCase()
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .eq('access_code', clean)
-      .single()
+    // Login goes through an RPC (security definer) so the anon
+    // students-select policy can be tightened to "id = current_student_id()"
+    // and the access_code can't be enumerated by scanning UUIDs (B3 fix).
+    const { data, error } = await supabase.rpc('login_student', { code: clean })
 
-    if (error || !data) return { error: 'wrongCode' }
+    const row = Array.isArray(data) ? data[0] : data
+    if (error || !row) return { error: 'wrongCode' }
 
-    localStorage.setItem('sweep_student', JSON.stringify(data))
-    setStudent(data)
-    syncLocaleFromDb(data.preferred_locale)
+    localStorage.setItem('sweep_student', JSON.stringify(row))
+    setStudent(row)
+    setStudentAccessCode(row.access_code ?? null)
+    syncLocaleFromDb(row.preferred_locale)
     return {}
   }
 
@@ -239,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.student) {
         localStorage.setItem('sweep_student', JSON.stringify(data.student))
         setStudent(data.student)
+        setStudentAccessCode(data.student.access_code ?? null)
         syncLocaleFromDb(data.student.preferred_locale)
       }
       return {}
@@ -303,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     localStorage.removeItem('sweep_student')
     localStorage.removeItem('sweep_instructor')
+    setStudentAccessCode(null)
     setInstructor(null)
     setStudent(null)
     supabase.auth.signOut().catch(() => {})
