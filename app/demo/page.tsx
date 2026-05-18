@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
-import { calculateMetrics, METRICS_BY_ANGLE, METRIC_INFO } from '@/lib/baseline'
+import { calculateMetrics, METRICS_BY_ANGLE, METRIC_INFO, getMetricLabel } from '@/lib/baseline'
 import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
 import type { OneEuroState } from '@/lib/oneEuroFilter'
 import type { Landmark, CameraAngle } from '@/lib/types'
@@ -101,6 +102,9 @@ function formatMetricValue(key: string, value: number): string {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 export default function DemoPage() {
+  const t = useTranslations('poc.demo')
+  const tMetrics = useTranslations('metrics.labels')
+  const tMetricsDesc = useTranslations('metrics.descriptions')
   const [stage, setStage] = useState<Stage>('upload')
   const [slots, setSlots] = useState<VideoSlot[]>([])
   const [progress, setProgress] = useState(0)
@@ -197,7 +201,11 @@ export default function DemoPage() {
 
       for (let si = 0; si < totalSlots; si++) {
         const slot = slots[si]
-        setProgressLabel(`Analizando video ${si + 1} de ${totalSlots}${totalSlots > 1 ? ` (${slot.angle === 'face_on' ? 'frente' : 'perfil'})` : ''}...`)
+        setProgressLabel(t('processingSlot', {
+          current: si + 1,
+          total: totalSlots,
+          angle: slot.angle === 'face_on' ? t('processingAngleFaceOn') : t('processingAngleDtl'),
+        }))
 
         const video = document.createElement('video')
         video.src = slot.objectUrl
@@ -260,7 +268,7 @@ export default function DemoPage() {
       setActiveTab(0)
       setStage('playback')
     } catch (err: any) {
-      setError(`Error al procesar: ${err.message}`)
+      setError(t('errorProcessing', { message: err.message }))
       setStage('upload')
     }
   }
@@ -425,7 +433,7 @@ export default function DemoPage() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err: any) {
-      setError(`Error al exportar: ${err.message}`)
+      setError(t('errorExporting', { message: err.message }))
     } finally {
       setIsExporting(false)
       setExportProgress(0)
@@ -443,10 +451,10 @@ export default function DemoPage() {
           {/* Header */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-foreground tracking-tight">
-              Golf Pose <span className="text-ok">Analysis</span>
+              {t('title')} <span className="text-ok">{t('titleAccent')}</span>
             </h1>
             <p className="text-muted-foreground mt-2">
-              Sube un video para visualizar los ejes del cuerpo con inteligencia artificial
+              {t('subtitle')}
             </p>
           </div>
 
@@ -460,8 +468,9 @@ export default function DemoPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             {/* Face-on */}
             <DropZone
-              label="De frente"
-              sublabel="Face-on"
+              label={t('labelFaceOn')}
+              sublabel={t('sublabelFaceOn')}
+              dropHint={t('dropHint')}
               angle="face_on"
               file={faceOnSlot?.file ?? null}
               onDrop={handleDrop('face_on')}
@@ -470,8 +479,9 @@ export default function DemoPage() {
             />
             {/* Down the line */}
             <DropZone
-              label="De perfil"
-              sublabel="Down the line"
+              label={t('labelDtl')}
+              sublabel={t('sublabelDtl')}
+              dropHint={t('dropHint')}
               angle="dtl"
               file={dtlSlot?.file ?? null}
               onDrop={handleDrop('dtl')}
@@ -487,7 +497,7 @@ export default function DemoPage() {
               disabled={!slots.length}
               className="px-8 py-3 rounded-lg font-semibold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-ok text-black hover:bg-ok/90"
             >
-              Analizar {slots.length === 2 ? 'videos' : 'video'}
+              {slots.length === 2 ? t('analyzeMany') : t('analyzeOne')}
             </button>
           </div>
         </div>
@@ -508,7 +518,7 @@ export default function DemoPage() {
               <span className="text-ok font-mono text-sm font-bold">{progress}%</span>
             </div>
           </div>
-          <p className="text-foreground font-medium mb-2">{progressLabel || 'Procesando...'}</p>
+          <p className="text-foreground font-medium mb-2">{progressLabel || t('processingDefault')}</p>
           {/* Progress bar */}
           <div className="w-full bg-border rounded-full h-2 overflow-hidden">
             <div
@@ -517,7 +527,7 @@ export default function DemoPage() {
             />
           </div>
           <p className="text-muted-foreground text-sm mt-3">
-            Detectando pose con MediaPipe AI
+            {t('detectingPose')}
           </p>
         </div>
       </div>
@@ -537,10 +547,10 @@ export default function DemoPage() {
             onClick={() => { cancelAnimationFrame(rafRef.current); setStage('upload') }}
             className="text-muted-foreground hover:text-foreground text-sm"
           >
-            ← Volver
+            {t('back')}
           </button>
           <h1 className="text-lg font-semibold text-foreground">
-            Pose <span className="text-ok">Analysis</span>
+            {t('playbackTitle')} <span className="text-ok">{t('playbackTitleAccent')}</span>
           </h1>
         </div>
 
@@ -560,7 +570,7 @@ export default function DemoPage() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {s.angle === 'face_on' ? 'Frente' : 'Perfil'}
+                {s.angle === 'face_on' ? t('tabFaceOnShort') : t('tabDtlShort')}
               </button>
             ))}
           </div>
@@ -580,7 +590,7 @@ export default function DemoPage() {
           ) : (
             <>
               <DownloadIcon />
-              Descargar
+              {t('download')}
             </>
           )}
         </button>
@@ -633,10 +643,10 @@ export default function DemoPage() {
         <div className="w-full lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-border bg-card overflow-y-auto">
           <div className="p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-              Ejes del cuerpo
+              {t('axesTitle')}
               {activeSlot && (
                 <span className="ml-2 text-ok font-normal normal-case">
-                  ({activeSlot.angle === 'face_on' ? 'de frente' : 'de perfil'})
+                  ({activeSlot.angle === 'face_on' ? t('axesAngleFaceOn') : t('axesAngleDtl')})
                 </span>
               )}
             </h2>
@@ -658,7 +668,7 @@ export default function DemoPage() {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-foreground">
-                        {info?.label ?? key}
+                        {getMetricLabel(key, tMetrics)}
                       </span>
                       <span className={`font-mono text-lg font-bold ${
                         hasValue ? 'text-ok' : 'text-muted-foreground'
@@ -667,7 +677,7 @@ export default function DemoPage() {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {info?.description ?? ''}
+                      {(() => { try { return tMetricsDesc(key as never) } catch { return info?.description ?? '' } })()}
                     </p>
                   </div>
                 )
@@ -682,8 +692,8 @@ export default function DemoPage() {
                 }`} />
                 <span className="text-xs text-muted-foreground">
                   {Object.keys(currentMetrics).length > 0
-                    ? `${Object.keys(currentMetrics).length} métricas detectadas`
-                    : 'Sin pose detectada en este frame'}
+                    ? t('metricsDetected', { count: Object.keys(currentMetrics).length })
+                    : t('noPose')}
                 </span>
               </div>
             </div>
@@ -691,7 +701,7 @@ export default function DemoPage() {
             {/* Export progress overlay */}
             {isExporting && (
               <div className="mt-4 p-3 rounded-lg bg-ok/10 border border-ok/30">
-                <p className="text-sm text-ok font-medium mb-2">Exportando video...</p>
+                <p className="text-sm text-ok font-medium mb-2">{t('exporting')}</p>
                 <div className="w-full bg-border rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-ok h-full rounded-full transition-all"
@@ -699,7 +709,7 @@ export default function DemoPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Renderizando skeleton sobre el video
+                  {t('exportingDesc')}
                 </p>
               </div>
             )}
@@ -721,6 +731,7 @@ export default function DemoPage() {
 function DropZone({
   label,
   sublabel,
+  dropHint,
   angle,
   file,
   onDrop,
@@ -729,6 +740,7 @@ function DropZone({
 }: {
   label: string
   sublabel: string
+  dropHint: string
   angle: CameraAngle
   file: File | null
   onDrop: (e: React.DragEvent) => void
@@ -779,7 +791,7 @@ function DropZone({
       <UploadIcon />
       <p className="text-foreground font-medium mt-3">{label}</p>
       <p className="text-muted-foreground text-xs mt-1">{sublabel}</p>
-      <p className="text-muted-foreground text-xs mt-2">Arrastra o toca para seleccionar</p>
+      <p className="text-muted-foreground text-xs mt-2">{dropHint}</p>
     </div>
   )
 }
