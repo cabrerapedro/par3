@@ -379,6 +379,22 @@
       "saving": "Saving...",
       "saveCta": "Save changes"
     },
+    "clips": {
+      "record": {
+        "title": "New clip",
+        "back": "Back to student",
+        "preRecordHint": "Get the student in position, then tap record when ready.",
+        "recordingHint": "Tap stop when the movement ends.",
+        "recordStart": "Record",
+        "recordStop": "Stop",
+        "flipCamera": "Flip camera",
+        "loadingCamera": "Starting camera…",
+        "cameraError": "Couldn't access the camera. Check your browser permissions.",
+        "recordingFailed": "Couldn't start recording.",
+        "tooShort": "Clip too short. Record at least 3 seconds.",
+        "maxLengthHit": "60-second limit reached."
+      }
+    },
     "checkpoints": {
       "backToStudent": "Student profile",
       "newTopLabel": "New exercise",

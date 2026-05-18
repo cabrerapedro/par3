@@ -379,6 +379,22 @@
       "saving": "Guardando...",
       "saveCta": "Guardar cambios"
     },
+    "clips": {
+      "record": {
+        "title": "Nuevo clip",
+        "back": "Volver al alumno",
+        "preRecordHint": "Posicioná al alumno y tocá grabar cuando esté listo.",
+        "recordingHint": "Tocá parar cuando termine el movimiento.",
+        "recordStart": "Grabar",
+        "recordStop": "Parar",
+        "flipCamera": "Cambiar cámara",
+        "loadingCamera": "Iniciando cámara…",
+        "cameraError": "No se pudo acceder a la cámara. Verificá los permisos del navegador.",
+        "recordingFailed": "No se pudo iniciar la grabación.",
+        "tooShort": "El clip es muy corto. Intentá grabar al menos 3 segundos.",
+        "maxLengthHit": "Llegaste al máximo de 60 segundos."
+      }
+    },
     "checkpoints": {
       "backToStudent": "Perfil del alumno",
       "newTopLabel": "Nuevo ejercicio",
