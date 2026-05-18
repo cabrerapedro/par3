@@ -324,7 +324,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
         onChange={(e) => setTextNote(e.target.value)}
         placeholder={t('notePlaceholder')}
         rows={2}
-        className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-ok/50 resize-y"
+        className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-primary resize-y"
       />
 
       {/* Save / cancel */}
@@ -340,7 +340,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          className="h-11 px-6 rounded-xl bg-ok text-black font-semibold hover:bg-ok/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="h-11 px-6 rounded-xl bg-ok text-black font-semibold hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           {t('save')}
         </button>

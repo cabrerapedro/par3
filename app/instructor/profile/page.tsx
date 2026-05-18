@@ -59,7 +59,7 @@ export default function InstructorProfile() {
 
   if (loading || !instructor) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   )
 
@@ -110,7 +110,7 @@ export default function InstructorProfile() {
               onChange={e => { setName(e.target.value); setSaved(false) }}
               placeholder={t('namePlaceholder')}
               required
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-0 h-11"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function InstructorProfile() {
             className={`h-11 font-semibold transition-all ${
               saved
                 ? 'bg-ok/10 border border-ok/30 text-ok hover:bg-ok/10'
-                : 'bg-ok text-background hover:bg-ok/90'
+                : 'bg-primary text-primary-foreground hover:opacity-85'
             }`}
           >
             {saved ? t('saved') : saving ? t('saving') : t('saveCta')}

@@ -608,7 +608,7 @@ export default function StudentClipPractice() {
             {/* Loading overlay while camera connects */}
             {!cameraReady && (
               <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-blue border-t-transparent animate-spin" />
+                <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 <p className="text-muted-foreground text-sm">{t('startingCamera')}</p>
               </div>
             )}
@@ -675,7 +675,7 @@ export default function StudentClipPractice() {
       {/* PROCESSING stage */}
       {stage === 'processing' && (
         <div className="flex flex-col items-center justify-center min-h-[60vh] px-5 gap-6">
-          <div className="w-10 h-10 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+          <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           <div className="w-full max-w-xs">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-muted-foreground">{t('analyzingFrames')}</span>
@@ -863,7 +863,7 @@ export default function StudentClipPractice() {
                   {t('recordAgain')}
                 </button>
                 <Link href={`/student/clip/${clipId}`} className="flex-1">
-                  <button className="w-full bg-ok text-on-ok font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
+                  <button className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
                     {t('viewCheckpoint')}
                   </button>
                 </Link>

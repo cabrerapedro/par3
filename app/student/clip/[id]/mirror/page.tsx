@@ -283,7 +283,7 @@ export default function StudentClipMirror() {
 
         {!ready && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-            <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
         )}
       </div>

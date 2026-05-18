@@ -156,7 +156,7 @@ export default function ClipDetail() {
                     "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all",
                     isSwing
                       ? "bg-blue text-white border-blue hover:bg-blue/90"
-                      : "bg-ok text-black border-ok hover:bg-ok/90"
+                      : "bg-ok text-black border-ok hover:opacity-85"
                   )}
                 >
                   {isSwing ? (
@@ -299,7 +299,7 @@ export default function ClipDetail() {
 }
 
 function LoadingScreen() {
-  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" /></div>
+  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>
 }
 
 function formatTime(s: number): string {

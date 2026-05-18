@@ -256,7 +256,7 @@ export default function StudentProfile() {
             <h2 className="text-sm font-semibold text-foreground">{t('classesTitle')}</h2>
             <Link
               href={`/instructor/students/${studentId}/clips/new/record`}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:opacity-85 transition-all"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3.5" />
@@ -375,7 +375,7 @@ export default function StudentProfile() {
 }
 
 function LoadingScreen() {
-  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" /></div>
+  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>
 }
 
 function ClipStatusDot({ status }: { status: Clip['status'] }) {

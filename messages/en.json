@@ -237,11 +237,14 @@
       "noResultsFor": "No students found matching \"{query}\"",
       "noExercises": "No exercises yet",
       "exerciseSummary": "{calibrated} of {total} {total, plural, one {exercise calibrated} other {exercises calibrated}}",
+      "colName": "Student",
+      "colCode": "Code",
+      "colExercises": "Exercises",
       "copied": "✓ copied",
       "copyCodeTooltip": "Copy access code",
       "shareLinkTooltip": "Share access link",
-      "shareTitle": "parell.golf - Practice access",
-      "shareText": "{name}, use this link to access your practice exercises on parell.golf"
+      "shareTitle": "Parell — Practice access",
+      "shareText": "{name}, use this link to access your practice exercises on Parell"
     },
     "profile": {
       "backToDashboard": "Dashboard",
@@ -274,8 +277,8 @@
       "copyCodeTooltip": "Copy the student's access code",
       "shareLinkLabel": "Share link",
       "shareLinkTooltip": "Send the access link to the student",
-      "shareTitle": "parell.golf - Practice access",
-      "shareText": "{name}, use this link to access your practice exercises on parell.golf",
+      "shareTitle": "Parell — Practice access",
+      "shareText": "{name}, use this link to access your practice exercises on Parell",
       "edit": "Edit",
       "deleteAction": "Delete",
       "weekTitle": "This week",

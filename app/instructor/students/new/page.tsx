@@ -55,7 +55,7 @@ export default function NewStudent() {
 
       <div className="flex-1 flex items-start justify-center px-5 py-10">
         <div
-          className="w-full max-w-sm bg-card border border-border rounded-[20px] overflow-hidden"
+          className="w-full max-w-sm bg-card border border-border rounded-md overflow-hidden"
           style={{ animation: 'fade-up 0.8s ease-out both' }}
         >
           <div className="px-6 pt-6 pb-5 border-b border-border">
@@ -78,7 +78,7 @@ export default function NewStudent() {
                   onChange={e => setName(e.target.value)}
                   placeholder={t('namePlaceholder')}
                   required
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-primary/20 h-12 text-base"
                 />
               </div>
 
@@ -92,7 +92,7 @@ export default function NewStudent() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder={t('emailPlaceholder')}
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-ok/50 focus-visible:ring-ok/10 h-12 text-base"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-primary/20 h-12 text-base"
                 />
               </div>
 
@@ -105,7 +105,7 @@ export default function NewStudent() {
               <button
                 type="submit"
                 disabled={loading || !name.trim()}
-                className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
+                className="h-12 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-85 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
               >
                 {loading ? t('creating') : t('createCta')}
               </button>

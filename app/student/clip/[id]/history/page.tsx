@@ -64,7 +64,7 @@ export default function ClipPracticeHistory() {
 
   if (loading) return (
     <main className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </main>
   )
 
@@ -137,7 +137,7 @@ export default function ClipPracticeHistory() {
               }
               className="inline-block mt-4"
             >
-              <button className="bg-ok text-on-ok text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
+              <button className="bg-primary text-primary-foreground text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
                 {clip?.clip_type === 'swing' ? t('recordPractice') : t('practice')}
               </button>
             </Link>

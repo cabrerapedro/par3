@@ -593,7 +593,7 @@ export default function ClipAnnotatePage() {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="h-12 rounded-xl bg-ok text-black font-semibold hover:bg-ok/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="h-12 rounded-xl bg-ok text-black font-semibold hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             {t('save')}
           </button>
@@ -604,7 +604,7 @@ export default function ClipAnnotatePage() {
       {saveStage !== 'idle' && (
         <div className="fixed inset-0 z-50 bg-background/85 backdrop-blur-sm flex items-center justify-center px-6">
           <div className="bg-card border border-border rounded-2xl px-8 py-7 max-w-sm w-full flex flex-col items-center gap-4 text-center">
-            <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             <p className="text-base font-medium text-foreground">
               {saveStage === 'upload'   && t('savingUpload')}
               {saveStage === 'insert'   && t('savingInsert')}

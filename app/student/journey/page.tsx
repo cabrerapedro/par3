@@ -146,7 +146,7 @@ export default function StudentJourney() {
 
         {fetching ? (
           <div className="flex justify-center py-20">
-            <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
         ) : clips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl text-center">
@@ -255,7 +255,7 @@ export default function StudentJourney() {
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   )
 }
