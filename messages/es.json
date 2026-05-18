@@ -157,7 +157,7 @@
   },
   "landing": {
     "tagline": "Practica con la guía de tu profesor",
-    "subtitle": "Tu profesor te enseña. parell.golf te ayuda a practicar bien entre clases.",
+    "subtitle": "Tu profesor te enseña. Parell te ayuda a practicar bien entre clases.",
     "instructorCardTitle": "Soy Instructor",
     "instructorCardDescription": "Graba, analiza y guía la práctica de tus alumnos",
     "studentCardTitle": "Soy Alumno",
@@ -403,7 +403,7 @@
   },
   "student": {
     "journey": {
-      "brandLink": "parell.golf",
+      "brandLink": "Parell",
       "greeting": "Hola, {name}",
       "title": "Mis Ejercicios",
       "subtitle": "Técnicas calibradas por tu instructor",

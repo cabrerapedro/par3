@@ -157,7 +157,7 @@
   },
   "landing": {
     "tagline": "Practice with your coach's guidance",
-    "subtitle": "Your coach teaches you. parell.golf helps you practice well between lessons.",
+    "subtitle": "Your coach teaches you. Parell helps you practice well between lessons.",
     "instructorCardTitle": "I'm a Coach",
     "instructorCardDescription": "Record, analyze, and guide your students' practice",
     "studentCardTitle": "I'm a Student",
@@ -403,7 +403,7 @@
   },
   "student": {
     "journey": {
-      "brandLink": "parell.golf",
+      "brandLink": "Parell",
       "greeting": "Hi, {name}",
       "title": "My Exercises",
       "subtitle": "Techniques calibrated by your coach",

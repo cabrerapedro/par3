@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // 1. Instant hydration from localStorage — no network.
     try {
-      const s = localStorage.getItem('sweep_student')
+      const s = localStorage.getItem('parell_student')
       if (s) {
         const parsed = JSON.parse(s) as Student
         setStudent(parsed)
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {}
     try {
-      const i = localStorage.getItem('sweep_instructor')
+      const i = localStorage.getItem('parell_instructor')
       if (i) setInstructor(JSON.parse(i))
     } catch {}
     setLoading(false)
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return
       if (event === 'SIGNED_OUT') {
         setInstructor(null)
-        localStorage.removeItem('sweep_instructor')
+        localStorage.removeItem('parell_instructor')
         return
       }
       if (session?.user && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function cacheInstructor(data: Instructor) {
     setInstructor(data)
-    localStorage.setItem('sweep_instructor', JSON.stringify(data))
+    localStorage.setItem('parell_instructor', JSON.stringify(data))
   }
 
   // After fetching the user from DB, if their preferred_locale doesn't match the
@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const row = Array.isArray(data) ? data[0] : data
     if (error || !row) return { error: 'wrongCode' }
 
-    localStorage.setItem('sweep_student', JSON.stringify(row))
+    localStorage.setItem('parell_student', JSON.stringify(row))
     setStudent(row)
     setStudentAccessCode(row.access_code ?? null)
     syncLocaleFromDb(row.preferred_locale)
@@ -244,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json()
       if (!res.ok || data.error) return { error: data.error || 'otpInvalid' }
       if (data.student) {
-        localStorage.setItem('sweep_student', JSON.stringify(data.student))
+        localStorage.setItem('parell_student', JSON.stringify(data.student))
         setStudent(data.student)
         setStudentAccessCode(data.student.access_code ?? null)
         syncLocaleFromDb(data.student.preferred_locale)
@@ -266,7 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: 'profileUpdate' }
     if (data) {
       const updated = { ...student, ...data }
-      localStorage.setItem('sweep_student', JSON.stringify(updated))
+      localStorage.setItem('parell_student', JSON.stringify(updated))
       setStudent(updated)
     }
     return {}
@@ -299,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .single()
         if (data) {
           const updated = { ...student, ...data }
-          localStorage.setItem('sweep_student', JSON.stringify(updated))
+          localStorage.setItem('parell_student', JSON.stringify(updated))
           setStudent(updated)
         }
       } catch {}
@@ -309,8 +309,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    localStorage.removeItem('sweep_student')
-    localStorage.removeItem('sweep_instructor')
+    localStorage.removeItem('parell_student')
+    localStorage.removeItem('parell_instructor')
     setStudentAccessCode(null)
     setInstructor(null)
     setStudent(null)

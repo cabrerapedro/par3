@@ -1,11 +1,11 @@
 {
-  "name": "parell.golf",
-  "short_name": "parell.golf",
-  "description": "Copiloto digital para instructores y alumnos de golf",
+  "name": "Parell",
+  "short_name": "Parell",
+  "description": "Cuaderno de práctica para instructores de golf y sus alumnos",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#060a08",
-  "theme_color": "#060a08",
+  "background_color": "#EFE9DC",
+  "theme_color": "#EFE9DC",
   "orientation": "any",
   "icons": [
     {
@@ -21,5 +21,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["sports", "health", "fitness"]
+  "categories": ["sports", "education"]
 }
