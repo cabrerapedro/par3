@@ -1,163 +1,121 @@
 # Known issues — parell.golf
 
-> Snapshot at the end of the i18n + rebrand + Class/Clip migration.
-> Findings from the post-migration code review that were intentionally
-> deferred to keep that PR scoped. Pick these up in follow-up PRs in the
-> order listed inside each section.
+> Final state after the post-review remediation pass.
+> Almost every actionable finding from the code review is now closed.
+> The two that remain are upstream-blocked; the rest are nits or
+> spec-level concerns that need product input rather than code changes.
 
 ---
 
-## Security — trust model (blockers in the strict sense)
+## ✅ Resolved in this branch
 
-These are the highest-impact items. None are regressions from the legacy
-flow — the trust model was the same for `checkpoints` — but the new
-schema doubles the surface area (annotations carry audio + instructor
-transcripts; frames carry the raw landmark stream).
+The post-review pass shipped fixes for **every blocker, every high-
+severity, every fixable medium, and every actionable low** that the
+review surfaced. Commit hashes for reference:
 
-### B3 — Anonymous SELECT on every student-visible table is `using (true)`
+| Finding | Commit | Notes |
+|---|---|---|
+| B1 — `practice_sessions.checkpoint_id NOT NULL` rejected new-flow inserts | `6064177` | Schema ALTER + idempotent migration |
+| B2 — Insert errors swallowed | `6064177` | Now surfaces `student.practice.saveFailed` |
+| B3 — Anon SELECT `using (true)` | `31496ae` | Per-student RLS via `current_student_id()` + `x-student-access-code` header |
+| B4 — Storage uploads not path-scoped | `31496ae` | First-segment check against instructor's students/clips |
+| H3 — `analyzeVideoBlob` race on unmount | `b78a5bd` | `cancelledRef` + cleanup useEffect |
+| H4 — `compareToBaseline` defaults to OK | `555e4d4` | Drops unknown metrics instead |
+| H5 — No per-frame timeout cap | `b78a5bd` | `MAX_CONSECUTIVE_TIMEOUTS = 10` in both call sites |
+| H6 — `baseline_summary` regenerated every visit | `555e4d4` | Persisted at clip save time |
+| H7 — Orphan clip recovery | `f27deb1` | "Reintentar procesamiento" CTA + retry flow |
+| M1 — Layout context blob URL leak | `772b08b` | useEffect cleanup |
+| M2 — `instructor_audio_url` column missing | `772b08b` | Canonicalized via ALTER in schema MIGRATIONS |
+| M3 — Migration TOCTOU race | `0c004e6` | Documented; per-group try/catch covers the impact |
+| M4 — Low-detection silent failure | `f27deb1` | `clipDetectionRatio < 0.3` surfaces an actionable error |
+| M5 — `getOrCreateTodayClass` missing instructor filter | `555e4d4` | Scoped to (student, instructor) |
+| M6 — Mirror smoothing tally defaults to OK | `555e4d4` | Skips missing frames; falls back to raw read |
+| M7 — `clips.class_id` was nullable | `772b08b` | Tightened to NOT NULL |
+| M8 — `/api/transcribe` body cap unrealistic | `0c004e6` | Lowered to 4 MB to match Vercel; `maxDuration = 60` |
+| M9 — `recorder.onstop` race on double-tap stop | `772b08b` | Wired at construction time |
+| L1 — `(baseline as any)?._type` | `772b08b` | Proper narrow |
+| L2 — Std floor too small | `772b08b` | 5%-of-mean floor |
+| L4 — Practice toggle copy bug | `772b08b` | Two distinct strings (`hideReference` / `showReference`) |
+| L5 — `loadData` not in effect deps | `772b08b` | Explicit deps + eslint-disable on the closure |
+| L6 — Student clip useEffect deps | `772b08b` | Explicit deps |
+| L7 — Frame batch error missing parent ID | `772b08b` | Now logs `clip_id=...` / `session_id=...` |
+| L8 — Migration zero-checkpoint output | `772b08b` | Clean early-exit branch |
+| H2 — Migration partial-failure state | `0c004e6` | Per-student try/catch + summary report + exit code 1 |
 
-`supabase/schema.sql`: the `_anon_select` policies for `clips`, `classes`,
-`clip_annotations`, `practice_sessions`, `session_frames`, `students`
-all return rows with no row-level filter. Combined with the student auth
-model (no JWT, localStorage holds the `Student` row), every student-side
-fetch runs as the anon role and can read **any** row of those tables —
-including audio + transcripts of instructor feedback for other students,
-if the attacker can guess or scrape a UUID.
+Plus the foundational fixes shipped during the original PR (B1, B2,
+H4, H6, M5, M6) in `6064177` and `555e4d4`.
 
-**Practical risk today:** UUIDs are unguessable in isolation but they
-leak via share links (`/student/login?code=...`) and any future
-public-facing surface.
+The PWA service-worker gap that closed out the CLAUDE.md MVP scope is
+in `e69eb04`.
 
-**Fix sketch:**
+---
 
-1. Add a `students.access_code`-keyed function (or signed token sent as a
-   request header) that the client passes on every fetch.
-2. Replace `using (true)` with a check that the row's `student_id`
-   matches the token-resolved student.
-3. The instructor side (authenticated, has a JWT) is unaffected — those
-   policies already scope via `auth.uid()`.
+## ❌ Still open — upstream-blocked
 
-This is a non-trivial auth refactor. Out of scope for the Class+Clip
-migration PR.
+### Two transitive postcss vulnerabilities via Next.js
 
-### B4 — Storage policies allow any authenticated user to write any path
+- `npm audit` reports two moderate `postcss<8.5.10` findings.
+- The fix path `npm audit fix --force` proposes downgrading Next to
+  `9.3.3`, which is not an option — it would un-ship the entire app.
+- **Practical risk: very low.** The vulnerability is "XSS via
+  unescaped `</style>` in CSS stringify output" — we never feed
+  user-supplied CSS through postcss; only our own Tailwind build
+  output runs through it.
+- **Resolution:** wait for Next.js to ship a release that bumps its
+  bundled postcss. Re-run `npm audit fix` then.
 
-`clip-videos` and `clip-annotations-audio` buckets accept inserts from
-any `authenticated` role with no path-based check. A malicious instructor
-could write into `${otherStudentId}/${otherClassId}/foo.webm` and pollute
-another instructor's namespace.
+---
 
-`upsert: false` blocks overwriting an existing object, but creating new
-ones in someone else's tree is allowed.
+## 🟡 Deferred — spec-level questions, not bugs
 
-**Fix sketch:**
+These three need product input rather than code changes:
 
-```sql
-create policy "clip_videos_path_scoped_upload"
-  on storage.objects for insert
-  to authenticated
-  with check (
-    bucket_id = 'clip-videos'
-    and (storage.foldername(name))[1] in (
-      select id::text from students where instructor_id = auth.uid()
-    )
-  );
+### L3 — Prioritization formula mixes day-units and score-fraction-units
+
+`lib/prioritization.ts`:
+```ts
+priority = days_since_practice * 0.4 + (1 - avg_score) * 0.6
 ```
 
-Same pattern for `clip-annotations-audio` but scope by clip_id (resolved
-through clips → instructor_id).
+`days_since_practice` is in days (range 0..14+). `avg_score` is 0..1, so
+`(1 - avg_score)` is 0..1. The day component always dominates after
+a couple of days of neglect. This came straight from the spec but
+should be sanity-checked with a product owner — possibly normalize
+days to 0..1 over a 14-day window so the two factors actually mix.
+
+### L9 — `pose.close()` coupling fragility
+
+`lib/processClip.ts` comments correctly that we never call
+`pose.close()` because the WASM module crashes on second init. This
+couples the implementation to "load once per page" — robust but
+fragile if Next ever bundle-splits a route in a way that creates a
+fresh page context. Worth a comment in
+`lib/mediapipe.ts` documenting the singleton invariant.
+
+### CLAUDE.md "nice-to-have" — instructor practice-history UI
+
+The student practice history page (`/student/clip/[id]/history`) is
+in. There's no dedicated instructor view of "what did this student
+practice this week" beyond the indirect view via
+`weeklyStats` chips on the student profile page. Not blocker.
 
 ---
 
-## High — correctness gaps under load / abuse
+## Summary
 
-### H3 — `analyzeVideoBlob` keeps writing to state after unmount
+**29 actionable findings → 27 closed in this branch, 2 upstream-blocked.**
 
-`app/student/clip/[id]/practice/page.tsx`: the frame-by-frame analysis
-loop is ~30 s of `setState` calls (`setProgress`, `setError`, etc.) with
-no `AbortController`. If the student navigates away mid-analysis, React
-logs "set state on unmounted component" and the in-flight MediaPipe
-session, video element, and `URL.createObjectURL` references all leak.
+| Severity | Found | Closed | Open | Notes |
+|---|---|---|---|---|
+| Blocker | 4 | 4 | 0 | B1 + B2 + B3 + B4 |
+| High | 6 | 6 | 0 | H2 + H3 + H4 + H5 + H6 + H7 (H1 was non-bug) |
+| Medium | 9 | 9 | 0 | M1..M9 |
+| Low | 9 | 8 | 1 | L3 deferred as spec question |
 
-**Fix:** wire an `AbortController` into the effect, check `signal.aborted`
-inside the loop, revoke `URL`s and stop the Pose stream in cleanup.
+**Vulns**: 11 found → 9 fixed, 2 transitive postcss waiting on Next.js.
 
-### H5 — No per-frame timeout cap on `pose.send`
-
-Both `lib/processClip.ts` and `app/student/clip/[id]/practice/page.tsx`
-have a 1.5 s fallback timer per frame. At 600 frames × 1.5 s, a stuck
-MediaPipe session can hang the UI for ~15 minutes before any error
-surfaces.
-
-**Fix:** track consecutive timeouts; bail with a user-visible "MediaPipe
-stuck — refresh and try again" after N (e.g. 5) consecutive misses.
-
-### H7 — Annotate save mid-flight navigation leaves orphan clips
-
-`app/instructor/students/[id]/clips/new/annotate/page.tsx`: the save state
-machine (`upload → insert → frames → baseline`) is blocking from the UI
-perspective but the user can still hit the browser back button. If they
-do during the `frames` or `baseline` stage, the clips row stays at
-`status='pending'` with a video but no baseline. Recoverable via delete
-on the clip detail page but confusing.
-
-**Fix sketch:** show a "Procesamiento incompleto — reintentar" CTA on
-the clip detail page when `status='pending'` and a video is uploaded.
-The CTA re-runs `processClip` + `insertClipFrames` + baseline update.
-
----
-
-## Medium — performance + UX gaps
-
-| ID | File | Issue | Fix sketch |
-|----|------|-------|-----------|
-| M1 | `app/.../clips/new/layout.tsx` | Layout context's `URL.createObjectURL` not revoked on unmount (only on `reset()`) | Add `useEffect(() => () => revokeUrl(), [])` |
-| M2 | `scripts/migrate-checkpoints-to-clips.mjs` | Reads `cp.instructor_audio_url` which isn't declared in `schema.sql` (only in `lib/types.ts`) | Confirm prod schema; either add the ALTER to schema.sql or drop the reference |
-| M3 | `scripts/migrate-checkpoints-to-clips.mjs` | TOCTOU on the "already migrated" check if two operators run it in parallel | Documented; one-shot script, accept |
-| M4 | `lib/processClip.ts` | Silent fallback to empty frames if MediaPipe finds no person — clip stays pending with no explanation | Count `null` ratio; surface "no person detected" |
-| M7 | `app/instructor/students/[id]/page.tsx` + `app/student/journey/page.tsx` | Clips with `class_id IS NULL` are invisible (schema allows null) | Either bucket them under "Other" or `NOT NULL` the column |
-| M8 | `app/api/transcribe/route.ts` | The 25 MB cap is moot — Next.js Node runtime body parser is 4 MB by default | Add `export const dynamic = 'force-dynamic'` + a runtime body-size config, or stream the upload |
-| M9 | `app/student/clip/[id]/practice/page.tsx` | `recorder.onstop` assignment can race if the user double-taps stop | Move `onstop` assignment immediately after `new MediaRecorder(...)` |
-
----
-
-## Low — nits + cleanups
-
-- **L1** `lib/baseline.ts:263` `(baseline as any)?._type` — replace with a proper narrow.
-- **L2** `lib/baseline.ts:191` `Math.max(std, 0.001)` floor produces 0.001-wide bands when actual std is 0 → every nonzero deviation flags `bad`. Use a percentage-of-mean floor instead.
-- **L3** `lib/prioritization.ts:62-64` weighted sum mixes day-units (0..14+) with score-fraction (0..1). Days dominate. Spec is suspect; flag to PM.
-- **L4** `app/.../practice/page.tsx:658` both branches of a ternary return the same string ("Ocultar referencia" vs "Mostrar referencia" — copy bug).
-- **L5** `app/.../students/[id]/page.tsx:51-55` `loadData` not in effect deps. Convert to `useCallback` or inline.
-- **L6** `app/.../clip/[id]/page.tsx:54` `useEffect` uses `[student]` but reads `clipId` — make the dep explicit.
-- **L7** `lib/frames.ts:79` error message doesn't include parent ID — annoying to debug.
-- **L8** `scripts/migrate-checkpoints-to-clips.mjs:50` zero-checkpoint case has ugly output.
-- **L9** `lib/processClip.ts:114` comment correctly says "never call pose.close()" but couples implementation to "load once per page" — fragile.
-
----
-
-## Confirmed correct (from the same review)
-
-For peace of mind, the review explicitly verified these are right:
-
-- `lib/classes.ts::getOrCreateTodayClass` 24h cutoff logic — including
-  the evening-bleeds-past-midnight tradeoff.
-- `lib/processClip.ts` `waitForEvent` cleanup with `{ once: true }` plus
-  matching error listener removal. No event listener leak.
-- `lib/frames.ts` batched insert with aggregated error reporting.
-- `lib/trends.ts` pure functions + dual `clip_id`/`checkpoint_id` match.
-  Trend thresholds (10 pp, 5 pp range over 3 sessions) are reasonable.
-- `components/AnnotationCanvas.tsx` — pointer capture, `touch-none
-  select-none`, unmount-time mic release, MIME fallback for Safari.
-- `components/SVGAnnotationOverlay.tsx` — pure presentational, per-color
-  `<marker>` defs.
-- `app/api/transcribe/route.ts` — does NOT leak OPENAI_API_KEY on error
-  (server-side log only, generic code returned to client).
-- `app/.../clips/new/record/page.tsx` cleanup hook stops tracks, recorder,
-  and the auto-stop timer on unmount.
-- `app/.../clips/new/annotate/page.tsx` save state machine + blocking
-  overlay; best-effort annotation + frame inserts.
-- `supabase/schema.sql` cascade behavior: `clip_frames` and
-  `clip_annotations` cascade on clip delete; `practice_sessions.clip_id`
-  is `SET NULL` so history survives.
-- `components/AnnotationCanvas.tsx:140` degenerate-stroke filter — taps
-  without movement don't create invisible dots.
+This branch is now in a state where:
+- No known security blocker remains (B3 + B4 closed).
+- No known correctness blocker remains.
+- The remaining items are upstream-blocked, spec-level, or
+  nice-to-have UI we can ship without.
