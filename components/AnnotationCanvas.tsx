@@ -21,6 +21,7 @@
 // change; only string literals.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 // ---------- Public shape ----------
 
@@ -79,6 +80,7 @@ function pickAudioMime(): string | undefined {
 }
 
 export function AnnotationCanvas({ width, height, onSave, onCancel }: AnnotationCanvasProps) {
+  const t = useTranslations('components.annotationCanvas')
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Drawing state ----------------------------------------------------------
@@ -244,13 +246,13 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
       <div className="flex items-center gap-3 flex-wrap rounded-2xl bg-card/95 backdrop-blur border border-border px-3 py-2.5">
         {/* Tool group */}
         <div className="flex items-center gap-1">
-          <ToolButton active={tool === 'arrow'} onClick={() => setTool('arrow')} label="Flecha">
+          <ToolButton active={tool === 'arrow'} onClick={() => setTool('arrow')} label={t('toolArrow')}>
             <ArrowIcon />
           </ToolButton>
-          <ToolButton active={tool === 'line'} onClick={() => setTool('line')} label="Línea">
+          <ToolButton active={tool === 'line'} onClick={() => setTool('line')} label={t('toolLine')}>
             <LineIcon />
           </ToolButton>
-          <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} label="Círculo">
+          <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} label={t('toolCircle')}>
             <CircleIcon />
           </ToolButton>
         </div>
@@ -264,7 +266,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
               key={c}
               type="button"
               onClick={() => setColor(c)}
-              aria-label={`Color ${c}`}
+              aria-label={t('colorLabel', { color: c })}
               className={`size-7 rounded-full border-2 transition-transform ${
                 color === c ? 'border-foreground scale-110' : 'border-transparent hover:scale-105'
               }`}
@@ -281,7 +283,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           disabled={strokes.length === 0}
           className="h-9 px-3 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
         >
-          Borrar último
+          {t('undo')}
         </button>
 
         <div className="flex-1" />
@@ -300,7 +302,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           aria-pressed={recording}
         >
           <MicIcon recording={recording} />
-          {recording ? 'Detener' : audioBlob ? 'Audio listo' : 'Grabar audio'}
+          {recording ? t('audioStop') : audioBlob ? t('audioReady') : t('audioStart')}
         </button>
 
         {audioBlob && !recording && (
@@ -325,7 +327,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
       <textarea
         value={textNote}
         onChange={(e) => setTextNote(e.target.value)}
-        placeholder="Nota opcional…"
+        placeholder={t('notePlaceholder')}
         rows={2}
         className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-ok/50 resize-y"
       />
@@ -337,7 +339,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           onClick={onCancel}
           className="h-11 px-5 rounded-xl text-foreground bg-secondary hover:bg-secondary/70 transition-colors font-medium"
         >
-          Cancelar
+          {t('cancel')}
         </button>
         <button
           type="button"
@@ -345,7 +347,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           disabled={!canSave}
           className="h-11 px-6 rounded-xl bg-ok text-black font-semibold hover:bg-ok/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
-          Guardar anotación
+          {t('save')}
         </button>
       </div>
     </div>

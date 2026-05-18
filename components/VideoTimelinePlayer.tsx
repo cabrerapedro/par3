@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import type { CalibrationMark } from '@/lib/types'
 
 interface VideoTimelinePlayerProps {
@@ -11,6 +12,7 @@ interface VideoTimelinePlayerProps {
 }
 
 export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }: VideoTimelinePlayerProps) {
+  const t = useTranslations('components.videoTimelinePlayer')
   const videoRef = useRef<HTMLVideoElement>(null)
   const hasBoth = !!(videoUrl && skeletonUrl)
   const [active, setActive] = useState<'video' | 'skeleton'>(skeletonUrl ? 'skeleton' : 'video')
@@ -117,7 +119,7 @@ export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }:
             : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
         }`}
       >
-        Video + Ejes
+        {t('sourceVideoAxes')}
       </button>
       <button
         onClick={() => setActive('video')}
@@ -127,7 +129,7 @@ export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }:
             : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
         }`}
       >
-        Video
+        {t('sourceVideo')}
       </button>
     </div>
   ) : null
@@ -221,7 +223,7 @@ export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }:
                   onClick={(e) => { e.stopPropagation(); seekTo(mark.relative_ms! / 1000) }}
                   className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-ok border-2 border-card z-10 hover:scale-150 transition-transform"
                   style={{ left: `${pct}%` }}
-                  title={`Marca ${i + 1}`}
+                  title={t('markTooltip', { index: i + 1 })}
                 />
               )
             })}
@@ -236,7 +238,7 @@ export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }:
           {/* Mirror toggle */}
           <button
             onClick={() => setMirrored(!mirrored)}
-            title={mirrored ? 'Video normal' : 'Espejo'}
+            title={mirrored ? t('mirrorOn') : t('mirrorOff')}
             className={`shrink-0 p-1 rounded transition-colors ${mirrored ? 'text-ok' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -249,7 +251,7 @@ export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }:
           {/* Fullscreen */}
           <button
             onClick={toggleFullscreen}
-            title="Pantalla completa"
+            title={t('fullscreen')}
             className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -264,7 +266,7 @@ export function VideoTimelinePlayer({ videoUrl, skeletonUrl, marks, className }:
         {/* Mark index — clickable buttons to jump to each mark */}
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
           <span className="text-[10px] text-muted-foreground/60 mr-0.5">
-            {timelineMarks.length} marca{timelineMarks.length !== 1 ? 's' : ''}:
+            {t('marksCount', { count: timelineMarks.length })}
           </span>
           {timelineMarks.map((mark, i) => (
             <button

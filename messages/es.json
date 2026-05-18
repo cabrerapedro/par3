@@ -23,6 +23,76 @@
     "es": "Español",
     "en": "English"
   },
+  "components": {
+    "statusPill": {
+      "ok": "Postura correcta",
+      "warn": "Ajustar postura",
+      "bad": "Corregir postura",
+      "off": "Detectando..."
+    },
+    "checkPanel": {
+      "title": "Análisis de postura",
+      "badgeOk": "OK",
+      "badgeWarn": "Ajustar",
+      "badgeBad": "Corregir",
+      "badgeOff": "—",
+      "tipTitle": "Consejo principal"
+    },
+    "markGallery": {
+      "sourceVideoAxes": "Video + Ejes",
+      "sourceVideo": "Video",
+      "tapVerClip": "Toca",
+      "verClipLink": "Ver clip",
+      "tapVerClipDesc": "en una marca",
+      "playerMirrorOn": "Video normal",
+      "playerMirrorOff": "Espejo",
+      "playerFullscreen": "Pantalla completa",
+      "onlyOneMarkWarning": "Solo 1 marca. Se recomiendan 3–5 para una referencia confiable.",
+      "viewClip": "Ver clip",
+      "deletePrompt": "Eliminar esta marca?",
+      "deleteCancel": "Cancelar",
+      "deleteConfirm": "Eliminar",
+      "notePlaceholder": "Nota para el alumno...",
+      "dictateStart": "Dictar nota",
+      "dictateStop": "Detener dictado",
+      "studentEmptyNote": "Posición de referencia",
+      "viewFullRecording": "Ver grabación completa"
+    },
+    "videoTimelinePlayer": {
+      "sourceVideoAxes": "Video + Ejes",
+      "sourceVideo": "Video",
+      "mirrorOn": "Video normal",
+      "mirrorOff": "Espejo",
+      "fullscreen": "Pantalla completa",
+      "markTooltip": "Marca {index}",
+      "marksCount": "{count, plural, one {# marca} other {# marcas}}:"
+    },
+    "videoTogglePlayer": {
+      "sourceVideoAxes": "Video + Ejes",
+      "sourceVideo": "Video"
+    },
+    "progressChart": {
+      "sessionsCount": "{count, plural, one {# sesión} other {# sesiones}}",
+      "trendTotal": "{trend}% total"
+    },
+    "themeToggle": {
+      "switchToLight": "Modo claro",
+      "switchToDark": "Modo oscuro"
+    },
+    "annotationCanvas": {
+      "toolArrow": "Flecha",
+      "toolLine": "Línea",
+      "toolCircle": "Círculo",
+      "colorLabel": "Color {color}",
+      "undo": "Borrar último",
+      "audioStop": "Detener",
+      "audioReady": "Audio listo",
+      "audioStart": "Grabar audio",
+      "notePlaceholder": "Nota opcional…",
+      "cancel": "Cancelar",
+      "save": "Guardar anotación"
+    }
+  },
   "userMenu": {
     "instructorRole": "Instructor",
     "studentRole": "Alumno",

@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 interface DataPoint {
   date: string
   score: number
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export function ProgressChart({ data, height = 160 }: Props) {
+  const t = useTranslations('components.progressChart')
   if (!data.length) return null
 
   const W = 400
@@ -135,9 +138,9 @@ export function ProgressChart({ data, height = 160 }: Props) {
           <span className={`text-xs font-semibold ${
             trend > 5 ? 'text-ok' : trend < -5 ? 'text-bad' : 'text-muted'
           }`}>
-            {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {trend > 0 ? '+' : ''}{trend}% total
+            {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {t('trendTotal', { trend: `${trend > 0 ? '+' : ''}${trend}` })}
           </span>
-          <span className="text-muted-foreground text-xs">({data.length} sesiones)</span>
+          <span className="text-muted-foreground text-xs">({t('sessionsCount', { count: data.length })})</span>
         </div>
       )}
     </div>

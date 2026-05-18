@@ -23,6 +23,76 @@
     "es": "Español",
     "en": "English"
   },
+  "components": {
+    "statusPill": {
+      "ok": "Posture correct",
+      "warn": "Adjust posture",
+      "bad": "Fix posture",
+      "off": "Detecting..."
+    },
+    "checkPanel": {
+      "title": "Posture analysis",
+      "badgeOk": "OK",
+      "badgeWarn": "Adjust",
+      "badgeBad": "Fix",
+      "badgeOff": "—",
+      "tipTitle": "Main tip"
+    },
+    "markGallery": {
+      "sourceVideoAxes": "Video + Skeleton",
+      "sourceVideo": "Video",
+      "tapVerClip": "Tap",
+      "verClipLink": "View clip",
+      "tapVerClipDesc": "on a mark",
+      "playerMirrorOn": "Normal video",
+      "playerMirrorOff": "Mirror",
+      "playerFullscreen": "Fullscreen",
+      "onlyOneMarkWarning": "Only 1 mark. 3–5 marks recommended for a reliable reference.",
+      "viewClip": "View clip",
+      "deletePrompt": "Delete this mark?",
+      "deleteCancel": "Cancel",
+      "deleteConfirm": "Delete",
+      "notePlaceholder": "Note for the student...",
+      "dictateStart": "Dictate note",
+      "dictateStop": "Stop dictation",
+      "studentEmptyNote": "Reference position",
+      "viewFullRecording": "View full recording"
+    },
+    "videoTimelinePlayer": {
+      "sourceVideoAxes": "Video + Skeleton",
+      "sourceVideo": "Video",
+      "mirrorOn": "Normal video",
+      "mirrorOff": "Mirror",
+      "fullscreen": "Fullscreen",
+      "markTooltip": "Mark {index}",
+      "marksCount": "{count, plural, one {# mark} other {# marks}}:"
+    },
+    "videoTogglePlayer": {
+      "sourceVideoAxes": "Video + Skeleton",
+      "sourceVideo": "Video"
+    },
+    "progressChart": {
+      "sessionsCount": "{count, plural, one {# session} other {# sessions}}",
+      "trendTotal": "{trend}% total"
+    },
+    "themeToggle": {
+      "switchToLight": "Light mode",
+      "switchToDark": "Dark mode"
+    },
+    "annotationCanvas": {
+      "toolArrow": "Arrow",
+      "toolLine": "Line",
+      "toolCircle": "Circle",
+      "colorLabel": "Color {color}",
+      "undo": "Undo last",
+      "audioStop": "Stop",
+      "audioReady": "Audio ready",
+      "audioStart": "Record audio",
+      "notePlaceholder": "Optional note…",
+      "cancel": "Cancel",
+      "save": "Save annotation"
+    }
+  },
   "userMenu": {
     "instructorRole": "Instructor",
     "studentRole": "Student",
