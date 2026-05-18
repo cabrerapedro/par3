@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase'
 import { calculateMetrics, compareToBaseline, baselineOverallStatus, METRICS_BY_ANGLE } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
-import type { Checkpoint, Baseline } from '@/lib/types'
+import type { Clip } from '@/lib/classes'
+import type { Baseline } from '@/lib/types'
 import type { BaselineCheck } from '@/lib/baseline'
 import Link from 'next/link'
 
@@ -35,11 +36,11 @@ function buildActionHints(t: (key: string) => string): Record<string, { high: st
   }
 }
 
-export default function StudentMirror() {
+export default function StudentClipMirror() {
   const { student } = useAuth()
   const router = useRouter()
   const params = useParams()
-  const cpId = params.id as string
+  const clipId = params.id as string
   const t = useTranslations('student.mirror')
   const ACTION_HINTS = buildActionHints(t)
 
@@ -47,13 +48,13 @@ export default function StudentMirror() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const poseRef = useRef<any>(null)
   const cameraRef = useRef<any>(null)
-  const checkpointRef = useRef<Checkpoint | null>(null)
+  const clipRef = useRef<Clip | null>(null)
   // Smoothing buffer for baseline checks
   const smoothRef = useRef<Array<Array<{ id: string; status: string; direction: string }>>>([])
   const filterStateRef = useRef(createOneEuroState())
   const frameTimeRef = useRef(0)
 
-  const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
+  const [clip, setClip] = useState<Clip | null>(null)
   const [checks, setChecks] = useState<BaselineCheck[]>([])
   const [detectedCount, setDetectedCount] = useState(0)
   const [expectedCount, setExpectedCount] = useState(0)
@@ -74,11 +75,16 @@ export default function StudentMirror() {
   }, [])
 
   async function init() {
-    const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
-    if (!data?.baseline || Object.keys(data.baseline).length === 0) { setError(t('errorNoBaseline')); return }
-    if (data.checkpoint_type === 'swing') { setError(t('errorSwingOnly')); return }
-    setCheckpoint(data)
-    checkpointRef.current = data
+    const { data } = await supabase.from('clips').select('*').eq('id', clipId).single()
+    if (!data) { setError(t('errorNoBaseline')); return }
+    // Swing clips have no real-time mirror — redirect to practice flow
+    if (data.clip_type === 'swing') {
+      router.replace(`/student/clip/${clipId}/practice`)
+      return
+    }
+    if (!data.baseline || Object.keys(data.baseline).length === 0) { setError(t('errorNoBaseline')); return }
+    setClip(data as Clip)
+    clipRef.current = data as Clip
     await startCamera('environment')
     setReady(true)
   }
@@ -128,8 +134,8 @@ export default function StudentMirror() {
   const onResults = useCallback((results: any) => {
     const canvas = canvasRef.current
     const video = videoRef.current
-    const cp = checkpointRef.current
-    if (!canvas || !video || !cp?.baseline) return
+    const c = clipRef.current
+    if (!canvas || !video || !c?.baseline) return
 
     canvas.width = video.videoWidth || 1280
     canvas.height = video.videoHeight || 720
@@ -141,13 +147,13 @@ export default function StudentMirror() {
     if (!lm) { setPoseDetected(false); return }
 
     setPoseDetected(true)
-    const metrics = calculateMetrics(lm, cp.camera_angle)
-    const expected = cp.selected_metrics?.length
-      ? cp.selected_metrics
-      : METRICS_BY_ANGLE[cp.camera_angle] ?? []
+    const metrics = calculateMetrics(lm, c.camera_angle)
+    const expected = c.selected_metrics?.length
+      ? c.selected_metrics
+      : METRICS_BY_ANGLE[c.camera_angle] ?? []
     setExpectedCount(expected.length)
     setDetectedCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
-    const rawChecks = compareToBaseline(metrics, cp.baseline as Baseline, cp.selected_metrics)
+    const rawChecks = compareToBaseline(metrics, c.baseline as Baseline, c.selected_metrics)
 
     // 6-frame majority vote smoothing
     smoothRef.current.push(rawChecks.map(c => ({ id: c.id, status: c.status, direction: c.direction })))
@@ -156,12 +162,19 @@ export default function StudentMirror() {
     const smoothed = rawChecks.map((check, i) => {
       const votes: Record<string, number> = {}
       const dirVotes: Record<string, number> = {}
+      // Skip frames where this metric isn't present (landmark dipped, baseline
+      // missing the key, etc.). Defaulting to 'ok' would silently bias the
+      // vote toward a happy result and violate CLAUDE.md's "no wrong feedback"
+      // principle.
       for (const frame of smoothRef.current) {
-        const s = frame[i]?.status ?? 'ok'
-        const d = frame[i]?.direction ?? 'center'
-        votes[s] = (votes[s] ?? 0) + 1
-        dirVotes[d] = (dirVotes[d] ?? 0) + 1
+        const entry = frame[i]
+        if (!entry) continue
+        votes[entry.status] = (votes[entry.status] ?? 0) + 1
+        dirVotes[entry.direction] = (dirVotes[entry.direction] ?? 0) + 1
       }
+      // No usable history yet — show this frame's raw read instead of inventing
+      // a status.
+      if (Object.keys(votes).length === 0) return check
       const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0][0] as 'ok' | 'warn' | 'bad'
       const bestDir = Object.entries(dirVotes).sort((a, b) => b[1] - a[1])[0][0] as 'high' | 'low' | 'center'
       return { ...check, status: best, direction: bestDir }
@@ -189,7 +202,7 @@ export default function StudentMirror() {
   if (error) return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
       <p className="text-muted-foreground">{error}</p>
-      <Link href={`/student/checkpoint/${cpId}`} className="text-ok hover:underline text-sm">{t('backToCheckpoint')}</Link>
+      <Link href={`/student/clip/${clipId}`} className="text-ok hover:underline text-sm">{t('backToCheckpoint')}</Link>
     </main>
   )
 
@@ -204,7 +217,7 @@ export default function StudentMirror() {
         </div>
         <p className="text-foreground font-semibold">{t('phoneRestrictionTitle')}</p>
         <p className="text-muted-foreground text-sm max-w-xs">{t('phoneRestrictionDesc')}</p>
-        <Link href={`/student/checkpoint/${cpId}`} className="text-ok hover:underline text-sm mt-2">{t('backToCheckpointFull')}</Link>
+        <Link href={`/student/clip/${clipId}`} className="text-ok hover:underline text-sm mt-2">{t('backToCheckpointFull')}</Link>
       </div>
 
       {/* Video area — hidden on phone */}
@@ -215,11 +228,11 @@ export default function StudentMirror() {
         {/* Top bar — hidden in kiosk */}
         {!kiosk && (
           <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-            <Link href={`/student/checkpoint/${cpId}`} className="bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-3 text-muted-foreground text-sm hover:text-foreground transition-colors">
+            <Link href={`/student/clip/${clipId}`} className="bg-background/70 backdrop-blur border border-border rounded-xl px-3 py-3 text-muted-foreground text-sm hover:text-foreground transition-colors">
               ←
             </Link>
             <span className="bg-background/70 backdrop-blur border border-border rounded-xl px-4 py-2.5 text-foreground text-sm md:text-base font-medium">
-              {checkpoint?.name}
+              {clip?.name}
             </span>
             {hasMultipleCameras && (
               <button
@@ -254,7 +267,7 @@ export default function StudentMirror() {
           </svg>
         </button>
 
-        {/* Visibility warning — top center, where checkpoint name used to be */}
+        {/* Visibility warning — top center, where clip name used to be */}
         {poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-2xl px-5 py-2.5 text-center">
             <p className="text-black text-sm md:text-base font-medium">{t('showBodyTitle')}</p>

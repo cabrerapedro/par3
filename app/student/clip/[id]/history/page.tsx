@@ -7,22 +7,22 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { ProgressChart } from '@/components/ProgressChart'
 import { getMetricLabel, getPhaseLabel } from '@/lib/baseline'
-import type { SwingPhaseName } from '@/lib/types'
-import type { Checkpoint, PracticeSession } from '@/lib/types'
+import type { SwingPhaseName, PracticeSession } from '@/lib/types'
+import type { Clip } from '@/lib/classes'
 import Link from 'next/link'
 
-export default function PracticeHistory() {
+export default function ClipPracticeHistory() {
   const { student } = useAuth()
   const router = useRouter()
   const params = useParams()
-  const cpId = params.id as string
-  const t = useTranslations('student.history')
+  const clipId = params.id as string
+  const t = useTranslations('student.clipHistory')
   const tMetrics = useTranslations('metrics.labels')
   const tPhases = useTranslations('metrics.phases')
   const locale = useLocale()
   const dateLocale = locale === 'en' ? 'en-US' : 'es-MX'
 
-  const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
+  const [clip, setClip] = useState<Pick<Clip, 'name' | 'camera_angle' | 'selected_metrics' | 'clip_type'> | null>(null)
   const [sessions, setSessions] = useState<PracticeSession[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -32,15 +32,15 @@ export default function PracticeHistory() {
   }, [student])
 
   async function loadData() {
-    const [{ data: cp }, { data: ss }] = await Promise.all([
-      supabase.from('checkpoints').select('name, camera_angle, selected_metrics').eq('id', cpId).single(),
+    const [{ data: c }, { data: ss }] = await Promise.all([
+      supabase.from('clips').select('name, camera_angle, selected_metrics, clip_type').eq('id', clipId).single(),
       supabase.from('practice_sessions')
         .select('*')
-        .eq('checkpoint_id', cpId)
+        .eq('clip_id', clipId)
         .eq('student_id', student!.id)
         .order('date', { ascending: true }),
     ])
-    if (cp) setCheckpoint(cp as any)
+    if (c) setClip(c as any)
     setSessions(ss ?? [])
     setLoading(false)
   }
@@ -72,8 +72,8 @@ export default function PracticeHistory() {
     <main className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b border-border">
         <div className="max-w-4xl mx-auto px-5 py-4">
-          <Link href={`/student/checkpoint/${cpId}`} className="text-muted-foreground text-sm hover:text-muted-foreground">
-            {t('backToCheckpoint', { name: checkpoint?.name ?? '' })}
+          <Link href={`/student/clip/${clipId}`} className="text-muted-foreground text-sm hover:text-muted-foreground">
+            {t('backToCheckpoint', { name: clip?.name ?? '' })}
           </Link>
         </div>
       </header>
@@ -131,14 +131,14 @@ export default function PracticeHistory() {
             <p className="text-muted-foreground mb-1">{t('emptyTitle')}</p>
             <p className="text-sm">{t('emptyDesc')}</p>
             <Link
-              href={checkpoint?.checkpoint_type === 'swing'
-                ? `/student/checkpoint/${cpId}/practice`
-                : `/student/checkpoint/${cpId}/mirror`
+              href={clip?.clip_type === 'swing'
+                ? `/student/clip/${clipId}/practice`
+                : `/student/clip/${clipId}/mirror`
               }
               className="inline-block mt-4"
             >
               <button className="bg-ok text-on-ok text-sm font-semibold rounded-xl px-4 py-2.5 hover:opacity-90 transition-all">
-                {checkpoint?.checkpoint_type === 'swing' ? t('recordPractice') : t('practice')}
+                {clip?.clip_type === 'swing' ? t('recordPractice') : t('practice')}
               </button>
             </Link>
           </div>
@@ -149,11 +149,10 @@ export default function PracticeHistory() {
               {[...sessions].reverse().map((session, i) => {
                 const metricEntries = Object.entries(session.results ?? {})
                   .filter(([key]) => {
-                    if (!checkpoint?.selected_metrics?.length) return true
+                    if (!clip?.selected_metrics?.length) return true
                     const baseKey = key.includes('__') ? key.split('__')[1] : key
-                    return checkpoint.selected_metrics.includes(baseKey)
+                    return clip.selected_metrics.includes(baseKey)
                   })
-                const okCount = metricEntries.filter(([, v]) => (v as any).status === 'ok').length
                 const isLatest = i === 0
                 const prevSession = i < sessions.length - 1 ? [...sessions].reverse()[i + 1] : null
                 const delta = prevSession ? session.overall_score - prevSession.overall_score : null

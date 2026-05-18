@@ -1,5 +1,13 @@
 import type { Landmark, Baseline, CalibrationMark, CameraAngle, SwingPhaseName, SwingPhase, SwingBaseline } from './types'
 
+// Local shape — matches lib/processClip's ProcessedFrame but defined here to
+// avoid the cycle (processClip imports calculateMetrics from this file).
+interface FrameLike {
+  timestamp_ms: number
+  landmarks: Landmark[]
+  metrics: Record<string, number>
+}
+
 type LM = Landmark
 
 function angleBetween(a: LM, b: LM, c: LM): number {
@@ -160,7 +168,14 @@ export function calculateBaseline(marks: CalibrationMark[], selectedMetrics?: st
     const min = Math.min(...values)
     const max = Math.max(...values)
 
-    baseline[key] = { mean, std: Math.max(std, 0.001), min, max }
+    // Floor std at 5% of |mean| (with a hard 0.001 floor for the degenerate
+    // mean=0 case). The old 0.001 absolute floor produced 0.001-wide bands
+    // when std was actually 0, flagging every nonzero deviation as 'bad'.
+    // 5% of mean keeps the bands meaningful at any metric scale (degrees,
+    // normalized lengths, etc.) without inventing variance the student didn't
+    // demonstrate.
+    const stdFloor = Math.max(Math.abs(mean) * 0.05, 0.001)
+    baseline[key] = { mean, std: Math.max(std, stdFloor), min, max }
   }
 
   return baseline
@@ -183,20 +198,25 @@ export function compareToBaseline(
     ? Object.entries(metrics).filter(([key]) => selectedMetrics.includes(key))
     : Object.entries(metrics)
 
-  return entries.map(([key, value]) => {
+  // Drop metrics with no baseline entry instead of defaulting them to 'ok'.
+  // CLAUDE.md "Key Decisions" #2: better no feedback than wrong feedback —
+  // a missing baseline entry happens when the wrong baseline type is loaded
+  // (e.g. a swing baseline in a position context) and silently green-flagging
+  // those would actively mislead the student.
+  return entries.flatMap(([key, value]) => {
     const b = baseline[key]
-    if (!b) return { id: key, label: METRIC_LABELS[key] || key, status: 'ok' as const, direction: 'center' as const }
+    if (!b) return []
 
     const deviation = Math.abs(value - b.mean)
     const status: 'ok' | 'warn' | 'bad' = deviation <= b.std ? 'ok' : deviation <= 2 * b.std ? 'warn' : 'bad'
     const direction: 'high' | 'low' | 'center' = status === 'ok' ? 'center' : value > b.mean ? 'high' : 'low'
 
-    return {
+    return [{
       id: key,
       label: METRIC_LABELS[key] || key,
       status,
       direction,
-    }
+    }]
   })
 }
 
@@ -260,7 +280,7 @@ export const PHASE_LABELS: Record<SwingPhaseName, string> = {
 }
 
 export function isSwingBaseline(baseline: unknown): baseline is SwingBaseline {
-  return (baseline as any)?._type === 'swing'
+  return (baseline as { _type?: string } | null | undefined)?._type === 'swing'
 }
 
 /**
@@ -396,4 +416,57 @@ export function generateSwingSummary(phaseChecks: SwingPhaseCheck[], t: Translat
   }
 
   return parts.join(' ')
+}
+
+/**
+ * Build the per-clip baseline from a MediaPipe frame stream.
+ * Shared between the annotate save flow and the orphan-clip retry path.
+ *
+ * Position clips: average every frame (the student is meant to be static).
+ * Swing clips: detect phases (address → top → impact → finish), then build
+ * a phase-wise baseline. If phase detection fails (frames too short, no
+ * clear swing trajectory), returns null so the caller can leave the clip
+ * in 'pending' rather than persisting bogus data.
+ */
+export function buildClipBaseline(
+  frames: FrameLike[],
+  clipType: 'position' | 'swing',
+  cameraAngle: CameraAngle,
+  selectedMetrics: string[],
+): Baseline | SwingBaseline | null {
+  if (frames.length === 0) return null
+
+  const marks: CalibrationMark[] = frames.map((f) => ({
+    timestamp_ms: f.timestamp_ms,
+    landmarks: f.landmarks,
+    metrics: f.metrics,
+  }))
+
+  if (clipType === 'position') {
+    return calculateBaseline(marks, selectedMetrics)
+  }
+
+  const phases = detectSwingPhases(frames.map((f) => f.landmarks), cameraAngle)
+  if (!phases) return null
+
+  const swingMarks: CalibrationMark[] = [
+    { timestamp_ms: 0, landmarks: marks[0].landmarks, metrics: marks[0].metrics, phases },
+  ]
+  return calculateSwingBaseline(swingMarks, selectedMetrics)
+}
+
+/**
+ * Heuristic for surfacing "no person detected" / "muy pocas detecciones" to
+ * the instructor. Returns the detection ratio (frames with valid landmarks
+ * divided by expected frames at the given fps + duration). A ratio < 0.3
+ * means MediaPipe lost track for most of the clip — the instructor should
+ * re-record rather than trust whatever baseline gets built from the scraps.
+ */
+export function clipDetectionRatio(
+  frameCount: number,
+  durationSeconds: number,
+  fps = 10,
+): number {
+  const expected = Math.max(1, Math.floor(durationSeconds * fps))
+  return Math.min(1, frameCount / expected)
 }

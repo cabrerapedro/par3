@@ -59,7 +59,11 @@ export async function getOrCreateTodayClass(
   const { data: recent, error: queryError } = await supabase
     .from('classes')
     .select('*')
+    // Scope to the same (student, instructor) pair so a student switching
+    // instructors mid-day starts a fresh class with the new one instead of
+    // landing under the previous instructor's row.
     .eq('student_id', studentId)
+    .eq('instructor_id', instructorId)
     .gte('created_at', cutoff)
     .order('created_at', { ascending: false })
     .limit(1)

@@ -6,12 +6,14 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
-  calculateMetrics, compareToBaseline, baselineOverallStatus,
+  calculateMetrics, compareToBaseline,
   generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
   detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
-import type { Checkpoint, Baseline, Landmark, SwingBaseline } from '@/lib/types'
+import { insertSessionFrames, type FrameRow } from '@/lib/frames'
+import type { Clip } from '@/lib/classes'
+import type { Baseline, Landmark, SwingBaseline } from '@/lib/types'
 import type { BaselineCheck, SwingPhaseCheck } from '@/lib/baseline'
 import Link from 'next/link'
 
@@ -21,12 +23,13 @@ interface FrameResult {
   checks: BaselineCheck[]
 }
 
-export default function StudentPractice() {
+export default function StudentClipPractice() {
   const { student } = useAuth()
   const router = useRouter()
   const params = useParams()
-  const cpId = params.id as string
+  const clipId = params.id as string
   const t = useTranslations('student.practice')
+  const tClip = useTranslations('student.clip')
   const tBaselineSummary = useTranslations('baselineSummary')
   const tSwingSummary = useTranslations('swingSummary')
 
@@ -39,7 +42,7 @@ export default function StudentPractice() {
   const mimeTypeRef = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
+  const [clip, setClip] = useState<Clip | null>(null)
   const [stage, setStage] = useState<Stage>('input')
   const [cameraReady, setCameraReady] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -52,10 +55,15 @@ export default function StudentPractice() {
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [recordingVisibleCount, setRecordingVisibleCount] = useState(-1)
   const [swingPhaseChecks, setSwingPhaseChecks] = useState<SwingPhaseCheck[]>([])
+  const [sideBySide, setSideBySide] = useState(true)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Signals analyzeVideoBlob to bail mid-flight when the component unmounts.
+  // Avoids "set state on unmounted component" warnings + leaked MediaPipe
+  // resources after a long-running analyze (the loop is ~30 s for a 60 s clip).
+  const cancelledRef = useRef(false)
   const recordingSecondsRef = useRef(0)
   const poseCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const checkpointRef = useRef<Checkpoint | null>(null)
+  const clipRef = useRef<Clip | null>(null)
 
   // Callback ref: auto-attach pending stream when the video element mounts
   const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
@@ -70,18 +78,23 @@ export default function StudentPractice() {
 
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
-    loadCheckpoint()
+    loadClip()
     navigator.mediaDevices?.enumerateDevices().then(devices => {
       setHasMultipleCameras(devices.filter(d => d.kind === 'videoinput').length > 1)
     }).catch(() => {})
-    return () => cleanupRecording()
+    return () => {
+      cancelledRef.current = true
+      cleanupRecording()
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function loadCheckpoint() {
-    const { data } = await supabase.from('checkpoints').select('*').eq('id', cpId).single()
+  async function loadClip() {
+    const { data } = await supabase.from('clips').select('*').eq('id', clipId).single()
     if (!data?.baseline) { setError(t('noBaseline')); return }
-    setCheckpoint(data)
-    checkpointRef.current = data
+    setClip(data as Clip)
+    clipRef.current = data as Clip
   }
 
   async function startRecording(facing: 'user' | 'environment' = 'environment') {
@@ -121,6 +134,10 @@ export default function StudentPractice() {
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       mimeTypeRef.current = recorder.mimeType || mimeType || 'video/webm'
       recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      // Wire onstop up-front so a fast stop() can't fire before the handler
+      // is assigned. We don't know yet whether the user will stop normally or
+      // via cleanup; processVideo guards against an empty chunks array.
+      recorder.onstop = () => processVideo()
       recorder.start(100)
       recorderRef.current = recorder
 
@@ -168,17 +185,17 @@ export default function StudentPractice() {
 
   async function startVisibilityCheck() {
     stopVisibilityCheck()
-    const cp = checkpointRef.current
-    if (!cp) return
+    const c = clipRef.current
+    if (!c) return
     try {
       await loadMediaPipe()
       const pose = await createPose(() => {})
       pose.onResults((results: any) => {
         if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
-        const metrics = calculateMetrics(results.poseLandmarks, cp.camera_angle)
-        const expected = cp.selected_metrics?.length
-          ? cp.selected_metrics
-          : METRICS_BY_ANGLE[cp.camera_angle] ?? []
+        const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle)
+        const expected = c.selected_metrics?.length
+          ? c.selected_metrics
+          : METRICS_BY_ANGLE[c.camera_angle] ?? []
         setRecordingVisibleCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
       })
       poseCheckIntervalRef.current = setInterval(async () => {
@@ -204,7 +221,8 @@ export default function StudentPractice() {
     streamRef.current?.getTracks().forEach(t => t.stop())
 
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-      recorderRef.current.onstop = () => processVideo()
+      // onstop was wired at recorder-creation time (M9 fix). Just stop;
+      // the handler will run processVideo() with the captured chunks.
       recorderRef.current.stop()
     } else {
       processVideo()
@@ -257,12 +275,12 @@ export default function StudentPractice() {
   }
 
   async function analyzeVideoBlob(blob: Blob) {
-    if (!checkpoint?.baseline) { setError(t('noPersonalBaseline')); return }
+    if (!clip?.baseline) { setError(t('noPersonalBaseline')); return }
     setStage('processing')
     setProgress(0)
     setSwingPhaseChecks([])
 
-    const isSwingMode = checkpoint.checkpoint_type === 'swing' || isSwingBaseline(checkpoint.baseline)
+    const isSwingMode = clip.clip_type === 'swing' || isSwingBaseline(clip.baseline)
 
     const url = URL.createObjectURL(blob)
     const video = document.createElement('video')
@@ -284,6 +302,8 @@ export default function StudentPractice() {
 
     const results: FrameResult[] = []
     const allLandmarks: Landmark[][] = []
+    // Frame rows captured for session_frames batch insert (ML training corpus)
+    const frameRows: FrameRow[] = []
     const canvas = canvasRef.current || document.createElement('canvas')
     canvas.width = video.videoWidth || 1280
     canvas.height = video.videoHeight || 720
@@ -291,24 +311,39 @@ export default function StudentPractice() {
 
     let resolveFrame: (() => void) | null = null
     let frameChecks: BaselineCheck[] = []
+    let frameLandmarks: Landmark[] | null = null
+    let frameMetrics: Record<string, number> | undefined = undefined
     pose.onResults((r: any) => {
       frameChecks = []
+      frameLandmarks = null
+      frameMetrics = undefined
       if (r.poseLandmarks) {
+        const lms: Landmark[] = r.poseLandmarks.map((lm: any) => ({
+          x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
+        }))
+        frameLandmarks = lms
         if (isSwingMode) {
-          // Collect landmarks for phase detection
-          allLandmarks.push(r.poseLandmarks.map((lm: any) => ({
-            x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
-          })))
+          allLandmarks.push(lms)
         } else {
-          const metrics = calculateMetrics(r.poseLandmarks, checkpoint.camera_angle)
-          frameChecks = compareToBaseline(metrics, checkpoint.baseline as Baseline, checkpoint.selected_metrics)
+          const metrics = calculateMetrics(r.poseLandmarks, clip.camera_angle)
+          frameMetrics = metrics
+          frameChecks = compareToBaseline(metrics, clip.baseline as Baseline, clip.selected_metrics)
         }
       }
       resolveFrame?.()
       resolveFrame = null
     })
 
+    // Per-frame timeout counter. If MediaPipe stalls for too many consecutive
+    // frames we bail with an actionable error rather than spend up to 15 minutes
+    // of 1.5s-per-frame fallback timeouts on a stuck WASM session.
+    const MAX_CONSECUTIVE_TIMEOUTS = 10
+    let consecutiveTimeouts = 0
+    let aborted = false
+
     for (let i = 0; i < totalFrames; i++) {
+      if (cancelledRef.current) { aborted = true; break }
+
       video.currentTime = i * step
       await new Promise<void>(res => {
         const handler = () => { video.removeEventListener('seeked', handler); res() }
@@ -316,17 +351,51 @@ export default function StudentPractice() {
         setTimeout(res, 800)
       })
 
+      if (cancelledRef.current) { aborted = true; break }
+
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       frameChecks = []
+      frameLandmarks = null
+      frameMetrics = undefined
 
+      // Race pose.send() against a 1.5s timeout. timedOut tracks whether the
+      // fallback won — used to decide if MediaPipe is stuck.
+      let timedOut = false
       await new Promise<void>(res => {
-        resolveFrame = res
+        resolveFrame = () => { resolveFrame = null; res() }
         pose.send({ image: canvas }).catch(() => { resolveFrame = null; res() })
-        setTimeout(() => { resolveFrame = null; res() }, 1500)
+        setTimeout(() => {
+          if (resolveFrame) { timedOut = true; resolveFrame = null; res() }
+        }, 1500)
       })
+
+      if (timedOut && !frameLandmarks) {
+        consecutiveTimeouts++
+        if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+          setError(t('mediaPipeStuck'))
+          URL.revokeObjectURL(url)
+          return
+        }
+      } else {
+        consecutiveTimeouts = 0
+      }
+
+      if (frameLandmarks) {
+        frameRows.push({
+          frame_index: i,
+          timestamp_ms: Math.round(i * step * 1000),
+          landmarks: frameLandmarks,
+          metrics: frameMetrics,
+        })
+      }
 
       if (!isSwingMode && frameChecks.length) results.push({ checks: frameChecks })
       setProgress(Math.round((i + 1) / totalFrames * 100))
+    }
+
+    if (aborted) {
+      URL.revokeObjectURL(url)
+      return
     }
 
     if (isSwingMode) {
@@ -337,21 +406,21 @@ export default function StudentPractice() {
         return
       }
 
-      const phases = detectSwingPhases(allLandmarks, checkpoint.camera_angle)
+      const phases = detectSwingPhases(allLandmarks, clip.camera_angle)
       if (!phases) {
         setError(t('swingNotDetected'))
         URL.revokeObjectURL(url)
         return
       }
 
-      const swingBaseline = checkpoint.baseline as SwingBaseline
-      const phaseChecks = compareSwingToBaseline(phases, swingBaseline, checkpoint.selected_metrics)
+      const swingBaseline = clip.baseline as SwingBaseline
+      const phaseChecks = compareSwingToBaseline(phases, swingBaseline, clip.selected_metrics)
 
       setPreviewUrl(url)
       setSwingPhaseChecks(phaseChecks)
       setSummary(generateSwingSummary(phaseChecks, tSwingSummary))
 
-      if (student && checkpoint) {
+      if (student && clip) {
         const allChecks = phaseChecks.flatMap(pc => pc.checks)
         const overall_score = allChecks.length > 0
           ? Math.round(allChecks.filter(c => c.status === 'ok').length / allChecks.length * 100)
@@ -361,14 +430,23 @@ export default function StudentPractice() {
             pc.checks.map(c => [`${pc.phase}__${c.id}`, { value: 0, deviation: 0, status: c.status }])
           )
         )
-        await supabase.from('practice_sessions').insert({
+        const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
-          checkpoint_id: checkpoint.id,
+          clip_id: clip.id,
+          class_id: clip.class_id,
+          checkpoint_id: null,
           date: new Date().toISOString(),
           duration_seconds: Math.round(allLandmarks.length / fps),
           results: resultsMap,
           overall_score,
-        })
+        }).select('id').single()
+
+        if (insErr) {
+          console.error('practice_sessions insert failed', insErr)
+          setError(t('saveFailed'))
+        } else if (sessionRow?.id && frameRows.length > 0) {
+          try { await insertSessionFrames(sessionRow.id, frameRows) } catch (err) { console.error('session_frames insert failed', err) }
+        }
       }
 
       setStage('results')
@@ -386,21 +464,30 @@ export default function StudentPractice() {
       setFrameResults(results)
       setSummary(generateBaselineSummary(aggregated, tBaselineSummary))
 
-      if (student && checkpoint) {
+      if (student && clip) {
         const overall_score = Math.round(
           aggregated.filter(c => c.status === 'ok').length / aggregated.length * 100
         )
         const resultsMap = Object.fromEntries(
           aggregated.map(c => [c.id, { value: 0, deviation: 0, status: c.status }])
         )
-        await supabase.from('practice_sessions').insert({
+        const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
-          checkpoint_id: checkpoint.id,
+          clip_id: clip.id,
+          class_id: clip.class_id,
+          checkpoint_id: null,
           date: new Date().toISOString(),
           duration_seconds: Math.round(results.length / fps),
           results: resultsMap,
           overall_score,
-        })
+        }).select('id').single()
+
+        if (insErr) {
+          console.error('practice_sessions insert failed', insErr)
+          setError(t('saveFailed'))
+        } else if (sessionRow?.id && frameRows.length > 0) {
+          try { await insertSessionFrames(sessionRow.id, frameRows) } catch (err) { console.error('session_frames insert failed', err) }
+        }
       }
 
       setStage('results')
@@ -432,7 +519,7 @@ export default function StudentPractice() {
   if (error) return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
       <p className="text-muted-foreground">{error}</p>
-      <Link href={`/student/checkpoint/${cpId}`} className="text-ok hover:underline text-sm">← Volver</Link>
+      <Link href={`/student/clip/${clipId}`} className="text-ok hover:underline text-sm">← Volver</Link>
     </main>
   )
 
@@ -440,11 +527,11 @@ export default function StudentPractice() {
     <main className="min-h-screen bg-background">
       {stage !== 'recording' && (
         <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b border-border px-5 py-4">
-          <Link href={`/student/checkpoint/${cpId}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5">
+          <Link href={`/student/clip/${clipId}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            {checkpoint?.name ?? t('backFallback')}
+            {clip?.name ?? t('backFallback')}
           </Link>
         </header>
       )}
@@ -502,7 +589,7 @@ export default function StudentPractice() {
           />
 
           <p className="text-muted-foreground text-xs text-center mt-2">
-            {t('angleHint', { angle: checkpoint?.camera_angle === 'face_on' ? t('angleFaceOnLower') : t('angleDtlLower') })}
+            {t('angleHint', { angle: clip?.camera_angle === 'face_on' ? t('angleFaceOnLower') : t('angleDtlLower') })}
           </p>
         </div>
       )}
@@ -551,10 +638,10 @@ export default function StudentPractice() {
                 </button>
                 )}
                 {/* Visibility warning during recording */}
-                {recordingVisibleCount >= 0 && checkpoint && (() => {
-                  const expected = checkpoint.selected_metrics?.length
-                    ? checkpoint.selected_metrics
-                    : METRICS_BY_ANGLE[checkpoint.camera_angle] ?? []
+                {recordingVisibleCount >= 0 && clip && (() => {
+                  const expected = clip.selected_metrics?.length
+                    ? clip.selected_metrics
+                    : METRICS_BY_ANGLE[clip.camera_angle] ?? []
                   if (expected.length > 0 && recordingVisibleCount < expected.length) return (
                     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
                       <span className="text-black text-sm font-medium">
@@ -566,7 +653,7 @@ export default function StudentPractice() {
                 })()}
                 {/* Angle hint */}
                 <div className="absolute bottom-4 left-4 bg-background/60 backdrop-blur text-muted-foreground text-xs px-3 py-1.5 rounded-full">
-                  {checkpoint?.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
+                  {clip?.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
                 </div>
               </>
             )}
@@ -603,23 +690,66 @@ export default function StudentPractice() {
       )}
 
       {/* RESULTS stage */}
-      {stage === 'results' && checkpoint && (
+      {stage === 'results' && clip && (
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
-          <h1 className="text-xl font-bold text-foreground mb-6">{t('resultsTitle')}</h1>
+          <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+            <h1 className="text-xl font-bold text-foreground">{t('resultsTitle')}</h1>
+            {clip.video_url && (
+              <button
+                onClick={() => setSideBySide(!sideBySide)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                  sideBySide
+                    ? 'bg-ok/10 border-ok/30 text-ok'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="9" height="16" rx="1" />
+                  <rect x="13" y="4" width="9" height="16" rx="1" />
+                </svg>
+                {sideBySide ? tClip('hideReference') : tClip('showReference')}
+              </button>
+            )}
+          </div>
 
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-80 flex-shrink-0">
-              {previewUrl && (
-                <video
-                  src={previewUrl}
-                  controls
-                  playsInline
-                  muted
-                  preload="auto"
-                  onLoadedData={e => { (e.target as HTMLVideoElement).currentTime = 0.1 }}
-                  className="w-full rounded-2xl bg-black"
-                />
-              )}
+              {/* Side-by-side videos: reference (above on phone, left on tablet+) + student attempt */}
+              <div className={`grid gap-3 ${sideBySide && clip.video_url ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-1' : 'grid-cols-1'}`}>
+                {sideBySide && clip.video_url && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                      {tClip('instructorReferenceTitle')}
+                    </p>
+                    <video
+                      src={clip.video_url}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full rounded-2xl bg-black"
+                    />
+                  </div>
+                )}
+                {previewUrl && (
+                  <div>
+                    {sideBySide && clip.video_url && (
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                        {t('resultsTitle')}
+                      </p>
+                    )}
+                    <video
+                      src={previewUrl}
+                      controls
+                      playsInline
+                      muted
+                      preload="auto"
+                      onLoadedData={e => { (e.target as HTMLVideoElement).currentTime = 0.1 }}
+                      className="w-full rounded-2xl bg-black"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex-1">
@@ -671,9 +801,9 @@ export default function StudentPractice() {
 
               {/* Position mode: Warning if some metrics are missing */}
               {frameResults.length > 0 && (() => {
-                const expected = checkpoint.selected_metrics?.length
-                  ? checkpoint.selected_metrics
-                  : METRICS_BY_ANGLE[checkpoint.camera_angle] ?? []
+                const expected = clip.selected_metrics?.length
+                  ? clip.selected_metrics
+                  : METRICS_BY_ANGLE[clip.camera_angle] ?? []
                 const detected = aggregateFrameResults(frameResults).map(c => c.id)
                 const missing = expected.filter(k => !detected.includes(k))
                 if (missing.length > 0) return (
@@ -732,7 +862,7 @@ export default function StudentPractice() {
                 >
                   {t('recordAgain')}
                 </button>
-                <Link href={`/student/checkpoint/${cpId}`} className="flex-1">
+                <Link href={`/student/clip/${clipId}`} className="flex-1">
                   <button className="w-full bg-ok text-on-ok font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
                     {t('viewCheckpoint')}
                   </button>

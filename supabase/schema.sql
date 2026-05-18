@@ -47,7 +47,9 @@ create table if not exists checkpoints (
 create table if not exists practice_sessions (
   id               uuid primary key default gen_random_uuid(),
   student_id       uuid        not null references students(id) on delete cascade,
-  checkpoint_id    uuid        not null references checkpoints(id) on delete cascade,
+  -- Nullable: new clip-based practice sessions populate clip_id/class_id
+  -- instead. Kept on the table for legacy rows during the migration window.
+  checkpoint_id    uuid        references checkpoints(id) on delete cascade,
   video_url        text,
   date             timestamptz default now(),
   duration_seconds integer     not null default 0,
@@ -249,6 +251,13 @@ create policy "student_otps_anon_all"
 -- ALTER TABLE instructors ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'es' CHECK (preferred_locale IN ('es', 'en'));
 -- ALTER TABLE students    ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'es' CHECK (preferred_locale IN ('es', 'en'));
 
+-- Ensure the checkpoints table has instructor_audio_url. The legacy
+-- calibrate flow referenced this column; the migration script reads it
+-- when moving instructor audio into clip_annotations. Some production
+-- DBs had the column hot-added without it ever making it into the
+-- canonical CREATE TABLE — this ALTER is the canonical placement.
+alter table checkpoints add column if not exists instructor_audio_url text;
+
 -- ============================================================
 -- ============================================================
 -- SECTION 3 / 11 / 12 — CLASS + CLIP DATA MODEL (May 2026)
@@ -272,7 +281,11 @@ create index if not exists idx_classes_student_date on classes(student_id, date 
 
 create table if not exists clips (
   id               uuid primary key default gen_random_uuid(),
-  class_id         uuid references classes(id) on delete cascade,
+  -- NOT NULL: every clip belongs to a class. getOrCreateTodayClass on the
+  -- runtime path and the legacy migration script both guarantee a class is
+  -- in place before insert. Keeping this nullable would let stray clips
+  -- disappear from the per-class UI without surfacing an error.
+  class_id         uuid not null references classes(id) on delete cascade,
   student_id       uuid not null references students(id) on delete cascade,
   instructor_id    uuid not null references instructors(id) on delete cascade,
   name             text not null,
@@ -320,6 +333,10 @@ create index if not exists idx_clip_annotations_clip on clip_annotations(clip_id
 -- practice_sessions: link to the new model without breaking checkpoint_id
 alter table practice_sessions add column if not exists clip_id  uuid references clips(id)   on delete set null;
 alter table practice_sessions add column if not exists class_id uuid references classes(id) on delete set null;
+-- Drop the NOT NULL on checkpoint_id so new clip-based sessions can insert
+-- with checkpoint_id=null. Safe to re-run: ALTER ... DROP NOT NULL is a no-op
+-- if the constraint is already gone.
+alter table practice_sessions alter column checkpoint_id drop not null;
 
 create table if not exists session_frames (
   id           uuid primary key default gen_random_uuid(),
@@ -475,3 +492,193 @@ create policy "clip_annotations_audio_read"
   on storage.objects for select
   to anon, authenticated
   using (bucket_id = 'clip-annotations-audio');
+
+-- ============================================================
+-- ============================================================
+-- SECURITY HARDENING — per-student tenant isolation (B3 + B4)
+-- ============================================================
+-- The student-side client has no Supabase JWT; auth lives in localStorage.
+-- To still scope RLS to a single student we send the student's
+-- access_code on every request as `x-student-access-code`, resolve it to
+-- a student row via `current_student_id()`, and rewrite every anon
+-- SELECT / INSERT policy to filter by that ID.
+--
+-- Storage upload policies for instructor-owned buckets are also tightened
+-- to require the first folder segment of the upload path match a student
+-- (or clip) the instructor owns, so a malicious authenticated instructor
+-- can't pollute another instructor's namespace.
+--
+-- Idempotent: safe to re-run.
+
+-- ---------- Helper functions ----------
+
+-- Reads the access code from PostgREST's request.headers GUC, looks it up
+-- in students, and returns the matching id (or null). STABLE so the planner
+-- can fold it; SECURITY INVOKER (the default) because the lookup is
+-- intentionally scoped to whatever rows the caller already has access to
+-- — for anon callers that's a no-op, which is fine: we only ever care
+-- about the resolved id.
+create or replace function public.current_student_id()
+returns uuid
+language sql
+stable
+as $$
+  select id
+  from public.students
+  where access_code = nullif(
+    coalesce(
+      current_setting('request.headers', true)::json->>'x-student-access-code',
+      ''
+    ),
+    ''
+  )
+  limit 1
+$$;
+
+grant execute on function public.current_student_id() to anon, authenticated;
+
+-- Login bootstrap RPC. SECURITY DEFINER so it can read the students table
+-- regardless of the per-row RLS — that's how we can tighten the students
+-- table's anon SELECT policy to `id = current_student_id()` without
+-- breaking the very first lookup that establishes the session.
+--
+-- Returns at most one row matching the upper-cased code. revoke + grant
+-- explicitly so the function is only callable by anon (the audience
+-- that needs it).
+create or replace function public.login_student(code text)
+returns setof public.students
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select * from public.students where access_code = upper(trim(code)) limit 1
+$$;
+
+revoke all on function public.login_student(text) from public;
+grant execute on function public.login_student(text) to anon, authenticated;
+
+-- ---------- Tightened anon SELECT policies ----------
+
+-- students: only the row matching the request's access-code header.
+drop policy if exists "students_anon_select" on students;
+create policy "students_anon_select"
+  on students for select
+  to anon
+  using (id = public.current_student_id());
+
+-- classes / clips: only rows belonging to the resolved student.
+drop policy if exists "classes_anon_select" on classes;
+create policy "classes_anon_select"
+  on classes for select
+  to anon
+  using (student_id = public.current_student_id());
+
+drop policy if exists "clips_anon_select" on clips;
+create policy "clips_anon_select"
+  on clips for select
+  to anon
+  using (student_id = public.current_student_id());
+
+-- clip_annotations: linked through clips.
+drop policy if exists "clip_annotations_anon_select" on clip_annotations;
+create policy "clip_annotations_anon_select"
+  on clip_annotations for select
+  to anon
+  using (
+    exists (
+      select 1 from clips
+      where clips.id = clip_annotations.clip_id
+        and clips.student_id = public.current_student_id()
+    )
+  );
+
+-- practice_sessions: own sessions only (anon INSERT + SELECT).
+drop policy if exists "practice_sessions_anon_select" on practice_sessions;
+create policy "practice_sessions_anon_select"
+  on practice_sessions for select
+  to anon
+  using (student_id = public.current_student_id());
+
+drop policy if exists "practice_sessions_anon_insert" on practice_sessions;
+create policy "practice_sessions_anon_insert"
+  on practice_sessions for insert
+  to anon
+  with check (student_id = public.current_student_id());
+
+-- session_frames: anon INSERT only via a session you own; SELECT same.
+drop policy if exists "session_frames_anon_insert" on session_frames;
+create policy "session_frames_anon_insert"
+  on session_frames for insert
+  to anon
+  with check (
+    exists (
+      select 1 from practice_sessions ps
+      where ps.id = session_frames.session_id
+        and ps.student_id = public.current_student_id()
+    )
+  );
+
+drop policy if exists "session_frames_anon_select" on session_frames;
+create policy "session_frames_anon_select"
+  on session_frames for select
+  to anon
+  using (
+    exists (
+      select 1 from practice_sessions ps
+      where ps.id = session_frames.session_id
+        and ps.student_id = public.current_student_id()
+    )
+  );
+
+-- Legacy `checkpoints`: tightened too. After the data migration runs
+-- there are no rows here, but until then a student should only see
+-- their own checkpoints. The instructor-side keeps managing via the
+-- existing checkpoints_instructor_all policy.
+drop policy if exists "checkpoints_anon_select" on checkpoints;
+create policy "checkpoints_anon_select"
+  on checkpoints for select
+  to anon
+  using (student_id = public.current_student_id());
+
+-- ---------- Tightened storage upload policies (B4) ----------
+
+-- clip-videos uploads (authenticated instructor): first path segment must
+-- be a student belonging to this instructor.
+--   Path convention: ${studentId}/${classId}/${uuid}.${ext}
+drop policy if exists "clip_videos_instructor_upload" on storage.objects;
+create policy "clip_videos_instructor_upload"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'clip-videos'
+    and (storage.foldername(name))[1]::uuid in (
+      select id from public.students where instructor_id = auth.uid()
+    )
+  );
+
+-- clip-annotations-audio uploads: first path segment is a clip owned by
+-- this instructor.
+--   Path convention: ${clipId}/${uuid}.${ext}
+drop policy if exists "clip_annotations_audio_upload" on storage.objects;
+create policy "clip_annotations_audio_upload"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'clip-annotations-audio'
+    and (storage.foldername(name))[1]::uuid in (
+      select id from public.clips where instructor_id = auth.uid()
+    )
+  );
+
+-- practice-videos uploads (anon, student): not actively used by current
+-- code but tightened defensively. First segment must equal the student
+-- resolved from the access-code header.
+drop policy if exists "practice_videos_anon_upload" on storage.objects;
+create policy "practice_videos_anon_upload"
+  on storage.objects for insert
+  to anon
+  with check (
+    bucket_id = 'practice-videos'
+    and (storage.foldername(name))[1]::uuid = public.current_student_id()
+  );

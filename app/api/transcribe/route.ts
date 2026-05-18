@@ -15,9 +15,18 @@ import { NextRequest, NextResponse } from 'next/server'
 // auto-detect handles that better than forcing a single language.
 
 export const runtime = 'nodejs' // need full FormData/Blob support, not Edge
+// Whisper can take a few seconds on a short clip; give the function room
+// before the platform kills it.
+export const maxDuration = 60
 
 const OPENAI_TRANSCRIPTIONS_URL = 'https://api.openai.com/v1/audio/transcriptions'
-const MAX_AUDIO_BYTES = 25 * 1024 * 1024 // Whisper's own limit
+
+// Practical cap: Vercel Serverless Functions on the hobby tier limit
+// request payloads to 4.5 MB; pro is 5 MB. Whisper itself accepts up to
+// 25 MB but we'll never get there on Vercel. 4 MB leaves a small buffer
+// for the multipart envelope. For instructor voice notes (a few seconds
+// of opus/webm) this is ~10x the typical size.
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY

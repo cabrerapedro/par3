@@ -5,7 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import type { Student, Checkpoint } from '@/lib/types'
+import type { Student } from '@/lib/types'
+import type { Class, Clip } from '@/lib/classes'
+import { weeklyStats, clipTrend, clipScoreSummary, type SessionLike, type ClipTrend } from '@/lib/trends'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -36,8 +38,10 @@ export default function StudentProfile() {
   const timeAgo = useTimeAgo()
 
   const [student, setStudent] = useState<Student | null>(null)
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
-  const [sessions, setSessions] = useState<{ id: string; checkpoint_id: string; overall_score: number; date: string }[]>([])
+  const [classes, setClasses] = useState<Class[]>([])
+  const [clips, setClips] = useState<Clip[]>([])
+  const [sessions, setSessions] = useState<SessionLike[]>([])
+  const [expandedClassId, setExpandedClassId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -48,18 +52,30 @@ export default function StudentProfile() {
     if (authLoading) return
     if (!instructor) { router.replace('/instructor/login'); return }
     loadData()
-  }, [authLoading, studentId])
+    // loadData reads `studentId` from the closure; including it in the dep
+    // array makes the lint rule + the intent match.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, studentId, instructor])
 
   async function loadData() {
     setLoading(true)
-    const [{ data: s }, { data: c }, { data: ps }] = await Promise.all([
+    const [{ data: s }, { data: cls }, { data: cl }, { data: ps }] = await Promise.all([
       supabase.from('students').select('*').eq('id', studentId).single(),
-      supabase.from('checkpoints').select('*').eq('student_id', studentId).order('display_order'),
-      supabase.from('practice_sessions').select('id, checkpoint_id, overall_score, date').eq('student_id', studentId).order('date', { ascending: false }),
+      supabase.from('classes').select('*').eq('student_id', studentId).order('date', { ascending: false }),
+      supabase.from('clips').select('*').eq('student_id', studentId).order('created_at'),
+      supabase
+        .from('practice_sessions')
+        .select('clip_id, checkpoint_id, overall_score, date')
+        .eq('student_id', studentId)
+        .order('date', { ascending: false }),
     ])
     if (s) setStudent(s)
-    setCheckpoints(c ?? [])
-    setSessions(ps ?? [])
+    setClasses(cls ?? [])
+    setClips(cl ?? [])
+    setSessions((ps as SessionLike[]) ?? [])
+    // Default-expand the most recent class so the instructor lands on the
+    // class they were just working on.
+    if (cls && cls.length > 0) setExpandedClassId(cls[0].id)
     setLoading(false)
   }
 
@@ -99,18 +115,18 @@ export default function StudentProfile() {
     </div>
   )
 
-  const calibrated = checkpoints.filter(c => c.status === 'calibrated').length
+  // Weekly stats fed by every clip the student owns. Legacy checkpoint IDs
+  // are no longer in play — the data migration moves them into clips.
+  const trackableIds = clips.map(c => c.id)
+  const week = weeklyStats(sessions, trackableIds)
 
-  // Practice stats
-  const totalSessions = sessions.length
-  const lastPractice = sessions[0]?.date ? new Date(sessions[0].date) : null
-  const avgScore = totalSessions > 0 ? Math.round(sessions.reduce((sum, s) => sum + s.overall_score, 0) / totalSessions) : null
-
-  // Per-checkpoint stats: { [cpId]: { count, lastScore, lastDate } }
-  const cpStats: Record<string, { count: number; lastScore: number; lastDate: string }> = {}
-  for (const s of sessions) {
-    if (!cpStats[s.checkpoint_id]) cpStats[s.checkpoint_id] = { count: 0, lastScore: s.overall_score, lastDate: s.date }
-    cpStats[s.checkpoint_id].count++
+  // Group clips by class. Most-recent class first; clips inside follow their
+  // created_at order from the query.
+  const clipsByClass: Record<string, Clip[]> = {}
+  for (const c of clips) {
+    if (!c.class_id) continue
+    if (!clipsByClass[c.class_id]) clipsByClass[c.class_id] = []
+    clipsByClass[c.class_id].push(c)
   }
 
   return (
@@ -157,9 +173,9 @@ export default function StudentProfile() {
                 </TooltipTrigger>
                 <TooltipContent className="text-xs">{t('shareLinkTooltip')}</TooltipContent>
               </Tooltip>
-              {checkpoints.length > 0 && (
-                <Badge variant="outline" className={cn("text-xs", calibrated === checkpoints.length && calibrated > 0 ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
-                  {t('calibratedBadge', { calibrated, total: checkpoints.length })}
+              {clips.length > 0 && (
+                <Badge variant="outline" className="text-xs text-muted-foreground border-border">
+                  {t('clipsCount', { count: clips.length })}
                 </Badge>
               )}
             </div>
@@ -188,102 +204,157 @@ export default function StudentProfile() {
           </div>
         </div>
 
-        {/* Practice activity stats */}
-        {totalSessions > 0 && (
-          <>
-            <Separator className="mb-6" />
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-foreground font-mono">{totalSessions}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('statsSessions')}</p>
-              </div>
-              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-foreground font-mono">{avgScore}%</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('statsAvgScore')}</p>
-              </div>
-              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
-                <p className="text-lg font-semibold text-foreground">{lastPractice ? timeAgo(lastPractice) : '—'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('statsLastPractice')}</p>
-              </div>
-            </div>
-          </>
-        )}
-
-        {!totalSessions && <Separator className="mb-8" />}
-
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">{t('exercisesTitle')}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{checkpoints.length === 0 ? t('exercisesEmptyHint') : t('exercisesCount', { count: checkpoints.length })}</p>
+        {/* "Esta semana" — replaces the old all-time practice stats */}
+        <Separator className="mb-6" />
+        <section className="bg-card border border-border rounded-2xl px-5 py-4 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-foreground">{t('weekTitle')}</h2>
+            {week.lastSessionAt && (
+              <span className="text-xs text-muted-foreground">
+                {t('weekLastPractice', { when: timeAgo(week.lastSessionAt) })}
+              </span>
+            )}
           </div>
-          <Link
-            href={`/instructor/students/${studentId}/checkpoints/new`}
-            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            {t('addExercise')}
-          </Link>
-        </div>
 
-        {checkpoints.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 border border-dashed border-border rounded-2xl text-center">
-            <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center mb-3">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 8v8M8 12h8" strokeLinecap="round" /></svg>
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">{t('exercisesEmptyTitle')}</p>
-            <p className="text-xs text-muted-foreground mb-4">{t('exercisesEmptySubtitle', { firstName: student.name.split(' ')[0] })}</p>
-            <Link href={`/instructor/students/${studentId}/checkpoints/new`} className="inline-flex h-8 px-3 text-xs border border-border rounded-lg hover:border-ok/40 items-center transition-all">{t('createFirstExercise')}</Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {checkpoints.map((cp, i) => {
-              const stats = cpStats[cp.id]
-              return (
-              <div key={cp.id} className={cn("group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all",
-                cp.status === 'archived' ? "border-border bg-card/50 opacity-60 hover:opacity-80" : "border-border bg-card hover:border-ok/30 hover:bg-secondary/40"
+          {week.sessionsCount === 0 && week.improvedClipIds.length === 0 && week.stagnantClipIds.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('weekNothingYet')}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <span className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border",
+                week.sessionsCount > 0 ? "bg-blue/10 border-blue/30 text-blue" : "bg-secondary border-border text-muted-foreground"
               )}>
-                <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0",
-                  cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" :
-                  cp.status === 'archived' ? "bg-warn/10 border-warn/20 text-warn" :
-                  "bg-secondary border-border text-muted-foreground"
-                )}>
-                  {cp.status === 'archived' ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /></svg>
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <Link href={cp.status === 'pending' ? `/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate` : `/instructor/students/${studentId}/checkpoints/${cp.id}`} className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-semibold truncate", cp.status === 'archived' ? "text-muted-foreground" : "text-foreground")}>{cp.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {cp.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
-                    {cp.calibration_marks?.length > 0 && <span className="ml-2 text-muted-foreground/60">· {t('marksCount', { count: cp.calibration_marks.length })}</span>}
-                  </p>
-                  {stats && (
-                    <p className="text-xs mt-1 flex items-center gap-2">
-                      <span className="text-blue/70">{t('sessionsShort', { count: stats.count })}</span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="font-mono text-ok/80">{stats.lastScore}%</span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="text-muted-foreground/60">{timeAgo(new Date(stats.lastDate))}</span>
-                    </p>
-                  )}
-                </Link>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex",
-                    cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" :
-                    cp.status === 'archived' ? "text-warn border-warn/20 bg-warn/10" :
-                    "text-muted-foreground border-border"
-                  )}>
-                    {cp.status === 'calibrated' ? t('statusCalibrated') : cp.status === 'archived' ? t('statusArchived') : t('statusPending')}
-                  </Badge>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40"><polyline points="9 18 15 12 9 6" /></svg>
-                </div>
-              </div>
-              )
-            })}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {t('weekSessions', { count: week.sessionsCount })}
+              </span>
+              {week.improvedClipIds.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border bg-ok/10 border-ok/30 text-ok">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 10 12 4 18 10" />
+                    <line x1="12" y1="4" x2="12" y2="20" />
+                  </svg>
+                  {t('weekImproved', { count: week.improvedClipIds.length })}
+                </span>
+              )}
+              {week.stagnantClipIds.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border bg-warn/10 border-warn/30 text-warn">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  {t('weekStagnant', { count: week.stagnantClipIds.length })}
+                </span>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Classes + Clips — primary surface after data migration */}
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground">{t('classesTitle')}</h2>
+            <Link
+              href={`/instructor/students/${studentId}/clips/new/record`}
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3.5" />
+                <path d="M19 6h-2.5L15 4h-6L7.5 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" />
+              </svg>
+              {t('addClip')}
+            </Link>
           </div>
-        )}
+
+          {classes.length === 0 ? (
+            <div className="border border-dashed border-border rounded-2xl py-10 text-center">
+              <p className="text-sm text-muted-foreground">{t('classesEmpty')}</p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {classes.map((cls) => {
+                const classClips = clipsByClass[cls.id] ?? []
+                const isExpanded = expandedClassId === cls.id
+                const date = new Date(cls.date)
+                return (
+                  <li key={cls.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedClassId(isExpanded ? null : cls.id)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">
+                          {t('classDateLabel', {
+                            date: new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(date),
+                          })}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t('classClipCount', { count: classClips.length })}
+                        </span>
+                      </div>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={cn("text-muted-foreground transition-transform", isExpanded && "rotate-90")}
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+
+                    {isExpanded && classClips.length > 0 && (
+                      <ul className="flex flex-col gap-2 px-3 pb-3">
+                        {classClips.map((clip) => {
+                          const summary = clipScoreSummary(sessions, clip.id)
+                          const trend = clipTrend(sessions, clip.id)
+                          return (
+                            <li key={clip.id}>
+                              <Link
+                                href={`/instructor/students/${studentId}/clips/${clip.id}`}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-secondary/40 hover:bg-secondary transition-colors"
+                              >
+                                <ClipStatusDot status={clip.status} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{clip.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                                    <span>
+                                      {clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
+                                    </span>
+                                    {clip.clip_type === 'swing' && (
+                                      <span className="text-muted-foreground/60">· swing</span>
+                                    )}
+                                    {summary.lastScore !== null && summary.lastDate && (
+                                      <>
+                                        <span className="text-muted-foreground/40">·</span>
+                                        <span className="font-mono text-foreground/80">{summary.lastScore}%</span>
+                                        <span className="text-muted-foreground/40">·</span>
+                                        <span>{timeAgo(summary.lastDate)}</span>
+                                      </>
+                                    )}
+                                  </p>
+                                </div>
+                                {summary.sessionCount > 0 ? <TrendChip trend={trend} t={t} /> : (
+                                  <span className="text-xs text-muted-foreground">{t('clipNoSessions')}</span>
+                                )}
+                              </Link>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
       </div>
 
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
@@ -305,4 +376,28 @@ export default function StudentProfile() {
 
 function LoadingScreen() {
   return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" /></div>
+}
+
+function ClipStatusDot({ status }: { status: Clip['status'] }) {
+  const cls =
+    status === 'calibrated' ? 'bg-ok' :
+    status === 'archived' ? 'bg-muted-foreground/30' :
+    'bg-warn animate-pulse'
+  return <span className={cn('size-2 rounded-full shrink-0', cls)} />
+}
+
+function TrendChip({ trend, t }: { trend: ClipTrend; t: ReturnType<typeof useTranslations> }) {
+  if (trend === 'noData') return null
+  const cfg: Record<Exclude<ClipTrend, 'noData'>, { label: string; className: string }> = {
+    improved: { label: t('clipTrendImproved'), className: 'bg-ok/10 text-ok border-ok/30' },
+    declining: { label: t('clipTrendDeclining'), className: 'bg-bad/10 text-bad border-bad/30' },
+    stagnant: { label: t('clipTrendStagnant'), className: 'bg-warn/10 text-warn border-warn/30' },
+    newish: { label: t('clipTrendNewish'), className: 'bg-blue/10 text-blue border-blue/30' },
+  }
+  const { label, className } = cfg[trend]
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border whitespace-nowrap', className)}>
+      {label}
+    </span>
+  )
 }
