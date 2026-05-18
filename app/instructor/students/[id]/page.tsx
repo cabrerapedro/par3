@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import type { Student, Checkpoint } from '@/lib/types'
+import type { Student } from '@/lib/types'
 import type { Class, Clip } from '@/lib/classes'
 import { weeklyStats, clipTrend, clipScoreSummary, type SessionLike, type ClipTrend } from '@/lib/trends'
 import { Button } from '@/components/ui/button'
@@ -38,7 +38,6 @@ export default function StudentProfile() {
   const timeAgo = useTimeAgo()
 
   const [student, setStudent] = useState<Student | null>(null)
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [clips, setClips] = useState<Clip[]>([])
   const [sessions, setSessions] = useState<SessionLike[]>([])
@@ -57,9 +56,8 @@ export default function StudentProfile() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: s }, { data: cps }, { data: cls }, { data: cl }, { data: ps }] = await Promise.all([
+    const [{ data: s }, { data: cls }, { data: cl }, { data: ps }] = await Promise.all([
       supabase.from('students').select('*').eq('id', studentId).single(),
-      supabase.from('checkpoints').select('*').eq('student_id', studentId).order('display_order'),
       supabase.from('classes').select('*').eq('student_id', studentId).order('date', { ascending: false }),
       supabase.from('clips').select('*').eq('student_id', studentId).order('created_at'),
       supabase
@@ -69,7 +67,6 @@ export default function StudentProfile() {
         .order('date', { ascending: false }),
     ])
     if (s) setStudent(s)
-    setCheckpoints(cps ?? [])
     setClasses(cls ?? [])
     setClips(cl ?? [])
     setSessions((ps as SessionLike[]) ?? [])
@@ -115,12 +112,9 @@ export default function StudentProfile() {
     </div>
   )
 
-  const calibrated = checkpoints.filter(c => c.status === 'calibrated').length
-
-  // Weekly stats — both clips and legacy checkpoints count as trackable
-  // surfaces, so the headline numbers stay meaningful through the data
-  // migration window.
-  const trackableIds = [...clips.map(c => c.id), ...checkpoints.map(c => c.id)]
+  // Weekly stats fed by every clip the student owns. Legacy checkpoint IDs
+  // are no longer in play — the data migration moves them into clips.
+  const trackableIds = clips.map(c => c.id)
   const week = weeklyStats(sessions, trackableIds)
 
   // Group clips by class. Most-recent class first; clips inside follow their
@@ -130,16 +124,6 @@ export default function StudentProfile() {
     if (!c.class_id) continue
     if (!clipsByClass[c.class_id]) clipsByClass[c.class_id] = []
     clipsByClass[c.class_id].push(c)
-  }
-
-  // Legacy stats kept for the "Ejercicios anteriores" section that still
-  // renders the checkpoint cards until the data migration replaces them.
-  const cpStats: Record<string, { count: number; lastScore: number; lastDate: string }> = {}
-  for (const s of sessions) {
-    const cpId = s.checkpoint_id
-    if (!cpId) continue
-    if (!cpStats[cpId]) cpStats[cpId] = { count: 0, lastScore: s.overall_score, lastDate: s.date }
-    cpStats[cpId].count++
   }
 
   return (
@@ -186,9 +170,9 @@ export default function StudentProfile() {
                 </TooltipTrigger>
                 <TooltipContent className="text-xs">{t('shareLinkTooltip')}</TooltipContent>
               </Tooltip>
-              {checkpoints.length > 0 && (
-                <Badge variant="outline" className={cn("text-xs", calibrated === checkpoints.length && calibrated > 0 ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
-                  {t('calibratedBadge', { calibrated, total: checkpoints.length })}
+              {clips.length > 0 && (
+                <Badge variant="outline" className="text-xs text-muted-foreground border-border">
+                  {t('clipsCount', { count: clips.length })}
                 </Badge>
               )}
             </div>
@@ -368,68 +352,6 @@ export default function StudentProfile() {
           )}
         </section>
 
-        <Separator className="mb-6" />
-
-        {/* Legacy exercises — kept until the data migration converts these
-            checkpoints into clips. Only renders when there's something to
-            show; nothing on a brand-new student. */}
-        {checkpoints.length > 0 && (
-        <section className="mb-4">
-          <div className="mb-3">
-            <h2 className="text-sm font-semibold text-foreground">{t('exercisesLegacyTitle')}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{t('exercisesLegacyHint')}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {checkpoints.map((cp, i) => {
-              const stats = cpStats[cp.id]
-              return (
-              <div key={cp.id} className={cn("group relative flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all",
-                cp.status === 'archived' ? "border-border bg-card/50 opacity-60 hover:opacity-80" : "border-border bg-card hover:border-ok/30 hover:bg-secondary/40"
-              )}>
-                <div className={cn("size-8 rounded-full flex items-center justify-center text-xs font-mono font-semibold border shrink-0",
-                  cp.status === 'calibrated' ? "bg-ok/10 border-ok/20 text-ok" :
-                  cp.status === 'archived' ? "bg-warn/10 border-warn/20 text-warn" :
-                  "bg-secondary border-border text-muted-foreground"
-                )}>
-                  {cp.status === 'archived' ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /></svg>
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <Link href={cp.status === 'pending' ? `/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate` : `/instructor/students/${studentId}/checkpoints/${cp.id}`} className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-semibold truncate", cp.status === 'archived' ? "text-muted-foreground" : "text-foreground")}>{cp.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {cp.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
-                    {cp.calibration_marks?.length > 0 && <span className="ml-2 text-muted-foreground/60">· {t('marksCount', { count: cp.calibration_marks.length })}</span>}
-                  </p>
-                  {stats && (
-                    <p className="text-xs mt-1 flex items-center gap-2">
-                      <span className="text-blue/70">{t('sessionsShort', { count: stats.count })}</span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="font-mono text-ok/80">{stats.lastScore}%</span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="text-muted-foreground/60">{timeAgo(new Date(stats.lastDate))}</span>
-                    </p>
-                  )}
-                </Link>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex",
-                    cp.status === 'calibrated' ? "text-ok border-ok/20 bg-ok/10" :
-                    cp.status === 'archived' ? "text-warn border-warn/20 bg-warn/10" :
-                    "text-muted-foreground border-border"
-                  )}>
-                    {cp.status === 'calibrated' ? t('statusCalibrated') : cp.status === 'archived' ? t('statusArchived') : t('statusPending')}
-                  </Badge>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40"><polyline points="9 18 15 12 9 6" /></svg>
-                </div>
-              </div>
-              )
-            })}
-          </div>
-        </section>
-        )}
       </div>
 
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
