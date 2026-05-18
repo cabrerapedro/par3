@@ -338,10 +338,41 @@ export default function ClipAnnotatePage() {
       // 6. Build the baseline and flip the clip to calibrated.
       setSaveStage('baseline')
       const baseline = buildBaseline(frames, selectedMetrics)
+
+      // Generate the personal-reference summary string once, here, so the
+      // student detail page doesn't have to hit Claude on every page load
+      // (review H6). Non-blocking: a failed summary just leaves the field
+      // null and the student page falls back to the on-demand fetch path.
+      let baselineSummary: string | null = null
+      if (baseline) {
+        try {
+          const res = await fetch('/api/baseline-summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              baseline,
+              cameraAngle: angle,
+              checkpointName: name.trim(),
+              instructorNote: null,
+              selectedMetrics,
+              marksCount: frames.length,
+              checkpointType: clipType,
+            }),
+          })
+          if (res.ok) {
+            const data = (await res.json()) as { summary?: string }
+            baselineSummary = data.summary ?? null
+          }
+        } catch {
+          /* leave null */
+        }
+      }
+
       await supabase
         .from('clips')
         .update({
           baseline,
+          baseline_summary: baselineSummary,
           status: baseline ? 'calibrated' : 'pending',
         })
         .eq('id', clip.id)

@@ -183,20 +183,25 @@ export function compareToBaseline(
     ? Object.entries(metrics).filter(([key]) => selectedMetrics.includes(key))
     : Object.entries(metrics)
 
-  return entries.map(([key, value]) => {
+  // Drop metrics with no baseline entry instead of defaulting them to 'ok'.
+  // CLAUDE.md "Key Decisions" #2: better no feedback than wrong feedback —
+  // a missing baseline entry happens when the wrong baseline type is loaded
+  // (e.g. a swing baseline in a position context) and silently green-flagging
+  // those would actively mislead the student.
+  return entries.flatMap(([key, value]) => {
     const b = baseline[key]
-    if (!b) return { id: key, label: METRIC_LABELS[key] || key, status: 'ok' as const, direction: 'center' as const }
+    if (!b) return []
 
     const deviation = Math.abs(value - b.mean)
     const status: 'ok' | 'warn' | 'bad' = deviation <= b.std ? 'ok' : deviation <= 2 * b.std ? 'warn' : 'bad'
     const direction: 'high' | 'low' | 'center' = status === 'ok' ? 'center' : value > b.mean ? 'high' : 'low'
 
-    return {
+    return [{
       id: key,
       label: METRIC_LABELS[key] || key,
       status,
       direction,
-    }
+    }]
   })
 }
 

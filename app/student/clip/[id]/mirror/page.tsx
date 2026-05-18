@@ -162,12 +162,19 @@ export default function StudentClipMirror() {
     const smoothed = rawChecks.map((check, i) => {
       const votes: Record<string, number> = {}
       const dirVotes: Record<string, number> = {}
+      // Skip frames where this metric isn't present (landmark dipped, baseline
+      // missing the key, etc.). Defaulting to 'ok' would silently bias the
+      // vote toward a happy result and violate CLAUDE.md's "no wrong feedback"
+      // principle.
       for (const frame of smoothRef.current) {
-        const s = frame[i]?.status ?? 'ok'
-        const d = frame[i]?.direction ?? 'center'
-        votes[s] = (votes[s] ?? 0) + 1
-        dirVotes[d] = (dirVotes[d] ?? 0) + 1
+        const entry = frame[i]
+        if (!entry) continue
+        votes[entry.status] = (votes[entry.status] ?? 0) + 1
+        dirVotes[entry.direction] = (dirVotes[entry.direction] ?? 0) + 1
       }
+      // No usable history yet — show this frame's raw read instead of inventing
+      // a status.
+      if (Object.keys(votes).length === 0) return check
       const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0][0] as 'ok' | 'warn' | 'bad'
       const bestDir = Object.entries(dirVotes).sort((a, b) => b[1] - a[1])[0][0] as 'high' | 'low' | 'center'
       return { ...check, status: best, direction: bestDir }

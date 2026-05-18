@@ -83,10 +83,20 @@ describe('compareToBaseline', () => {
     expect(low[0].direction).toBe('low')
   })
 
-  it('falls through to ok with a synthetic label if the baseline is missing the metric', () => {
+  it('drops metrics with no baseline entry — never default-OKs unknown metrics', () => {
+    // Per CLAUDE.md "no wrong feedback" rule: returning ok for a metric we
+    // can't actually check would mislead the student. We filter it out instead.
     const checks = compareToBaseline({ unknown_metric: 99 }, baseline)
-    expect(checks[0].status).toBe('ok')
-    expect(checks[0].id).toBe('unknown_metric')
+    expect(checks).toEqual([])
+  })
+
+  it('keeps known metrics and drops unknown ones in the same call', () => {
+    const checks = compareToBaseline(
+      { spine_angle: 31, unknown_metric: 99 },
+      baseline,
+    )
+    expect(checks).toHaveLength(1)
+    expect(checks[0].id).toBe('spine_angle')
   })
 
   it('filters to selectedMetrics when provided', () => {
