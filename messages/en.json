@@ -489,7 +489,8 @@
       "withinRange": "{percent}% within your range",
       "recommendation": "Recommendation",
       "recordAgain": "Record again",
-      "viewCheckpoint": "View exercise"
+      "viewCheckpoint": "View exercise",
+      "saveFailed": "Couldn't save your practice. Try again."
     },
     "mirror": {
       "statusOk": "Posture correct",

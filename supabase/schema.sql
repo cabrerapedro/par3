@@ -47,7 +47,9 @@ create table if not exists checkpoints (
 create table if not exists practice_sessions (
   id               uuid primary key default gen_random_uuid(),
   student_id       uuid        not null references students(id) on delete cascade,
-  checkpoint_id    uuid        not null references checkpoints(id) on delete cascade,
+  -- Nullable: new clip-based practice sessions populate clip_id/class_id
+  -- instead. Kept on the table for legacy rows during the migration window.
+  checkpoint_id    uuid        references checkpoints(id) on delete cascade,
   video_url        text,
   date             timestamptz default now(),
   duration_seconds integer     not null default 0,
@@ -320,6 +322,10 @@ create index if not exists idx_clip_annotations_clip on clip_annotations(clip_id
 -- practice_sessions: link to the new model without breaking checkpoint_id
 alter table practice_sessions add column if not exists clip_id  uuid references clips(id)   on delete set null;
 alter table practice_sessions add column if not exists class_id uuid references classes(id) on delete set null;
+-- Drop the NOT NULL on checkpoint_id so new clip-based sessions can insert
+-- with checkpoint_id=null. Safe to re-run: ALTER ... DROP NOT NULL is a no-op
+-- if the constraint is already gone.
+alter table practice_sessions alter column checkpoint_id drop not null;
 
 create table if not exists session_frames (
   id           uuid primary key default gen_random_uuid(),

@@ -384,7 +384,7 @@ export default function StudentClipPractice() {
             pc.checks.map(c => [`${pc.phase}__${c.id}`, { value: 0, deviation: 0, status: c.status }])
           )
         )
-        const { data: sessionRow } = await supabase.from('practice_sessions').insert({
+        const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
           clip_id: clip.id,
           class_id: clip.class_id,
@@ -395,7 +395,10 @@ export default function StudentClipPractice() {
           overall_score,
         }).select('id').single()
 
-        if (sessionRow?.id && frameRows.length > 0) {
+        if (insErr) {
+          console.error('practice_sessions insert failed', insErr)
+          setError(t('saveFailed'))
+        } else if (sessionRow?.id && frameRows.length > 0) {
           try { await insertSessionFrames(sessionRow.id, frameRows) } catch (err) { console.error('session_frames insert failed', err) }
         }
       }
@@ -422,7 +425,7 @@ export default function StudentClipPractice() {
         const resultsMap = Object.fromEntries(
           aggregated.map(c => [c.id, { value: 0, deviation: 0, status: c.status }])
         )
-        const { data: sessionRow } = await supabase.from('practice_sessions').insert({
+        const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
           clip_id: clip.id,
           class_id: clip.class_id,
@@ -433,7 +436,10 @@ export default function StudentClipPractice() {
           overall_score,
         }).select('id').single()
 
-        if (sessionRow?.id && frameRows.length > 0) {
+        if (insErr) {
+          console.error('practice_sessions insert failed', insErr)
+          setError(t('saveFailed'))
+        } else if (sessionRow?.id && frameRows.length > 0) {
           try { await insertSessionFrames(sessionRow.id, frameRows) } catch (err) { console.error('session_frames insert failed', err) }
         }
       }
