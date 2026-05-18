@@ -66,24 +66,28 @@ alter table checkpoints       enable row level security;
 alter table practice_sessions enable row level security;
 
 -- Instructors: own row only
+drop policy if exists "instructors_own" on instructors;
 create policy "instructors_own"
   on instructors for all
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
 -- Students: instructors manage their students; anon can lookup by code
+drop policy if exists "students_instructor_all" on students;
 create policy "students_instructor_all"
   on students for all
   to authenticated
   using (instructor_id = auth.uid())
   with check (instructor_id = auth.uid());
 
+drop policy if exists "students_anon_select" on students;
 create policy "students_anon_select"
   on students for select
   to anon
   using (true);
 
 -- Checkpoints: instructors manage via student; anon can read
+drop policy if exists "checkpoints_instructor_all" on checkpoints;
 create policy "checkpoints_instructor_all"
   on checkpoints for all
   to authenticated
@@ -93,22 +97,26 @@ create policy "checkpoints_instructor_all"
     )
   );
 
+drop policy if exists "checkpoints_anon_select" on checkpoints;
 create policy "checkpoints_anon_select"
   on checkpoints for select
   to anon
   using (true);
 
 -- Practice sessions: anon can insert and select (student usage)
+drop policy if exists "practice_sessions_anon_insert" on practice_sessions;
 create policy "practice_sessions_anon_insert"
   on practice_sessions for insert
   to anon
   with check (true);
 
+drop policy if exists "practice_sessions_anon_select" on practice_sessions;
 create policy "practice_sessions_anon_select"
   on practice_sessions for select
   to anon
   using (true);
 
+drop policy if exists "practice_sessions_instructor" on practice_sessions;
 create policy "practice_sessions_instructor"
   on practice_sessions for all
   to authenticated
@@ -135,6 +143,7 @@ values ('instructor-notes', 'instructor-notes', true)
 on conflict do nothing;
 
 -- Storage: instructors can upload calibration videos (authenticated)
+drop policy if exists "calibration_videos_instructor_upload" on storage.objects;
 create policy "calibration_videos_instructor_upload"
   on storage.objects for insert
   to authenticated
@@ -142,28 +151,33 @@ create policy "calibration_videos_instructor_upload"
 
 -- Storage: anyone can read calibration videos (students use anon role)
 drop policy if exists "calibration_videos_instructor_read" on storage.objects;
+drop policy if exists "calibration_videos_public_read" on storage.objects;
 create policy "calibration_videos_public_read"
   on storage.objects for select
   to anon, authenticated
   using (bucket_id = 'calibration-videos');
 
 -- Storage: instructors can upload audio notes (public read)
+drop policy if exists "instructor_notes_upload" on storage.objects;
 create policy "instructor_notes_upload"
   on storage.objects for insert
   to authenticated
   with check (bucket_id = 'instructor-notes');
 
+drop policy if exists "instructor_notes_public_read" on storage.objects;
 create policy "instructor_notes_public_read"
   on storage.objects for select
   to anon, authenticated
   using (bucket_id = 'instructor-notes');
 
 -- Storage: students can upload and read practice videos
+drop policy if exists "practice_videos_anon_upload" on storage.objects;
 create policy "practice_videos_anon_upload"
   on storage.objects for insert
   to anon
   with check (bucket_id = 'practice-videos');
 
+drop policy if exists "practice_videos_anon_read" on storage.objects;
 create policy "practice_videos_anon_read"
   on storage.objects for select
   to anon
@@ -209,6 +223,7 @@ create table if not exists student_otps (
 
 alter table student_otps enable row level security;
 
+drop policy if exists "student_otps_anon_all" on student_otps;
 create policy "student_otps_anon_all"
   on student_otps for all
   to anon
