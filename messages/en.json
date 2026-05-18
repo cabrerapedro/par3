@@ -12,9 +12,9 @@
     "focusOn": "Focus on improving {metric} in {phase}."
   },
   "meta": {
-    "appName": "parell.golf",
-    "tagline": "Practice with your coach's guidance",
-    "description": "Digital copilot for golf instructors and their students"
+    "appName": "Parell",
+    "tagline": "The notebook for the golf you teach",
+    "description": "A practice notebook for golf instructors and their students"
   },
   "common": {
     "cancel": "Cancel",
@@ -157,7 +157,7 @@
   },
   "landing": {
     "tagline": "Practice with your coach's guidance",
-    "subtitle": "Your coach teaches you. parell.golf helps you practice well between lessons.",
+    "subtitle": "Your coach teaches you. Parell helps you practice well between lessons.",
     "instructorCardTitle": "I'm a Coach",
     "instructorCardDescription": "Record, analyze, and guide your students' practice",
     "studentCardTitle": "I'm a Student",
@@ -237,11 +237,14 @@
       "noResultsFor": "No students found matching \"{query}\"",
       "noExercises": "No exercises yet",
       "exerciseSummary": "{calibrated} of {total} {total, plural, one {exercise calibrated} other {exercises calibrated}}",
+      "colName": "Student",
+      "colCode": "Code",
+      "colExercises": "Exercises",
       "copied": "✓ copied",
       "copyCodeTooltip": "Copy access code",
       "shareLinkTooltip": "Share access link",
-      "shareTitle": "parell.golf - Practice access",
-      "shareText": "{name}, use this link to access your practice exercises on parell.golf"
+      "shareTitle": "Parell — Practice access",
+      "shareText": "{name}, use this link to access your practice exercises on Parell"
     },
     "profile": {
       "backToDashboard": "Dashboard",
@@ -274,8 +277,8 @@
       "copyCodeTooltip": "Copy the student's access code",
       "shareLinkLabel": "Share link",
       "shareLinkTooltip": "Send the access link to the student",
-      "shareTitle": "parell.golf - Practice access",
-      "shareText": "{name}, use this link to access your practice exercises on parell.golf",
+      "shareTitle": "Parell — Practice access",
+      "shareText": "{name}, use this link to access your practice exercises on Parell",
       "edit": "Edit",
       "deleteAction": "Delete",
       "weekTitle": "This week",
@@ -400,7 +403,7 @@
   },
   "student": {
     "journey": {
-      "brandLink": "parell.golf",
+      "brandLink": "Parell",
       "greeting": "Hi, {name}",
       "title": "My Exercises",
       "subtitle": "Techniques calibrated by your coach",

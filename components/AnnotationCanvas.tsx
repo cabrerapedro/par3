@@ -238,7 +238,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 flex-wrap rounded-2xl bg-card/95 backdrop-blur border border-border px-3 py-2.5">
+      <div className="flex items-center gap-3 flex-wrap rounded-md bg-card/95 backdrop-blur border border-border px-3 py-2.5">
         {/* Tool group */}
         <div className="flex items-center gap-1">
           <ToolButton active={tool === 'arrow'} onClick={() => setTool('arrow')} label={t('toolArrow')}>
@@ -324,7 +324,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
         onChange={(e) => setTextNote(e.target.value)}
         placeholder={t('notePlaceholder')}
         rows={2}
-        className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-ok/50 resize-y"
+        className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-primary resize-y"
       />
 
       {/* Save / cancel */}
@@ -340,7 +340,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          className="h-11 px-6 rounded-xl bg-ok text-black font-semibold hover:bg-ok/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           {t('save')}
         </button>

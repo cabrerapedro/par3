@@ -148,7 +148,7 @@ export default function StudentProfile() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{student.name}</h1>
+            <h1 className="text-2xl font-display font-semibold">{student.name}</h1>
             {student.email && <p className="text-muted-foreground text-sm mt-0.5">{student.email}</p>}
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <Tooltip>
@@ -164,7 +164,7 @@ export default function StudentProfile() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all", shared ? "bg-ok/10 border-ok/30 text-ok" : "bg-secondary border-border text-muted-foreground hover:border-blue/30 hover:text-foreground")}>
+                  <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all", shared ? "bg-ok/10 border-ok/30 text-ok" : "bg-secondary border-border text-muted-foreground hover:border-primary hover:text-foreground")}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       {shared ? <polyline points="20 6 9 17 4 12" /> : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>}
                     </svg>
@@ -184,7 +184,7 @@ export default function StudentProfile() {
           <div className="flex items-center gap-1.5 shrink-0">
             <Link
               href={`/instructor/students/${studentId}/edit`}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-blue/40 hover:text-blue hover:bg-blue/5 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-ink hover:bg-paper-3 transition-all"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -206,7 +206,7 @@ export default function StudentProfile() {
 
         {/* "Esta semana" — replaces the old all-time practice stats */}
         <Separator className="mb-6" />
-        <section className="bg-card border border-border rounded-2xl px-5 py-4 mb-8">
+        <section className="bg-card border border-border rounded-md px-5 py-4 mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">{t('weekTitle')}</h2>
             {week.lastSessionAt && (
@@ -222,7 +222,7 @@ export default function StudentProfile() {
             <div className="flex flex-wrap gap-2">
               <span className={cn(
                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border",
-                week.sessionsCount > 0 ? "bg-blue/10 border-blue/30 text-blue" : "bg-secondary border-border text-muted-foreground"
+                week.sessionsCount > 0 ? "bg-paper-3 border-primary text-ink" : "bg-secondary border-border text-muted-foreground"
               )}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
@@ -256,7 +256,7 @@ export default function StudentProfile() {
             <h2 className="text-sm font-semibold text-foreground">{t('classesTitle')}</h2>
             <Link
               href={`/instructor/students/${studentId}/clips/new/record`}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-85 transition-opacity"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3.5" />
@@ -267,7 +267,7 @@ export default function StudentProfile() {
           </div>
 
           {classes.length === 0 ? (
-            <div className="border border-dashed border-border rounded-2xl py-10 text-center">
+            <div className="border border-dashed border-border rounded-md py-10 text-center">
               <p className="text-sm text-muted-foreground">{t('classesEmpty')}</p>
             </div>
           ) : (
@@ -277,7 +277,7 @@ export default function StudentProfile() {
                 const isExpanded = expandedClassId === cls.id
                 const date = new Date(cls.date)
                 return (
-                  <li key={cls.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <li key={cls.id} className="bg-card border border-border rounded-md overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setExpandedClassId(isExpanded ? null : cls.id)}
@@ -375,7 +375,7 @@ export default function StudentProfile() {
 }
 
 function LoadingScreen() {
-  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" /></div>
+  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>
 }
 
 function ClipStatusDot({ status }: { status: Clip['status'] }) {
@@ -392,7 +392,7 @@ function TrendChip({ trend, t }: { trend: ClipTrend; t: ReturnType<typeof useTra
     improved: { label: t('clipTrendImproved'), className: 'bg-ok/10 text-ok border-ok/30' },
     declining: { label: t('clipTrendDeclining'), className: 'bg-bad/10 text-bad border-bad/30' },
     stagnant: { label: t('clipTrendStagnant'), className: 'bg-warn/10 text-warn border-warn/30' },
-    newish: { label: t('clipTrendNewish'), className: 'bg-blue/10 text-blue border-blue/30' },
+    newish: { label: t('clipTrendNewish'), className: 'bg-paper-3 text-ink border-primary' },
   }
   const { label, className } = cfg[trend]
   return (

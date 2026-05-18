@@ -539,12 +539,12 @@ export default function StudentClipPractice() {
       {/* INPUT stage */}
       {stage === 'input' && (
         <div className="max-w-md mx-auto px-5 py-8 flex flex-col gap-4">
-          <h1 className="text-xl font-bold text-foreground mb-4">{t('title')}</h1>
+          <h1 className="text-xl font-display font-semibold mb-4">{t('title')}</h1>
 
           {/* Phone restriction for recording */}
           <div className="flex md:hidden flex-col items-center text-center gap-3 py-4">
-            <div className="w-14 h-14 rounded-2xl bg-blue/10 border border-blue/20 flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+            <div className="w-14 h-14 rounded-md bg-paper-2 border border-rule flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
                 <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
               </svg>
             </div>
@@ -554,10 +554,10 @@ export default function StudentClipPractice() {
 
           <button
             onClick={() => startRecording('environment')}
-            className="bg-blue/10 border border-blue/30 rounded-2xl p-6 text-left hover:bg-blue/20 transition-all hidden md:block"
+            className="bg-paper-2 border border-rule rounded-md p-6 text-left hover:bg-paper-3 transition-all hidden md:block"
           >
             <div className="flex items-center gap-3 mb-2">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
                 <circle cx="12" cy="12" r="10" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
@@ -568,7 +568,7 @@ export default function StudentClipPractice() {
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-card border border-border rounded-2xl p-6 text-left hover:bg-secondary hover:border-ok/30 transition-all"
+            className="bg-card border border-border rounded-md p-6 text-left hover:bg-secondary hover:border-ok/30 transition-all"
           >
             <div className="flex items-center gap-3 mb-2">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-muted-foreground">
@@ -608,7 +608,7 @@ export default function StudentClipPractice() {
             {/* Loading overlay while camera connects */}
             {!cameraReady && (
               <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-blue border-t-transparent animate-spin" />
+                <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 <p className="text-muted-foreground text-sm">{t('startingCamera')}</p>
               </div>
             )}
@@ -664,7 +664,7 @@ export default function StudentClipPractice() {
             <button
               onClick={stopRecording}
               disabled={!cameraReady}
-              className="w-full bg-bad text-foreground font-bold text-lg rounded-2xl py-5 active:scale-[0.98] transition-all disabled:opacity-40"
+              className="w-full bg-bad text-foreground font-bold text-lg rounded-md py-5 active:scale-[0.98] transition-all disabled:opacity-40"
             >
               {t('stopAndAnalyze')}
             </button>
@@ -675,7 +675,7 @@ export default function StudentClipPractice() {
       {/* PROCESSING stage */}
       {stage === 'processing' && (
         <div className="flex flex-col items-center justify-center min-h-[60vh] px-5 gap-6">
-          <div className="w-10 h-10 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+          <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           <div className="w-full max-w-xs">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-muted-foreground">{t('analyzingFrames')}</span>
@@ -693,7 +693,7 @@ export default function StudentClipPractice() {
       {stage === 'results' && clip && (
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
           <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-foreground">{t('resultsTitle')}</h1>
+            <h1 className="text-xl font-display font-semibold">{t('resultsTitle')}</h1>
             {clip.video_url && (
               <button
                 onClick={() => setSideBySide(!sideBySide)}
@@ -727,7 +727,7 @@ export default function StudentClipPractice() {
                       loop
                       muted
                       playsInline
-                      className="w-full rounded-2xl bg-black"
+                      className="w-full rounded-md bg-black"
                     />
                   </div>
                 )}
@@ -745,7 +745,7 @@ export default function StudentClipPractice() {
                       muted
                       preload="auto"
                       onLoadedData={e => { (e.target as HTMLVideoElement).currentTime = 0.1 }}
-                      className="w-full rounded-2xl bg-black"
+                      className="w-full rounded-md bg-black"
                     />
                   </div>
                 )}
@@ -849,8 +849,8 @@ export default function StudentClipPractice() {
               )}
 
               {summary && (
-                <div className="bg-blue/10 border border-blue/20 rounded-2xl px-4 py-4">
-                  <p className="text-xs text-blue/80 uppercase tracking-wide mb-2">{t('recommendation')}</p>
+                <div className="bg-paper-2 border border-rule rounded-md px-4 py-4">
+                  <p className="text-xs text-ink-soft uppercase tracking-wide mb-2">{t('recommendation')}</p>
                   <p className="text-muted-foreground text-sm leading-relaxed">{summary}</p>
                 </div>
               )}
@@ -863,7 +863,7 @@ export default function StudentClipPractice() {
                   {t('recordAgain')}
                 </button>
                 <Link href={`/student/clip/${clipId}`} className="flex-1">
-                  <button className="w-full bg-ok text-on-ok font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
+                  <button className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3 hover:opacity-90 transition-all text-sm">
                     {t('viewCheckpoint')}
                   </button>
                 </Link>

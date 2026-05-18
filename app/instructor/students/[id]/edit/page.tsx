@@ -51,7 +51,7 @@ export default function EditStudent() {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   )
 
@@ -71,7 +71,7 @@ export default function EditStudent() {
 
       <div className="max-w-sm mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">{t('editTitle')}</h1>
+          <h1 className="text-2xl font-display font-semibold mb-1">{t('editTitle')}</h1>
           <p className="text-muted-foreground text-sm">{t('editSubtitle')}</p>
         </div>
 
@@ -85,7 +85,7 @@ export default function EditStudent() {
               onChange={e => setName(e.target.value)}
               placeholder={t('namePlaceholder')}
               required
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-0 h-11"
             />
           </div>
 
@@ -99,7 +99,7 @@ export default function EditStudent() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder={t('emailPlaceholder')}
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-0 h-11"
             />
           </div>
 
@@ -110,7 +110,7 @@ export default function EditStudent() {
           <Button
             type="submit"
             disabled={saving || !name.trim()}
-            className="h-11 bg-ok text-background font-semibold hover:bg-ok/90 mt-2"
+            className="h-11 bg-primary text-primary-foreground font-semibold hover:opacity-85 mt-2"
           >
             {saving ? t('saving') : t('saveCta')}
           </Button>

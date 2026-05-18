@@ -203,7 +203,7 @@ export default function ClipDetailPage() {
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+        <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     )
   }
@@ -296,7 +296,7 @@ export default function ClipDetailPage() {
         )}
 
         {/* Video stage with annotation marker timeline */}
-        <div ref={stageRef} className="relative bg-black rounded-2xl overflow-hidden">
+        <div ref={stageRef} className="relative bg-black rounded-md overflow-hidden">
           {clip.video_url ? (
             <video
               ref={videoRef}

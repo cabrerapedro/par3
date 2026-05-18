@@ -5,20 +5,30 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 type Theme = 'dark' | 'light'
 interface ThemeState { theme: Theme; toggle: () => void }
 
-const ThemeContext = createContext<ThemeState>({ theme: 'dark', toggle: () => {} })
+const STORAGE_KEY = 'parell_theme'
+
+const ThemeContext = createContext<ThemeState>({ theme: 'light', toggle: () => {} })
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark')
+  const [theme, setTheme] = useState<Theme>('light')
 
   useEffect(() => {
-    const saved = (localStorage.getItem('sweep_theme') as Theme) ?? 'dark'
-    apply(saved)
+    // One-time migration from the pre-Parell key. Drop after a few releases.
+    let saved = localStorage.getItem(STORAGE_KEY) as Theme | null
+    if (!saved) {
+      const legacy = localStorage.getItem('sweep_theme') as Theme | null
+      if (legacy) {
+        saved = legacy
+        localStorage.removeItem('sweep_theme')
+      }
+    }
+    apply(saved ?? 'light')
   }, [])
 
   function apply(t: Theme) {
     setTheme(t)
-    document.documentElement.classList.toggle('light', t === 'light')
-    localStorage.setItem('sweep_theme', t)
+    document.documentElement.classList.toggle('dark', t === 'dark')
+    localStorage.setItem(STORAGE_KEY, t)
   }
 
   return (

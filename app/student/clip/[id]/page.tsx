@@ -120,7 +120,7 @@ export default function ClipDetail() {
                 {clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
               </Badge>
               {isSwing && (
-                <Badge variant="outline" className="text-blue border-blue/20 bg-blue/10 text-xs">
+                <Badge variant="outline" className="text-ink-soft border-rule bg-paper-2 text-xs">
                   {t('swingBadge')}
                 </Badge>
               )}
@@ -155,8 +155,8 @@ export default function ClipDetail() {
                   className={cn(
                     "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all",
                     isSwing
-                      ? "bg-blue text-white border-blue hover:bg-blue/90"
-                      : "bg-ok text-black border-ok hover:bg-ok/90"
+                      ? "bg-primary text-primary-foreground border-primary hover:opacity-85"
+                      : "bg-primary text-primary-foreground hover:opacity-85"
                   )}
                 >
                   {isSwing ? (
@@ -175,7 +175,7 @@ export default function ClipDetail() {
               </div>
             ) : null}
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">{clip.name}</h1>
+          <h1 className="text-2xl font-display font-semibold">{clip.name}</h1>
           {hasBaseline && (
             <p className="text-muted-foreground text-sm mt-1">
               {isSwing ? t('swingsCalibratedSummary', { count: annotations.length }) : t('positionsCalibratedSummary', { count: annotations.length })}
@@ -299,7 +299,7 @@ export default function ClipDetail() {
 }
 
 function LoadingScreen() {
-  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" /></div>
+  return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>
 }
 
 function formatTime(s: number): string {

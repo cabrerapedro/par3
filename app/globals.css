@@ -5,12 +5,11 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── shadcn token → Tailwind utility bridge ───────────────────────────── */
-/* --color-muted and --color-border excluded — sweep owns those names        */
 @theme inline {
-  --radius-sm:     calc(var(--radius) - 4px);
-  --radius-md:     calc(var(--radius) - 2px);
-  --radius-lg:     var(--radius);
-  --radius-xl:     calc(var(--radius) + 4px);
+  --radius-sm: calc(var(--radius) - 1px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
   --color-background:                    var(--background);
   --color-foreground:                    var(--foreground);
   --color-card:                          var(--card);
@@ -37,103 +36,125 @@
   --color-sidebar-ring:                  var(--sidebar-ring);
 }
 
-/* ─── sweep design tokens (after @theme inline so they win on conflicts) ── */
+/* ─── parell design tokens ─────────────────────────────────────────────── */
 @theme {
-  --color-bg:     #09090b;
-  --color-s1:     #111113;
-  --color-s2:     #1c1c1f;
-  --color-s3:     #28282c;
-  --color-border: #2e2e32;
-  --color-txt:    #f4f4f5;
-  --color-muted:  #a1a1aa;
-  --color-dim:    #71717a;
-  --color-ok:     #34d178;
-  --color-on-ok:  #000000;  /* text color on bg-ok buttons */
-  --color-warn:   #f59e0b;
-  --color-bad:    #ef4444;
-  --color-blue:   #60a5fa;
-  --font-sans:    var(--font-dm-sans), ui-sans-serif, system-ui;
-  --font-mono:    var(--font-jb-mono), ui-monospace, monospace;
-  --font-display: var(--font-dm-serif), Georgia, serif;
-  /* Animations */
-  --animate-fade-up: fade-up 0.8s ease-out both;
+  /* Paper / ink / cognac primitives */
+  --color-paper:        #EFE9DC;
+  --color-paper-2:      #F6F1E4;
+  --color-paper-3:      #E5DDC9;
+  --color-ink:          #1A1814;
+  --color-ink-soft:     #4A4438;
+  --color-ink-mute:     #8A8270;
+  --color-rule:         rgba(26, 24, 20, 0.18);
+  --color-rule-soft:    rgba(26, 24, 20, 0.08);
+  --color-primary-ink:  #1F3A38;
+  --color-accent:       #9B5B2A;
+
+  /* Score colors — outdoor-validated contrast */
+  --color-ok:           #5A7460;
+  --color-warn:         #8C7424;
+  --color-bad:          #A14F3C;
+  --color-on-ok:        #EFE9DC;
+
+  /* Legacy aliases — kept until pages are migrated phase by phase.
+     New code should not reference these. */
+  --color-bg:           var(--color-paper);
+  --color-s1:           var(--color-paper-2);
+  --color-s2:           var(--color-paper-3);
+  --color-s3:           var(--color-paper-3);
+  --color-border:       var(--color-rule);
+  --color-txt:          var(--color-ink);
+  --color-muted:        var(--color-ink-soft);
+  --color-dim:          var(--color-ink-mute);
+  --color-blue:         var(--color-primary-ink);
+
+  /* Fonts */
+  --font-sans:          var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:          var(--font-jb-mono), ui-monospace, monospace;
+  --font-display:       var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+
+  /* Animations (legacy — review in Phase F) */
+  --animate-fade-up:    fade-up 0.8s ease-out both;
 }
 
-/* ─── shadcn CSS variables — dark (default for sweep) ───────────────────── */
+/* ─── Light (default for parell) ───────────────────────────────────────── */
 :root {
-  --radius:                   0.625rem;
-  --background:               #09090b;
-  --foreground:               #f4f4f5;
-  --card:                     #111113;
-  --card-foreground:          #f4f4f5;
-  --popover:                  #111113;
-  --popover-foreground:       #f4f4f5;
-  --primary:                  #34d178;
-  --primary-foreground:       #09090b;
-  --secondary:                #1c1c1f;
-  --secondary-foreground:     #f4f4f5;
-  --muted:                    #1c1c1f;
-  --muted-foreground:         #a1a1aa;
-  --accent:                   #1c1c1f;
-  --accent-foreground:        #f4f4f5;
-  --destructive:              #ef4444;
-  --border:                   #2e2e32;
-  --input:                    #1c1c1f;
-  --ring:                     #34d178;
-  --sidebar:                  #111113;
-  --sidebar-foreground:       #f4f4f5;
-  --sidebar-primary:          #34d178;
-  --sidebar-primary-foreground: #09090b;
-  --sidebar-accent:           #1c1c1f;
-  --sidebar-accent-foreground: #f4f4f5;
-  --sidebar-border:           #2e2e32;
-  --sidebar-ring:             #34d178;
+  --radius:                     0.125rem;
+  --background:                 #EFE9DC;
+  --foreground:                 #1A1814;
+  --card:                       #F6F1E4;
+  --card-foreground:            #1A1814;
+  --popover:                    #F6F1E4;
+  --popover-foreground:         #1A1814;
+  --primary:                    #1F3A38;
+  --primary-foreground:         #EFE9DC;
+  --secondary:                  #E5DDC9;
+  --secondary-foreground:       #1A1814;
+  --muted:                      #E5DDC9;
+  --muted-foreground:           #4A4438;
+  --accent:                     #E5DDC9;
+  --accent-foreground:          #1A1814;
+  --destructive:                #A14F3C;
+  --border:                     rgba(26, 24, 20, 0.18);
+  --input:                      rgba(26, 24, 20, 0.18);
+  --ring:                       #1F3A38;
+  --sidebar:                    #F6F1E4;
+  --sidebar-foreground:         #1A1814;
+  --sidebar-primary:            #1F3A38;
+  --sidebar-primary-foreground: #EFE9DC;
+  --sidebar-accent:             #E5DDC9;
+  --sidebar-accent-foreground:  #1A1814;
+  --sidebar-border:             rgba(26, 24, 20, 0.18);
+  --sidebar-ring:               #1F3A38;
 }
 
-/* ─── Light mode — optimized for outdoor / bright sunlight readability ──── */
-.light {
-  --background:               #F0F4F2;  /* tinted off-white, less glare than pure white */
-  --foreground:               #0C1318;  /* near-black for max contrast */
-  --card:                     #FAFCFB;  /* distinct from background */
-  --card-foreground:          #0C1318;
-  --popover:                  #FAFCFB;
-  --popover-foreground:       #0C1318;
-  --primary:                  #16a34a;  /* vibrant green, matches logo */
-  --primary-foreground:       #ffffff;
-  --secondary:                #E2EBE6;  /* visible separation from card */
-  --secondary-foreground:     #0C1318;
-  --muted:                    #E2EBE6;
-  --muted-foreground:         #334155;  /* darker for outdoor readability */
-  --accent:                   #E2EBE6;
-  --accent-foreground:        #0C1318;
-  --destructive:              #b91c1c;  /* darker red */
-  --border:                   rgba(12, 19, 24, 0.18);  /* visible borders */
-  --input:                    #E8EEEb;
-  --ring:                     #16a34a;
-  --sidebar:                  #FAFCFB;
-  --sidebar-foreground:       #0C1318;
-  --sidebar-primary:          #16a34a;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent:           #E2EBE6;
-  --sidebar-accent-foreground: #0C1318;
-  --sidebar-border:           rgba(12, 19, 24, 0.18);
-  --sidebar-ring:             #16a34a;
-  --color-bg:                 #F0F4F2;
-  --color-s1:                 #FAFCFB;
-  --color-s2:                 #E2EBE6;
-  --color-s3:                 #D0DDD6;
-  --color-border:             rgba(12, 19, 24, 0.18);
-  --color-txt:                #0C1318;
-  --color-muted:              #334155;  /* readable outdoors */
-  --color-dim:                #475569;
-  --color-ok:                 #16a34a;  /* green-600, vibrant like logo */
-  --color-on-ok:              #ffffff;  /* white text on dark green */
-  --color-warn:               #d97706;  /* amber-600, darker for light bg */
-  --color-bad:                #b91c1c;  /* red-700, darker for light bg */
-  --color-blue:               #1d4ed8;  /* blue-700, high contrast */
+/* ─── Dark / nocturno ──────────────────────────────────────────────────── */
+.dark {
+  --background:                 #13110E;
+  --foreground:                 #EFE9DC;
+  --card:                       #1C1916;
+  --card-foreground:            #EFE9DC;
+  --popover:                    #1C1916;
+  --popover-foreground:         #EFE9DC;
+  --primary:                    #7AA7A3;
+  --primary-foreground:         #13110E;
+  --secondary:                  #26221C;
+  --secondary-foreground:       #EFE9DC;
+  --muted:                      #26221C;
+  --muted-foreground:           #B5AC97;
+  --accent:                     #26221C;
+  --accent-foreground:          #EFE9DC;
+  --destructive:                #C97B66;
+  --border:                     rgba(239, 233, 220, 0.10);
+  --input:                      rgba(239, 233, 220, 0.10);
+  --ring:                       #7AA7A3;
+  --sidebar:                    #1C1916;
+  --sidebar-foreground:         #EFE9DC;
+  --sidebar-primary:            #7AA7A3;
+  --sidebar-primary-foreground: #13110E;
+  --sidebar-accent:             #26221C;
+  --sidebar-accent-foreground:  #EFE9DC;
+  --sidebar-border:             rgba(239, 233, 220, 0.10);
+  --sidebar-ring:               #7AA7A3;
+
+  /* Dark overrides for parell tokens */
+  --color-paper:        #13110E;
+  --color-paper-2:      #1C1916;
+  --color-paper-3:      #26221C;
+  --color-ink:          #EFE9DC;
+  --color-ink-soft:     #B5AC97;
+  --color-ink-mute:     #76705F;
+  --color-rule:         rgba(239, 233, 220, 0.10);
+  --color-rule-soft:    rgba(239, 233, 220, 0.05);
+  --color-primary-ink:  #7AA7A3;
+  --color-accent:       #C68A5A;
+  --color-ok:           #8FB593;
+  --color-warn:         #D9B26C;
+  --color-bad:          #C97B66;
+  --color-on-ok:        #13110E;
 }
 
-/* ─── Keyframes ─────────────────────────────────────────────────────────── */
+/* ─── Keyframes (legacy — review in Phase F) ───────────────────────────── */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -144,26 +165,19 @@
 html, body { height: 100%; }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-txt);
-  font-family: var(--font-dm-sans), ui-sans-serif, system-ui;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background 0.4s, color 0.4s;
+  transition: background 200ms ease, color 200ms ease;
 }
 
-/* ─── Landing page utilities ────────────────────────────────────────────── */
-.logo-icon-glow {
-  box-shadow: 0 0 40px rgba(52, 209, 120, 0.15), 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-.light .logo-icon-glow {
-  box-shadow: 0 0 30px rgba(22, 163, 74, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-.landing-card-shadow {
-  box-shadow: none;
-}
-.light .landing-card-shadow {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+/* ─── Reusable utilities ───────────────────────────────────────────────── */
+@utility small-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 500;
 }

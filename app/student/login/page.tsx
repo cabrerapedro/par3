@@ -3,15 +3,16 @@
 import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { Input } from '@/components/ui/input'
-import Link from 'next/link'
+import { Wordmark } from '@/components/Wordmark'
 
 export default function StudentLoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <div className="w-5 h-5 rounded-full border-2 border-blue border-t-transparent animate-spin" />
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4">
+        <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     }>
       <StudentLogin />
@@ -26,7 +27,6 @@ function StudentLogin() {
   const t = useTranslations('auth.student')
   const tAuth = useTranslations('auth')
   const tErrors = useTranslations('auth.errors')
-  const tMeta = useTranslations('meta')
 
   function resolveError(code?: string): string {
     if (!code) return ''
@@ -37,23 +37,19 @@ function StudentLogin() {
     }
   }
 
-  // Shared state
   const [tab, setTab] = useState<'code' | 'email'>('code')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [autoLogging, setAutoLogging] = useState(false)
   const tried = useRef(false)
 
-  // Code tab state
   const [code, setCode] = useState('')
 
-  // Email tab state
   const [email, setEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [otp, setOtp] = useState('')
   const [resendCooldown, setResendCooldown] = useState(0)
 
-  // Auto-login from ?code= URL parameter (shared link)
   useEffect(() => {
     const urlCode = searchParams.get('code')
     if (!urlCode || tried.current) return
@@ -69,7 +65,6 @@ function StudentLogin() {
     })
   }, [searchParams])
 
-  // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return
     const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000)
@@ -132,68 +127,53 @@ function StudentLogin() {
   }
 
   if (autoLogging) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-      <div className="w-5 h-5 rounded-full border-2 border-blue border-t-transparent animate-spin" />
-      <p className="text-muted-foreground text-sm">{t('entering')}</p>
+    <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4">
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <p className="text-ink-soft text-sm">{t('entering')}</p>
     </div>
   )
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 py-10">
+  const codeInputClass = "h-16 text-center text-3xl font-mono tracking-[0.4em] placeholder:text-ink-mute/40 placeholder:text-xl placeholder:tracking-normal"
+  const submitClass = "h-11 bg-primary text-primary-foreground font-medium tracking-[0.01em] hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
 
-      {/* Back link */}
-      <div className="relative z-10 w-full max-w-sm mb-4">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+  return (
+    <div className="min-h-screen bg-paper text-ink flex flex-col items-center justify-center px-5 py-10">
+      <div className="w-full max-w-sm mb-5">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-ink transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
           {tAuth('back')}
         </Link>
       </div>
 
-      {/* Brand */}
-      <div className="relative z-10 mb-8 text-center" style={{ animation: 'fade-up 0.8s ease-out both' }}>
-        <Link href="/" className="inline-flex flex-col items-center gap-3 group">
-          <div
-            className="logo-icon-glow w-14 h-14 rounded-[18px] flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #34d178, #22c55e)' }}
-          >
-            <svg width="26" height="26" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" className="text-background">
-              <path d="M6 30 Q6 6 30 6" />
-              <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
-            </svg>
-          </div>
-          <span className="text-sm font-bold text-foreground tracking-tight">
-            {tMeta('appName')}
-          </span>
+      <div className="mb-9 text-center">
+        <Link href="/" className="inline-block">
+          <Wordmark size="lg" />
         </Link>
+        <p className="small-caps font-mono text-[10px] text-ink-mute mt-3">
+          Para alumnos
+        </p>
       </div>
 
-      {/* Card */}
-      <div
-        className="relative z-10 w-full max-w-sm bg-card border border-border rounded-[20px] overflow-hidden"
-        style={{ animation: 'fade-up 0.8s ease-out 100ms both' }}
-      >
-        {/* Tabs */}
-        <div className="flex border-b border-border">
+      <div className="w-full max-w-sm border border-rule bg-paper-2">
+        <div className="flex border-b border-rule">
           <button
             onClick={() => switchTab('code')}
-            className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${tab === 'code' ? 'text-foreground border-b-2 border-blue' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'code' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
           >
             {t('tabCode')}
           </button>
           <button
             onClick={() => switchTab('email')}
-            className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${tab === 'email' ? 'text-foreground border-b-2 border-blue' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'email' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
           >
             {t('tabEmail')}
           </button>
         </div>
 
-        {/* Tab content */}
-        <div className="px-6 py-6">
+        <div className="px-7 py-6">
           {tab === 'code' ? (
             <>
-              <p className="text-muted-foreground text-sm text-center mb-5">
+              <p className="text-ink-soft text-sm text-center mb-5">
                 {t('codePromptText')}
               </p>
               <form onSubmit={handleCodeSubmit} className="flex flex-col gap-5">
@@ -205,31 +185,27 @@ function StudentLogin() {
                   maxLength={6}
                   required
                   autoFocus
-                  className="bg-secondary border-border text-foreground text-center text-3xl font-mono tracking-[0.4em] placeholder:text-muted-foreground/40 placeholder:text-xl placeholder:tracking-normal h-16 focus-visible:border-blue/50 focus-visible:ring-blue/10"
+                  className={codeInputClass}
                 />
 
                 {error && (
-                  <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3 leading-snug">
+                  <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
                     {error}
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={loading || code.length < 4}
-                  className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
-                >
+                <button type="submit" disabled={loading || code.length < 4} className={submitClass}>
                   {loading ? t('verifying') : t('codeCta')}
                 </button>
               </form>
 
-              <p className="text-muted-foreground text-sm text-center mt-6 leading-relaxed">
+              <p className="text-ink-soft text-sm text-center mt-6 leading-relaxed">
                 {t('codeHelp')}
               </p>
             </>
           ) : !otpSent ? (
             <>
-              <p className="text-muted-foreground text-sm text-center mb-5">
+              <p className="text-ink-soft text-sm text-center mb-5">
                 {t('emailPromptText')}
               </p>
               <form onSubmit={handleSendOtp} className="flex flex-col gap-5">
@@ -240,32 +216,28 @@ function StudentLogin() {
                   placeholder={t('emailPlaceholder')}
                   required
                   autoFocus
-                  className="bg-secondary border-border text-foreground h-12 focus-visible:border-blue/50 focus-visible:ring-blue/10"
+                  className="h-11 text-base"
                 />
 
                 {error && (
-                  <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3 leading-snug">
+                  <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
                     {error}
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={loading || !email.includes('@')}
-                  className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
-                >
+                <button type="submit" disabled={loading || !email.includes('@')} className={submitClass}>
                   {loading ? t('sending') : t('sendCodeCta')}
                 </button>
               </form>
 
-              <p className="text-muted-foreground text-sm text-center mt-6 leading-relaxed">
+              <p className="text-ink-soft text-sm text-center mt-6 leading-relaxed">
                 {t('emailHelp')}
               </p>
             </>
           ) : (
             <>
-              <p className="text-muted-foreground text-sm text-center mb-5">
-                {t('otpPromptText')} <span className="text-foreground font-medium">{email}</span>
+              <p className="text-ink-soft text-sm text-center mb-5">
+                {t('otpPromptText')} <span className="text-ink font-medium">{email}</span>
               </p>
               <form onSubmit={handleVerifyOtp} className="flex flex-col gap-5">
                 <Input
@@ -277,20 +249,16 @@ function StudentLogin() {
                   maxLength={6}
                   required
                   autoFocus
-                  className="bg-secondary border-border text-foreground text-center text-3xl font-mono tracking-[0.4em] placeholder:text-muted-foreground/40 placeholder:text-xl placeholder:tracking-normal h-16 focus-visible:border-blue/50 focus-visible:ring-blue/10"
+                  className={codeInputClass}
                 />
 
                 {error && (
-                  <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3 leading-snug">
+                  <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
                     {error}
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={loading || otp.length < 6}
-                  className="h-12 bg-blue text-white font-semibold rounded-xl hover:bg-blue/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
-                >
+                <button type="submit" disabled={loading || otp.length < 6} className={submitClass}>
                   {loading ? t('verifying') : t('verifyCta')}
                 </button>
               </form>
@@ -299,14 +267,14 @@ function StudentLogin() {
                 <button
                   onClick={handleResend}
                   disabled={resendCooldown > 0}
-                  className="text-sm text-blue hover:text-blue/80 disabled:text-muted-foreground transition-colors"
+                  className="text-sm text-primary hover:opacity-80 disabled:text-ink-mute transition-opacity"
                 >
                   {resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resend')}
                 </button>
-                <span className="text-muted-foreground/30">|</span>
+                <span className="text-ink-mute/40">|</span>
                 <button
                   onClick={() => { setOtpSent(false); setOtp(''); setError('') }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-ink-soft hover:text-ink transition-colors"
                 >
                   {t('changeEmail')}
                 </button>

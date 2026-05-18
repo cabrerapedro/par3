@@ -3,30 +3,23 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Student } from '@/lib/types'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { UserMenu } from '@/components/UserMenu'
+import { Wordmark } from '@/components/Wordmark'
 import { cn } from '@/lib/utils'
-import Link from 'next/link'
 
 type StudentWithCps = Student & { checkpoints: { id: string; status: string }[] }
-
-function initials(name: string) {
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-}
 
 export default function InstructorDashboard() {
   const { instructor, logout, loading } = useAuth()
   const router = useRouter()
   const t = useTranslations('instructor.dashboard')
-  const tMeta = useTranslations('meta')
   const [students, setStudents] = useState<StudentWithCps[]>([])
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
@@ -87,19 +80,11 @@ export default function InstructorDashboard() {
   if (loading || !instructor) return <LoadingScreen />
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border">
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-rule">
         <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-1.5 shrink-0">
-            <svg width="16" height="16" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" className="text-ok">
-              <path d="M6 30 Q6 6 30 6" />
-              <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
-            </svg>
-            <span className="text-sm font-bold text-foreground tracking-tight">
-              {tMeta('appName')}
-            </span>
+          <Link href="/" aria-label="Parell — inicio">
+            <Wordmark size="md" />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -115,14 +100,15 @@ export default function InstructorDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
-        {/* Page header */}
-        <div className="mb-8">
-          <p className="text-sm text-muted-foreground mb-1">{t('greeting', { name: instructor.name.split(' ')[0] })}</p>
-          <div className="flex items-end justify-between gap-4">
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">{t('title')}</h1>
+        <div className="mb-10">
+          <p className="small-caps font-mono text-[11px] text-accent mb-2">
+            {t('greeting', { name: instructor.name.split(' ')[0] })}
+          </p>
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <h1 className="font-display font-semibold text-3xl md:text-[40px] leading-tight">{t('title')}</h1>
             <Link
               href="/instructor/students/new"
-              className="inline-flex items-center gap-1.5 h-10 px-4 bg-ok text-on-ok font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300 shrink-0"
+              className="inline-flex items-center gap-1.5 h-10 px-5 bg-primary text-primary-foreground font-medium text-sm tracking-[0.01em] rounded-md hover:opacity-85 transition-opacity shrink-0"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -132,38 +118,36 @@ export default function InstructorDashboard() {
           </div>
         </div>
 
-        {/* Stats */}
         {students.length > 0 && !fetching && (
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-0 mb-8 border-t border-b border-rule">
             {[
               { label: t('statStudents'), value: students.length },
               { label: t('statExercises'), value: totalCheckpoints },
               { label: t('statCalibrated'), value: totalCalibrated },
-            ].map(stat => (
-              <div key={stat.label} className="bg-card border border-border rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+            ].map((stat, i) => (
+              <div key={stat.label} className={cn('px-5 py-4', i > 0 && 'border-l border-rule')}>
+                <p className="small-caps font-mono text-[10px] text-ink-mute">{stat.label}</p>
+                <p className="font-display font-semibold text-2xl tabular-nums mt-1">{stat.value}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Search */}
         {students.length > 2 && (
-          <div className="relative mb-4">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          <div className="relative mb-6 max-w-md">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute">
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="pl-9 bg-card border-border text-foreground placeholder:text-muted-foreground/60 h-10 focus-visible:border-ok/50 focus-visible:ring-0"
+              className="pl-9 h-10"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute hover:text-ink transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
@@ -171,66 +155,62 @@ export default function InstructorDashboard() {
           </div>
         )}
 
-        {/* Student list */}
         {fetching ? (
           <div className="flex justify-center py-20">
-            <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
         ) : students.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-2xl">
-            <div className="w-14 h-14 bg-secondary rounded-2xl flex items-center justify-center mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
-                <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
-              </svg>
-            </div>
-            <p className="text-foreground font-semibold mb-1">{t('emptyTitle')}</p>
-            <p className="text-muted-foreground text-sm mb-6 max-w-xs">
+          <div className="flex flex-col items-center justify-center py-24 text-center border-t border-b border-rule">
+            <p className="small-caps font-mono text-[11px] text-ink-mute">{t('emptyTitle')}</p>
+            <p className="font-display font-semibold text-xl mt-2 max-w-sm">
               {t('emptyDescription')}
             </p>
             <Link
               href="/instructor/students/new"
-              className="inline-flex items-center h-11 px-5 bg-ok text-on-ok font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300"
+              className="inline-flex items-center h-11 px-6 mt-6 bg-primary text-primary-foreground font-medium text-sm tracking-[0.01em] rounded-md hover:opacity-85 transition-opacity"
             >
               {t('createFirst')}
             </Link>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground text-sm">
+          <div className="text-center py-10 text-ink-soft text-sm">
             {t('noResultsFor', { query: search })}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="border-t border-rule">
+            {/* Header row */}
+            <div className="hidden md:grid grid-cols-[1fr_120px_140px_60px] gap-6 py-3 border-b border-rule">
+              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colName')}</span>
+              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colCode')}</span>
+              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colExercises')}</span>
+              <span />
+            </div>
+
             {filtered.map(s => {
               const total = s.checkpoints.length
               const cal = s.checkpoints.filter(c => c.status === 'calibrated').length
               return (
                 <Link key={s.id} href={`/instructor/students/${s.id}`}>
-                  <div className="group flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors cursor-pointer">
-                    <Avatar className="size-9 shrink-0">
-                      <AvatarFallback className="bg-secondary text-muted-foreground text-xs font-semibold group-hover:bg-ok/10 group-hover:text-ok transition-colors">
-                        {initials(s.name)}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{s.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                  <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_120px_140px_60px] gap-3 md:gap-6 items-center py-4 border-b border-rule hover:bg-paper-2/60 transition-colors cursor-pointer">
+                    <div className="min-w-0">
+                      <p className="font-display font-medium text-lg truncate">{s.name}</p>
+                      <p className="text-xs text-ink-mute mt-0.5 md:hidden">
                         {total === 0
                           ? t('noExercises')
                           : t('exerciseSummary', { calibrated: cal, total })}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="hidden md:flex items-center gap-2">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             onClick={e => copyCode(s.access_code, e)}
                             className={cn(
-                              "font-mono text-xs px-2 py-1 rounded-md border transition-all",
+                              "font-mono text-xs px-2.5 py-1 border transition-colors tracking-[0.06em]",
                               copied === s.access_code
-                                ? "bg-ok/10 border-ok/30 text-ok"
-                                : "bg-secondary border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
+                                ? "border-ok text-ok"
+                                : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
                             )}
                           >
                             {copied === s.access_code ? t('copied') : s.access_code}
@@ -245,10 +225,10 @@ export default function InstructorDashboard() {
                           <button
                             onClick={e => shareLink(s, e)}
                             className={cn(
-                              "size-7 rounded-md border flex items-center justify-center transition-all",
+                              "size-7 border flex items-center justify-center transition-colors",
                               copied === `link-${s.access_code}`
-                                ? "bg-ok/10 border-ok/30 text-ok"
-                                : "bg-secondary border-border text-muted-foreground hover:border-blue/30 hover:text-foreground"
+                                ? "border-ok text-ok"
+                                : "border-rule text-ink-mute hover:border-ink-soft hover:text-ink"
                             )}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -263,10 +243,16 @@ export default function InstructorDashboard() {
                           {t('shareLinkTooltip')}
                         </TooltipContent>
                       </Tooltip>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
                     </div>
+
+                    <div className="hidden md:block">
+                      <span className="font-display font-medium text-lg tabular-nums">{cal}</span>
+                      <span className="font-mono text-xs text-ink-mute"> / {total}</span>
+                    </div>
+
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-ink-mute">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
                   </div>
                 </Link>
               )
@@ -280,8 +266,8 @@ export default function InstructorDashboard() {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
+    <div className="min-h-screen bg-paper flex items-center justify-center">
+      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   )
 }

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "appName": "parell.golf",
-    "tagline": "Practica con la guía de tu profesor",
-    "description": "Copiloto digital para instructores y alumnos de golf"
+    "appName": "Parell",
+    "tagline": "El cuaderno del golf que se enseña",
+    "description": "Cuaderno de práctica para instructores de golf y sus alumnos"
   },
   "baselineSummary": {
     "allInRange": "Todas las métricas dentro de tu rango personal. Excelente consistencia.",
@@ -157,7 +157,7 @@
   },
   "landing": {
     "tagline": "Practica con la guía de tu profesor",
-    "subtitle": "Tu profesor te enseña. parell.golf te ayuda a practicar bien entre clases.",
+    "subtitle": "Tu profesor te enseña. Parell te ayuda a practicar bien entre clases.",
     "instructorCardTitle": "Soy Instructor",
     "instructorCardDescription": "Graba, analiza y guía la práctica de tus alumnos",
     "studentCardTitle": "Soy Alumno",
@@ -237,11 +237,14 @@
       "noResultsFor": "No se encontró ningún alumno con \"{query}\"",
       "noExercises": "Sin ejercicios aún",
       "exerciseSummary": "{calibrated} de {total} {total, plural, one {ejercicio calibrado} other {ejercicios calibrados}}",
+      "colName": "Alumno",
+      "colCode": "Código",
+      "colExercises": "Ejercicios",
       "copied": "✓ copiado",
       "copyCodeTooltip": "Copiar código de acceso",
       "shareLinkTooltip": "Compartir enlace de acceso",
-      "shareTitle": "parell.golf - Acceso de práctica",
-      "shareText": "{name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf"
+      "shareTitle": "Parell — Acceso de práctica",
+      "shareText": "{name}, usa este enlace para acceder a tus ejercicios de práctica en Parell"
     },
     "profile": {
       "backToDashboard": "Dashboard",
@@ -274,8 +277,8 @@
       "copyCodeTooltip": "Copiar código de acceso del alumno",
       "shareLinkLabel": "Compartir enlace",
       "shareLinkTooltip": "Enviar enlace de acceso al alumno",
-      "shareTitle": "parell.golf - Acceso de práctica",
-      "shareText": "{name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf",
+      "shareTitle": "Parell — Acceso de práctica",
+      "shareText": "{name}, usa este enlace para acceder a tus ejercicios de práctica en Parell",
       "edit": "Editar",
       "deleteAction": "Eliminar",
       "weekTitle": "Esta semana",
@@ -400,7 +403,7 @@
   },
   "student": {
     "journey": {
-      "brandLink": "parell.golf",
+      "brandLink": "Parell",
       "greeting": "Hola, {name}",
       "title": "Mis Ejercicios",
       "subtitle": "Técnicas calibradas por tu instructor",
