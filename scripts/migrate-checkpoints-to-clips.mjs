@@ -97,97 +97,111 @@ async function main() {
   let clipsCreated = 0
   let annotationsCreated = 0
   let sessionsLinked = 0
+  // Track which groups failed so the final summary can call them out
+  // explicitly. The pre-flight "skip students with existing clips" check
+  // (M3) covers the happy-path TOCTOU concern; partially-failed groups
+  // need manual cleanup before re-running.
+  const partialGroups = []
 
   // ---------- Per-group migration ----------
   for (const g of groups.values()) {
     log(`Group: student=${g.student_id} date=${g.date} (${g.checkpoints.length} checkpoints)`)
 
-    let cls
-    if (DRY_RUN) {
-      cls = { id: '<dry-run-class-id>' }
-    } else {
-      const { data, error } = await sb
-        .from('classes')
-        .insert({
-          student_id: g.student_id,
-          instructor_id: g.instructor_id,
-          date: g.date,
-        })
-        .select()
-        .single()
-      if (error) throw error
-      cls = data
-    }
-    classesCreated++
-
-    for (const cp of g.checkpoints) {
-      // Derive clip status from checkpoint state.
-      const status =
-        cp.status === 'archived' ? 'archived' :
-        cp.baseline ? 'calibrated' : 'pending'
-
-      let clip
+    try {
+      let cls
       if (DRY_RUN) {
-        clip = { id: '<dry-run-clip-id>' }
+        cls = { id: '<dry-run-class-id>' }
       } else {
         const { data, error } = await sb
-          .from('clips')
+          .from('classes')
           .insert({
-            class_id: cls.id,
-            student_id: cp.student_id,
+            student_id: g.student_id,
             instructor_id: g.instructor_id,
-            name: cp.name,
-            camera_angle: cp.camera_angle,
-            clip_type: cp.checkpoint_type || 'position',
-            display_order: cp.display_order,
-            video_url: cp.calibration_video_url,
-            skeleton_url: cp.calibration_skeleton_url,
-            baseline: cp.baseline,
-            baseline_summary: cp.baseline_summary,
-            selected_metrics: cp.selected_metrics ?? [],
-            status,
+            date: g.date,
           })
           .select()
           .single()
         if (error) throw error
-        clip = data
+        cls = data
       }
-      clipsCreated++
+      classesCreated++
 
-      // Preserve the legacy single instructor_note + instructor_audio_url
-      // as a clip_annotation anchored at frame 0 — that's the closest
-      // mapping into the new annotation model.
-      if (cp.instructor_note || cp.instructor_audio_url) {
-        if (!DRY_RUN) {
-          await sb.from('clip_annotations').insert({
-            clip_id: clip.id,
-            frame_timestamp_ms: 0,
-            strokes: [],
-            audio_url: cp.instructor_audio_url ?? null,
-            audio_transcript: null,
-            text_note: cp.instructor_note ?? null,
-          })
+      for (const cp of g.checkpoints) {
+        // Derive clip status from checkpoint state.
+        const status =
+          cp.status === 'archived' ? 'archived' :
+          cp.baseline ? 'calibrated' : 'pending'
+
+        let clip
+        if (DRY_RUN) {
+          clip = { id: '<dry-run-clip-id>' }
+        } else {
+          const { data, error } = await sb
+            .from('clips')
+            .insert({
+              class_id: cls.id,
+              student_id: cp.student_id,
+              instructor_id: g.instructor_id,
+              name: cp.name,
+              camera_angle: cp.camera_angle,
+              clip_type: cp.checkpoint_type || 'position',
+              display_order: cp.display_order,
+              video_url: cp.calibration_video_url,
+              skeleton_url: cp.calibration_skeleton_url,
+              baseline: cp.baseline,
+              baseline_summary: cp.baseline_summary,
+              selected_metrics: cp.selected_metrics ?? [],
+              status,
+            })
+            .select()
+            .single()
+          if (error) throw error
+          clip = data
         }
-        annotationsCreated++
-      }
+        clipsCreated++
 
-      // Link existing practice_sessions for this checkpoint to the new clip
-      // + class.
-      if (!DRY_RUN) {
-        const { error: psErr, count } = await sb
-          .from('practice_sessions')
-          .update({ clip_id: clip.id, class_id: cls.id }, { count: 'exact' })
-          .eq('checkpoint_id', cp.id)
-          .is('clip_id', null)
-        if (psErr) throw psErr
-        sessionsLinked += count ?? 0
-      } else {
-        const { count } = await sb
-          .from('practice_sessions')
-          .select('id', { count: 'exact', head: true })
-          .eq('checkpoint_id', cp.id)
-        sessionsLinked += count ?? 0
+        // Preserve the legacy single instructor_note + instructor_audio_url
+        // as a clip_annotation anchored at frame 0 — that's the closest
+        // mapping into the new annotation model.
+        if (cp.instructor_note || cp.instructor_audio_url) {
+          if (!DRY_RUN) {
+            await sb.from('clip_annotations').insert({
+              clip_id: clip.id,
+              frame_timestamp_ms: 0,
+              strokes: [],
+              audio_url: cp.instructor_audio_url ?? null,
+              audio_transcript: null,
+              text_note: cp.instructor_note ?? null,
+            })
+          }
+          annotationsCreated++
+        }
+
+        // Link existing practice_sessions for this checkpoint to the new clip
+        // + class.
+        if (!DRY_RUN) {
+          const { error: psErr, count } = await sb
+            .from('practice_sessions')
+            .update({ clip_id: clip.id, class_id: cls.id }, { count: 'exact' })
+            .eq('checkpoint_id', cp.id)
+            .is('clip_id', null)
+          if (psErr) throw psErr
+          sessionsLinked += count ?? 0
+        } else {
+          const { count } = await sb
+            .from('practice_sessions')
+            .select('id', { count: 'exact', head: true })
+            .eq('checkpoint_id', cp.id)
+          sessionsLinked += count ?? 0
+        }
       }
+    } catch (e) {
+      // H2: catch per-group so a transient failure on one student doesn't
+      // wedge every subsequent student. We leave the partial inserts in
+      // place (Supabase JS has no native transactions) and report them
+      // loudly at the end so the operator can clean up before a re-run.
+      console.error(`[migrate] FAILED for student=${g.student_id} date=${g.date}:`, e)
+      partialGroups.push({ student_id: g.student_id, date: g.date, error: String(e?.message ?? e) })
     }
   }
 
@@ -195,6 +209,19 @@ async function main() {
   log(`  classes:     ${classesCreated}`)
   log(`  clips:       ${clipsCreated}`)
   log(`  annotations: ${annotationsCreated}`)
+
+  if (partialGroups.length > 0) {
+    console.error('')
+    console.error('===============================================================')
+    console.error(`WARNING: ${partialGroups.length} student group(s) failed mid-migration.`)
+    console.error('Partial rows may exist in classes/clips/clip_annotations.')
+    console.error('Clean those up manually before re-running this script.')
+    console.error('===============================================================')
+    for (const p of partialGroups) {
+      console.error(`  - student_id=${p.student_id} date=${p.date}: ${p.error}`)
+    }
+    process.exitCode = 1
+  }
   log(`  sessions linked: ${sessionsLinked}`)
 }
 
