@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { calculateMetrics, averageLandmarks, calculateBaseline, calculateSwingBaseline, detectSwingPhases, METRICS_BY_ANGLE, PHASE_LABELS } from '@/lib/baseline'
@@ -17,6 +18,7 @@ export default function CalibratePage() {
   const params = useParams()
   const studentId = params.id as string
   const checkpointId = params.checkpointId as string
+  const t = useTranslations('instructor.checkpoints')
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -83,7 +85,7 @@ export default function CalibratePage() {
 
   async function loadCheckpoint() {
     const { data } = await supabase.from('checkpoints').select('*').eq('id', checkpointId).single()
-    if (!data) { setError('Ejercicio no encontrado.'); return }
+    if (!data) { setError(t('calNotFound')); return }
     setCheckpoint(data)
     checkpointRef.current = data
     setSaveNote(data.instructor_note ?? '')
@@ -105,7 +107,7 @@ export default function CalibratePage() {
         setError('RELOAD_REQUIRED')
         return
       }
-      setError('Error al iniciar la cámara. Verifica los permisos.')
+      setError(t('calCameraError'))
     }
   }
 
@@ -351,14 +353,14 @@ export default function CalibratePage() {
       // Swing mode: capture last ~3 seconds and detect phases
       const frames = landmarkBufferRef.current.slice(-30)
       if (frames.length < 10) {
-        setSwingWarning('Espera a que el alumno complete el swing')
+        setSwingWarning(t('calSwingWarningWait'))
         setTimeout(() => setSwingWarning(''), 3000)
         return
       }
 
       const phases = detectSwingPhases(frames, checkpoint.camera_angle)
       if (!phases) {
-        setSwingWarning('No se detectó un swing completo. Asegúrate de que el alumno haya terminado el movimiento.')
+        setSwingWarning(t('calSwingWarningIncomplete'))
         setTimeout(() => setSwingWarning(''), 4000)
         return
       }
@@ -505,7 +507,7 @@ export default function CalibratePage() {
       .eq('id', checkpointId)
 
     if (updateErr) {
-      setError('Error al guardar. Intenta de nuevo.')
+      setError(t('calSaveError'))
       setStageSync('recording')
       return
     }
@@ -518,17 +520,17 @@ export default function CalibratePage() {
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
       {error === 'RELOAD_REQUIRED' ? (
         <>
-          <p className="text-foreground font-semibold">La cámara necesita reiniciarse</p>
-          <p className="text-muted-foreground text-sm max-w-xs">Esto puede pasar después de una actualización. Recarga la página para continuar.</p>
+          <p className="text-foreground font-semibold">{t('calCameraReloadTitle')}</p>
+          <p className="text-muted-foreground text-sm max-w-xs">{t('calCameraReloadDesc')}</p>
           <button onClick={() => window.location.reload()} className="bg-ok text-on-ok font-semibold text-sm rounded-xl px-5 py-2.5 hover:bg-ok/90 transition-all">
-            Recargar página
+            {t('calReloadCta')}
           </button>
         </>
       ) : (
         <>
           <p className="text-bad">{error}</p>
           <Link href={`/instructor/students/${studentId}/checkpoints/${checkpointId}`} className="text-ok hover:underline text-sm">
-            ← Volver al ejercicio
+            {t('calBackToCheckpoint')}
           </Link>
         </>
       )}
@@ -546,7 +548,7 @@ export default function CalibratePage() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            <span className="truncate">{checkpoint?.name ?? 'Calibración'}</span>
+            <span className="truncate">{checkpoint?.name ?? t('calDefaultTitle')}</span>
           </Link>
           {checkpoint && (
             <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
@@ -554,7 +556,7 @@ export default function CalibratePage() {
                 ? 'bg-blue/15 text-blue border border-blue/25'
                 : 'bg-ok/15 text-ok border border-ok/25'
             }`}>
-              {checkpoint.checkpoint_type === 'swing' ? 'Swing' : 'Postura'}
+              {checkpoint.checkpoint_type === 'swing' ? t('calSwingBadge') : t('calPostureBadge')}
             </span>
           )}
         </div>
@@ -566,13 +568,13 @@ export default function CalibratePage() {
                 : 'text-warn border-warn/30 bg-warn/10'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${poseDetected ? 'bg-ok' : 'bg-warn animate-pulse'}`} />
-              {poseDetected ? 'Pose detectada' : 'Sin persona en cámara'}
+              {poseDetected ? t('calPoseDetected') : t('calPoseMissing')}
             </div>
           )}
           {stage !== 'loading' && hasMultipleCameras && (
             <button
               onClick={flipCamera}
-              title="Cambiar cámara"
+              title={t('calFlipCameraTitle')}
               className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-ok/30 transition-all"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -607,7 +609,7 @@ export default function CalibratePage() {
         {marks.length > 0 && (
           <div className="absolute top-4 right-4 bg-background/80 backdrop-blur border border-ok/30 rounded-xl px-3 py-2 text-center">
             <p className="text-ok font-bold text-2xl leading-none">{marks.length}</p>
-            <p className="text-muted-foreground text-xs mt-0.5">marcas</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{t('calMarksCounter')}</p>
           </div>
         )}
 
@@ -619,7 +621,7 @@ export default function CalibratePage() {
           if (expected.length > 0 && visibleMetricCount < expected.length) return (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
               <span className="text-black text-sm font-medium">
-                Cuerpo parcial — {visibleMetricCount}/{expected.length} métricas
+                {t('calPartialBody', { visible: visibleMetricCount, total: expected.length })}
               </span>
             </div>
           )
@@ -630,7 +632,7 @@ export default function CalibratePage() {
         {stage === 'saving' && (
           <div className="absolute inset-0 bg-background/70 flex flex-col items-center justify-center gap-3">
             <div className="w-6 h-6 rounded-full border-2 border-ok border-t-transparent animate-spin" />
-            <p className="text-foreground">Calculando referencia personal...</p>
+            <p className="text-foreground">{t('calCalculatingBaseline')}</p>
           </div>
         )}
       </div>
@@ -640,8 +642,8 @@ export default function CalibratePage() {
         {stage === 'saving' ? (
           <div className="flex flex-col items-center justify-center gap-3 py-8">
             <div className="w-8 h-8 rounded-full border-2 border-ok border-t-transparent animate-spin" />
-            <p className="text-foreground text-sm font-medium">Calculando referencia personal...</p>
-            <p className="text-muted-foreground text-xs">{marks.length} marca{marks.length !== 1 ? 's' : ''}</p>
+            <p className="text-foreground text-sm font-medium">{t('calCalculatingBaseline')}</p>
+            <p className="text-muted-foreground text-xs">{t('calMarksSummary', { count: marks.length })}</p>
           </div>
         ) : stage === 'recording' ? (
           <div className="flex flex-col gap-3">
@@ -664,14 +666,14 @@ export default function CalibratePage() {
                       </span>
                     )}
                     {mark.phases && (
-                      <span className="text-[10px] text-ok/70 shrink-0">{mark.phases.length} fases</span>
+                      <span className="text-[10px] text-ok/70 shrink-0">{mark.phases.length}</span>
                     )}
                     {markNoteIndex === i ? (
                       <input
                         type="text"
                         value={markNoteText}
                         onChange={e => setMarkNoteText(e.target.value)}
-                        placeholder="Nota..."
+                        placeholder={t('calMarkNotePlaceholder')}
                         autoFocus
                         className="flex-1 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/40 focus:outline-none min-w-0"
                       />
@@ -724,7 +726,7 @@ export default function CalibratePage() {
               className="w-full bg-ok text-on-ok font-bold text-xl rounded-2xl active:scale-[0.96] transition-transform select-none"
               style={{ minHeight: 88 }}
             >
-              {checkpoint?.checkpoint_type === 'swing' ? '✓ Buen swing' : '✓ Bien'}
+              {checkpoint?.checkpoint_type === 'swing' ? t('calBienSwing') : t('calBienPosture')}
             </button>
 
             {/* Action buttons */}
@@ -734,36 +736,36 @@ export default function CalibratePage() {
                 disabled={marks.length < 1}
                 className="flex-1 bg-secondary border border-ok/30 text-ok font-semibold text-sm rounded-xl py-3 hover:bg-ok/10 transition-all disabled:opacity-40"
               >
-                Guardar ({marks.length})
+                {t('calSaveWithCount', { count: marks.length })}
               </button>
               <button
                 onClick={() => { dismissMarkNote(); setStageSync('ready') }}
                 className="bg-card border border-border text-muted-foreground text-sm rounded-xl px-4 py-3 hover:border-bad/40 hover:text-bad transition-all"
               >
-                Cancelar
+                {t('calCancel')}
               </button>
             </div>
             <p className="text-muted-foreground/60 text-xs text-center">
-              {checkpoint?.checkpoint_type === 'swing' ? '2–5 swings ideal' : '2–5 marcas ideal'}
+              {checkpoint?.checkpoint_type === 'swing' ? t('calIdealSwing') : t('calIdealPosture')}
             </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {marks.length > 0 && (
               <div className="bg-card border border-ok/20 rounded-xl px-4 py-3 text-center">
-                <p className="text-ok text-sm font-semibold">{marks.length} marca{marks.length !== 1 ? 's' : ''} guardada{marks.length !== 1 ? 's' : ''}</p>
-                <p className="text-muted-foreground text-xs mt-0.5">Puedes añadir más marcas o guardar el ejercicio</p>
+                <p className="text-ok text-sm font-semibold">{t('calMarksSavedTitle', { count: marks.length })}</p>
+                <p className="text-muted-foreground text-xs mt-0.5">{t('calMarksSavedDesc')}</p>
               </div>
             )}
 
             {/* Voice / text note */}
             <div className="bg-card border border-border rounded-xl px-3 py-3">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted-foreground">Nota para el alumno</p>
+                <p className="text-xs text-muted-foreground">{t('calNoteForStudent')}</p>
                 {audioBlob && (
                   <span className="text-xs text-ok flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-ok inline-block" />
-                    Audio guardado
+                    {t('calAudioSaved')}
                   </span>
                 )}
               </div>
@@ -771,13 +773,13 @@ export default function CalibratePage() {
                 <textarea
                   value={saveNote}
                   onChange={e => setSaveNote(e.target.value)}
-                  placeholder="Dicta o escribe una nota..."
+                  placeholder={t('calNotePlaceholder')}
                   rows={4}
                   className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ok/40"
                 />
                 <button
                   onPointerDown={isVoiceRecording ? stopVoice : startVoice}
-                  title={isVoiceRecording ? 'Detener dictado' : 'Dictar nota'}
+                  title={isVoiceRecording ? t('calVoiceTipStop') : t('calVoiceTipStart')}
                   className={`flex-shrink-0 w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${
                     isVoiceRecording
                       ? 'bg-bad/20 border-bad/40 text-bad animate-pulse'
@@ -799,16 +801,16 @@ export default function CalibratePage() {
               disabled={!poseDetected || stage === 'loading'}
               className="w-full bg-ok text-on-ok font-bold text-lg rounded-2xl py-5 active:scale-[0.98] transition-all disabled:opacity-40"
             >
-              {stage === 'loading' ? 'Iniciando cámara...'
-                : marks.length > 0 ? (checkpoint?.checkpoint_type === 'swing' ? '+ Añadir más swings' : '+ Añadir más marcas')
-                : 'Iniciar calibración'}
+              {stage === 'loading' ? t('calStartingCamera')
+                : marks.length > 0 ? (checkpoint?.checkpoint_type === 'swing' ? t('calAddMoreSwings') : t('calAddMoreMarks'))
+                : t('calStartCalibration')}
             </button>
             {marks.length >= 1 && (
               <button
                 onClick={handleSave}
                 className="w-full bg-card border border-ok/30 text-ok font-semibold rounded-xl py-3.5 hover:bg-ok/10 transition-all"
               >
-                Guardar referencia ({marks.length} marca{marks.length !== 1 ? 's' : ''})
+                {t('calSaveReference', { count: marks.length })}
               </button>
             )}
           </div>
@@ -827,6 +829,7 @@ function SavedScreen({ studentId, checkpointId, marks, checkpoint }: {
   checkpoint: Checkpoint | null
 }) {
   const router = useRouter()
+  const t = useTranslations('instructor.checkpoints')
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center">
       <div
@@ -839,14 +842,14 @@ function SavedScreen({ studentId, checkpointId, marks, checkpoint }: {
         </svg>
       </div>
       <div style={{ animation: 'fade-up 0.8s ease-out 100ms both' }}>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Ejercicio calibrado</h1>
+        <h1 className="text-2xl font-bold text-foreground mb-2">{t('calSavedTitle')}</h1>
         <p className="text-muted-foreground mb-1">
           {checkpoint?.checkpoint_type === 'swing'
-            ? `${marks.length} swing${marks.length !== 1 ? 's' : ''} bueno${marks.length !== 1 ? 's' : ''} capturado${marks.length !== 1 ? 's' : ''}`
-            : `${marks.length} posición${marks.length !== 1 ? 'es' : ''} buena${marks.length !== 1 ? 's' : ''} capturada${marks.length !== 1 ? 's' : ''}`
+            ? t('calSavedSwings', { count: marks.length })
+            : t('calSavedPositions', { count: marks.length })
           }
         </p>
-        <p className="text-muted-foreground text-sm mb-8">La referencia personal de este alumno está guardada</p>
+        <p className="text-muted-foreground text-sm mb-8">{t('calSavedDesc')}</p>
       </div>
       <div
         className="flex flex-col gap-3 w-full max-w-xs"
@@ -856,13 +859,13 @@ function SavedScreen({ studentId, checkpointId, marks, checkpoint }: {
           onClick={() => router.replace(`/instructor/students/${studentId}/checkpoints/${checkpointId}`)}
           className="h-12 bg-ok text-on-ok font-semibold rounded-xl hover:bg-ok/90 transition-all duration-300"
         >
-          Ver ejercicio
+          {t('calViewCheckpoint')}
         </button>
         <button
           onClick={() => router.replace(`/instructor/students/${studentId}`)}
           className="h-12 bg-card border border-border text-foreground font-medium rounded-xl hover:bg-secondary transition-all duration-300"
         >
-          Ver todos los ejercicios
+          {t('calViewAllCheckpoints')}
         </button>
       </div>
     </main>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { CameraAngle, CheckpointType } from '@/lib/types'
@@ -13,15 +14,15 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
-const PRESETS: { label: string; angle: CameraAngle }[] = [
-  { label: 'Address de frente',   angle: 'face_on' },
-  { label: 'Address de perfil',   angle: 'dtl'     },
-  { label: 'Backswing de perfil', angle: 'dtl'     },
-  { label: 'Backswing de frente', angle: 'face_on' },
-  { label: 'Downswing de perfil', angle: 'dtl'     },
-  { label: 'Follow-through',      angle: 'dtl'     },
-  { label: 'Postura sentado',     angle: 'face_on' },
-  { label: 'Setup de putter',     angle: 'face_on' },
+const PRESET_KEYS: { key: string; angle: CameraAngle }[] = [
+  { key: 'presetAddressFaceOn',   angle: 'face_on' },
+  { key: 'presetAddressDtl',      angle: 'dtl'     },
+  { key: 'presetBackswingDtl',    angle: 'dtl'     },
+  { key: 'presetBackswingFaceOn', angle: 'face_on' },
+  { key: 'presetDownswingDtl',    angle: 'dtl'     },
+  { key: 'presetFollowThrough',   angle: 'dtl'     },
+  { key: 'presetSeatedPosture',   angle: 'face_on' },
+  { key: 'presetPutterSetup',     angle: 'face_on' },
 ]
 
 export default function NewCheckpoint() {
@@ -30,6 +31,8 @@ export default function NewCheckpoint() {
   const params = useParams()
   const studentId = params.id as string
   const recognitionRef = useRef<any>(null)
+  const t = useTranslations('instructor.checkpoints')
+  const presets = PRESET_KEYS.map(p => ({ ...p, label: t(p.key as never) }))
 
   const [name, setName] = useState('')
   const [checkpointType, setCheckpointType] = useState<CheckpointType>('position')
@@ -55,7 +58,7 @@ export default function NewCheckpoint() {
     setSelectedMetrics(METRICS_BY_ANGLE[cameraAngle])
   }, [cameraAngle])
 
-  function pickPreset(preset: typeof PRESETS[0]) {
+  function pickPreset(preset: { label: string; angle: CameraAngle }) {
     setName(preset.label)
     setCameraAngle(preset.angle)
     setSelectedPreset(preset.label)
@@ -115,7 +118,7 @@ export default function NewCheckpoint() {
 
     setLoading(false)
 
-    if (insertErr) { setError('Error al crear ejercicio.'); return }
+    if (insertErr) { setError(t('createError')); return }
     router.push(`/instructor/students/${studentId}/checkpoints/${data.id}/calibrate`)
   }
 
@@ -130,16 +133,16 @@ export default function NewCheckpoint() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Perfil del alumno
+            {t('backToStudent')}
           </Link>
-          <span className="text-sm font-medium text-muted-foreground">Nuevo ejercicio</span>
+          <span className="text-sm font-medium text-muted-foreground">{t('newTopLabel')}</span>
         </div>
       </header>
 
       <div className="max-w-3xl mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">Nuevo ejercicio</h1>
-          <p className="text-muted-foreground text-sm">Define la técnica que vas a calibrar</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">{t('newTitle')}</h1>
+          <p className="text-muted-foreground text-sm">{t('newSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -147,11 +150,11 @@ export default function NewCheckpoint() {
           {/* Row 1: Capture mode + Camera angle — aligned side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <div className="flex flex-col gap-3">
-              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Modo de captura</Label>
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">{t('captureModeLabel')}</Label>
               <div className="flex flex-col gap-2">
                 {([
-                  { value: 'position' as CheckpointType, label: 'Postura', desc: 'Posiciones estáticas (address, setup)' },
-                  { value: 'swing' as CheckpointType, label: 'Swing', desc: 'Movimiento completo por fases' },
+                  { value: 'position' as CheckpointType, label: t('modePostureTitle'), desc: t('modePostureDesc') },
+                  { value: 'swing' as CheckpointType, label: t('modeSwingTitle'), desc: t('modeSwingDesc') },
                 ]).map(opt => (
                   <button
                     key={opt.value}
@@ -185,11 +188,11 @@ export default function NewCheckpoint() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Ángulo de cámara</Label>
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">{t('cameraAngleLabel')}</Label>
               <div className="flex flex-col gap-2">
                 {([
-                  { value: 'face_on' as CameraAngle, label: 'De frente', desc: 'Cabeza, brazos y hombros' },
-                  { value: 'dtl' as CameraAngle, label: 'De perfil', desc: 'Columna, rodillas y cabeza' },
+                  { value: 'face_on' as CameraAngle, label: t('angleFaceOn'), desc: t('angleFaceOnDesc') },
+                  { value: 'dtl' as CameraAngle, label: t('angleDtl'), desc: t('angleDtlDesc') },
                 ]).map(opt => (
                   <button
                     key={opt.value}
@@ -226,9 +229,9 @@ export default function NewCheckpoint() {
           {/* Row 2: Technique + Metrics — aligned side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <div className="flex flex-col gap-3">
-              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Técnica</Label>
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">{t('techniqueLabel')}</Label>
               <div className="flex flex-wrap gap-2">
-                {PRESETS.map(p => (
+                {presets.map(p => (
                   <button
                     key={p.label}
                     type="button"
@@ -248,14 +251,14 @@ export default function NewCheckpoint() {
                 type="text"
                 value={name}
                 onChange={e => handleNameChange(e.target.value)}
-                placeholder="O escribe un nombre personalizado..."
+                placeholder={t('customNamePlaceholder')}
                 required
                 className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
               />
             </div>
 
             <div className="flex flex-col gap-3">
-              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Métricas a evaluar</Label>
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">{t('metricsLabel')}</Label>
               <div className="flex flex-wrap gap-2">
                 {METRICS_BY_ANGLE[cameraAngle].map(key => {
                   const selected = selectedMetrics.includes(key)
@@ -279,7 +282,7 @@ export default function NewCheckpoint() {
                 })}
               </div>
               {selectedMetrics.length === 0 && (
-                <p className="text-xs text-muted-foreground/60">Sin métricas seleccionadas — solo referencia visual</p>
+                <p className="text-xs text-muted-foreground/60">{t('noMetricsHint')}</p>
               )}
             </div>
           </div>
@@ -287,13 +290,13 @@ export default function NewCheckpoint() {
           {/* FULL WIDTH — Note */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
-              Nota para el alumno{' '}
-              <span className="normal-case tracking-normal text-muted-foreground/60 font-normal">(opcional)</span>
+              {t('noteLabel')}{' '}
+              <span className="normal-case tracking-normal text-muted-foreground/60 font-normal">{t('noteOptional')}</span>
             </Label>
             <Textarea
               value={note}
               onChange={e => setNote(e.target.value)}
-              placeholder="Escribe o dicta una nota para el alumno..."
+              placeholder={t('notePlaceholder')}
               rows={2}
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 resize-none"
             />
@@ -312,7 +315,7 @@ export default function NewCheckpoint() {
                 <path d="M5 10a7 7 0 0 0 14 0" />
                 <line x1="12" y1="19" x2="12" y2="22" />
               </svg>
-              {isVoiceRecording ? 'Dictando...' : 'Dictar'}
+              {isVoiceRecording ? t('dictating') : t('dictate')}
             </button>
           </div>
 
@@ -326,9 +329,9 @@ export default function NewCheckpoint() {
             disabled={loading || !name.trim()}
             className="h-12 bg-ok text-on-ok hover:bg-ok/90 font-semibold text-base"
           >
-            {loading ? 'Creando ejercicio...' : (
+            {loading ? t('creating') : (
               <span className="flex items-center gap-2">
-                Crear y calibrar
+                {t('createCta')}
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
                   <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
