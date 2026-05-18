@@ -75,6 +75,12 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
     const intervalMs = 1000 / fps
     const totalFrames = Math.max(1, Math.floor(duration * fps))
     const frames: ProcessedFrame[] = []
+    // If MediaPipe times out for this many consecutive frames we bail. At
+    // ~1.5s per timeout, 10 ≈ 15s of stuck — enough signal that this isn't
+    // recovering. Throwing here surfaces to the caller; the caller logs +
+    // surfaces a "MediaPipe stuck" error and stops the save flow.
+    const MAX_CONSECUTIVE_TIMEOUTS = 10
+    let consecutiveTimeouts = 0
 
     for (let i = 0; i < totalFrames; i++) {
       if (signal?.aborted) break
@@ -87,19 +93,28 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
         continue
       }
 
-      const landmarks = await sendFrame(pose, video, (resolver) => {
+      const result = await sendFrame(pose, video, (resolver) => {
         pendingResolver = resolver
       })
+
+      if (result === 'timeout') {
+        consecutiveTimeouts++
+        if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+          throw new Error('MediaPipe timed out for too many consecutive frames')
+        }
+        continue
+      }
+      consecutiveTimeouts = 0
 
       // Frames where MediaPipe failed to detect a person are skipped but
       // still counted in the index so timestamps stay aligned with the
       // original video.
-      if (landmarks) {
-        const metrics = safeCalculateMetrics(landmarks, cameraAngle)
+      if (result) {
+        const metrics = safeCalculateMetrics(result, cameraAngle)
         frames.push({
           frame_index: i,
           timestamp_ms: timestampMs,
-          landmarks,
+          landmarks: result,
           metrics,
         })
       }
@@ -135,16 +150,31 @@ function waitForEvent(target: EventTarget, event: string): Promise<void> {
   })
 }
 
-// Send a single frame to MediaPipe and await the results. Wraps the
-// onResults callback in a promise so the caller can write linear code.
+/**
+ * Send a single frame to MediaPipe and await the results. Wraps the
+ * onResults callback in a promise so the caller can write linear code.
+ *
+ * Caps per-frame wait at `timeoutMs` (default 1.5s). Returns `'timeout'`
+ * sentinel separately from `null` (= person not detected) so the caller
+ * can count consecutive stuck frames and bail rather than spend ~15 min
+ * waiting on a hung WASM session.
+ */
 async function sendFrame(
   pose: { send: (input: { image: HTMLVideoElement }) => Promise<void> },
   video: HTMLVideoElement,
   registerResolver: (resolver: (landmarks: Landmark[] | null) => void) => void,
-): Promise<Landmark[] | null> {
+  timeoutMs = 1500,
+): Promise<Landmark[] | null | 'timeout'> {
   return new Promise((resolve) => {
-    registerResolver(resolve)
-    pose.send({ image: video }).catch(() => resolve(null))
+    let settled = false
+    const settle = (value: Landmark[] | null | 'timeout') => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    registerResolver((lm) => settle(lm))
+    pose.send({ image: video }).catch(() => settle(null))
+    setTimeout(() => settle('timeout'), timeoutMs)
   })
 }
 

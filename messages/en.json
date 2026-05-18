@@ -490,7 +490,8 @@
       "recommendation": "Recommendation",
       "recordAgain": "Record again",
       "viewCheckpoint": "View exercise",
-      "saveFailed": "Couldn't save your practice. Try again."
+      "saveFailed": "Couldn't save your practice. Try again.",
+      "mediaPipeStuck": "MediaPipe got stuck. Reload the page and try again."
     },
     "mirror": {
       "statusOk": "Posture correct",

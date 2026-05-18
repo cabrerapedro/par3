@@ -57,6 +57,10 @@ export default function StudentClipPractice() {
   const [swingPhaseChecks, setSwingPhaseChecks] = useState<SwingPhaseCheck[]>([])
   const [sideBySide, setSideBySide] = useState(true)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Signals analyzeVideoBlob to bail mid-flight when the component unmounts.
+  // Avoids "set state on unmounted component" warnings + leaked MediaPipe
+  // resources after a long-running analyze (the loop is ~30 s for a 60 s clip).
+  const cancelledRef = useRef(false)
   const recordingSecondsRef = useRef(0)
   const poseCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const clipRef = useRef<Clip | null>(null)
@@ -78,7 +82,12 @@ export default function StudentClipPractice() {
     navigator.mediaDevices?.enumerateDevices().then(devices => {
       setHasMultipleCameras(devices.filter(d => d.kind === 'videoinput').length > 1)
     }).catch(() => {})
-    return () => cleanupRecording()
+    return () => {
+      cancelledRef.current = true
+      cleanupRecording()
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function loadClip() {
@@ -325,7 +334,16 @@ export default function StudentClipPractice() {
       resolveFrame = null
     })
 
+    // Per-frame timeout counter. If MediaPipe stalls for too many consecutive
+    // frames we bail with an actionable error rather than spend up to 15 minutes
+    // of 1.5s-per-frame fallback timeouts on a stuck WASM session.
+    const MAX_CONSECUTIVE_TIMEOUTS = 10
+    let consecutiveTimeouts = 0
+    let aborted = false
+
     for (let i = 0; i < totalFrames; i++) {
+      if (cancelledRef.current) { aborted = true; break }
+
       video.currentTime = i * step
       await new Promise<void>(res => {
         const handler = () => { video.removeEventListener('seeked', handler); res() }
@@ -333,16 +351,34 @@ export default function StudentClipPractice() {
         setTimeout(res, 800)
       })
 
+      if (cancelledRef.current) { aborted = true; break }
+
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       frameChecks = []
       frameLandmarks = null
       frameMetrics = undefined
 
+      // Race pose.send() against a 1.5s timeout. timedOut tracks whether the
+      // fallback won — used to decide if MediaPipe is stuck.
+      let timedOut = false
       await new Promise<void>(res => {
-        resolveFrame = res
+        resolveFrame = () => { resolveFrame = null; res() }
         pose.send({ image: canvas }).catch(() => { resolveFrame = null; res() })
-        setTimeout(() => { resolveFrame = null; res() }, 1500)
+        setTimeout(() => {
+          if (resolveFrame) { timedOut = true; resolveFrame = null; res() }
+        }, 1500)
       })
+
+      if (timedOut && !frameLandmarks) {
+        consecutiveTimeouts++
+        if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+          setError(t('mediaPipeStuck'))
+          URL.revokeObjectURL(url)
+          return
+        }
+      } else {
+        consecutiveTimeouts = 0
+      }
 
       if (frameLandmarks) {
         frameRows.push({
@@ -355,6 +391,11 @@ export default function StudentClipPractice() {
 
       if (!isSwingMode && frameChecks.length) results.push({ checks: frameChecks })
       setProgress(Math.round((i + 1) / totalFrames * 100))
+    }
+
+    if (aborted) {
+      URL.revokeObjectURL(url)
+      return
     }
 
     if (isSwingMode) {

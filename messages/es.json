@@ -490,7 +490,8 @@
       "recommendation": "Recomendación",
       "recordAgain": "Volver a grabar",
       "viewCheckpoint": "Ver ejercicio",
-      "saveFailed": "No se pudo guardar tu práctica. Volvé a intentar."
+      "saveFailed": "No se pudo guardar tu práctica. Volvé a intentar.",
+      "mediaPipeStuck": "MediaPipe se trabó. Recargá la página e intentá de nuevo."
     },
     "mirror": {
       "statusOk": "Postura correcta",
