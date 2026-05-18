@@ -99,5 +99,86 @@
       "emailRequired": "Email required",
       "emailAndCodeRequired": "Email and code required"
     }
+  },
+  "instructor": {
+    "dashboard": {
+      "greeting": "Hi, {name}",
+      "title": "My Students",
+      "newStudent": "New student",
+      "statStudents": "Students",
+      "statExercises": "Exercises",
+      "statCalibrated": "Calibrated",
+      "searchPlaceholder": "Search student or code...",
+      "emptyTitle": "No students yet",
+      "emptyDescription": "Create the first profile to start calibrating their technique",
+      "createFirst": "Create first student",
+      "noResultsFor": "No students found matching \"{query}\"",
+      "noExercises": "No exercises yet",
+      "exerciseSummary": "{calibrated} of {total} {total, plural, one {exercise calibrated} other {exercises calibrated}}",
+      "copied": "✓ copied",
+      "copyCodeTooltip": "Copy access code",
+      "shareLinkTooltip": "Share access link",
+      "shareTitle": "parell.golf - Practice access",
+      "shareText": "{name}, use this link to access your practice exercises on parell.golf"
+    },
+    "profile": {
+      "backToDashboard": "Dashboard",
+      "activeStudents": "Active students",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your name",
+      "emailLabel": "Email",
+      "emailHelp": "You can't change your email from here.",
+      "saved": "✓ Saved",
+      "saving": "Saving...",
+      "saveCta": "Save changes",
+      "confirmSignOutPrompt": "Sign out?",
+      "signOut": "Sign out",
+      "cancel": "Cancel"
+    }
+  },
+  "student": {
+    "journey": {
+      "brandLink": "parell.golf",
+      "greeting": "Hi, {name}",
+      "title": "My Exercises",
+      "subtitle": "Techniques calibrated by your coach",
+      "calibratedExercises": "Calibrated exercises",
+      "instructorPreparing": "Your coach is preparing your techniques",
+      "allReady": "All techniques ready to practice!",
+      "pendingCount": "{count, plural, one {# pending} other {# pending}} to calibrate with your coach",
+      "emptyTitle": "Your coach hasn't created exercises yet",
+      "emptyDescription": "When your coach calibrates your technique, it will appear here ready to practice",
+      "typeSwing": "Swing",
+      "typePosture": "Posture",
+      "angleFaceOn": "Face-on",
+      "angleDtl": "Down-the-line",
+      "statusReady": "Ready",
+      "statusPending": "Pending"
+    },
+    "profile": {
+      "backLink": "My exercises",
+      "changePhoto": "Change photo",
+      "addPhoto": "Add photo",
+      "nameLabel": "Name",
+      "golfInfoLabel": "Golf info",
+      "dominantHandLabel": "Dominant hand",
+      "handRight": "Right-handed",
+      "handLeft": "Left-handed",
+      "handicapLabel": "Handicap",
+      "handicapPlaceholder": "e.g. 12, +2",
+      "yearsLabel": "Years playing",
+      "homeCourseLabel": "Home course",
+      "homeCoursePlaceholder": "e.g. Pine Valley Golf Club",
+      "bioLabel": "About me",
+      "bioOptional": "(optional)",
+      "bioPlaceholder": "Tell us something about you or your game...",
+      "avatarUploadError": "Couldn't upload the photo. Other changes will be saved.",
+      "saved": "✓ Saved",
+      "saving": "Saving...",
+      "saveCta": "Save changes",
+      "confirmSignOutPrompt": "Sign out?",
+      "signOut": "Sign out",
+      "cancel": "Cancel"
+    }
   }
 }

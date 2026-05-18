@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Student } from '@/lib/types'
@@ -24,6 +25,8 @@ function initials(name: string) {
 export default function InstructorDashboard() {
   const { instructor, logout, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('instructor.dashboard')
+  const tMeta = useTranslations('meta')
   const [students, setStudents] = useState<StudentWithCps[]>([])
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
@@ -59,8 +62,8 @@ export default function InstructorDashboard() {
     e.stopPropagation()
     const url = `${window.location.origin}/student/login?code=${s.access_code}`
     const shareData = {
-      title: 'parell.golf - Acceso de práctica',
-      text: `${s.name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf`,
+      title: t('shareTitle'),
+      text: t('shareText', { name: s.name }),
       url,
     }
     if (navigator.share) {
@@ -95,7 +98,7 @@ export default function InstructorDashboard() {
               <circle cx="30" cy="6" r="2.8" fill="currentColor" stroke="none" />
             </svg>
             <span className="text-sm font-bold text-foreground tracking-tight">
-              parell.golf
+              {tMeta('appName')}
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -114,9 +117,9 @@ export default function InstructorDashboard() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
         {/* Page header */}
         <div className="mb-8">
-          <p className="text-sm text-muted-foreground mb-1">Hola, {instructor.name.split(' ')[0]}</p>
+          <p className="text-sm text-muted-foreground mb-1">{t('greeting', { name: instructor.name.split(' ')[0] })}</p>
           <div className="flex items-end justify-between gap-4">
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Mis Alumnos</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">{t('title')}</h1>
             <Link
               href="/instructor/students/new"
               className="inline-flex items-center gap-1.5 h-10 px-4 bg-ok text-on-ok font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300 shrink-0"
@@ -124,7 +127,7 @@ export default function InstructorDashboard() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Nuevo alumno
+              {t('newStudent')}
             </Link>
           </div>
         </div>
@@ -133,9 +136,9 @@ export default function InstructorDashboard() {
         {students.length > 0 && !fetching && (
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[
-              { label: 'Alumnos', value: students.length },
-              { label: 'Ejercicios', value: totalCheckpoints },
-              { label: 'Calibrados', value: totalCalibrated },
+              { label: t('statStudents'), value: students.length },
+              { label: t('statExercises'), value: totalCheckpoints },
+              { label: t('statCalibrated'), value: totalCalibrated },
             ].map(stat => (
               <div key={stat.label} className="bg-card border border-border rounded-xl px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-foreground">{stat.value}</p>
@@ -154,7 +157,7 @@ export default function InstructorDashboard() {
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar alumno o código..."
+              placeholder={t('searchPlaceholder')}
               className="pl-9 bg-card border-border text-foreground placeholder:text-muted-foreground/60 h-10 focus-visible:border-ok/50 focus-visible:ring-0"
             />
             {search && (
@@ -180,20 +183,20 @@ export default function InstructorDashboard() {
                 <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
               </svg>
             </div>
-            <p className="text-foreground font-semibold mb-1">Sin alumnos todavía</p>
+            <p className="text-foreground font-semibold mb-1">{t('emptyTitle')}</p>
             <p className="text-muted-foreground text-sm mb-6 max-w-xs">
-              Crea el primer perfil para empezar a calibrar su técnica
+              {t('emptyDescription')}
             </p>
             <Link
               href="/instructor/students/new"
               className="inline-flex items-center h-11 px-5 bg-ok text-on-ok font-semibold text-sm rounded-xl hover:bg-ok/90 transition-all duration-300"
             >
-              Crear primer alumno
+              {t('createFirst')}
             </Link>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground text-sm">
-            No se encontró ningún alumno con "{search}"
+            {t('noResultsFor', { query: search })}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -213,8 +216,8 @@ export default function InstructorDashboard() {
                       <p className="text-sm font-semibold text-foreground truncate">{s.name}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {total === 0
-                          ? 'Sin ejercicios aún'
-                          : `${cal} de ${total} ejercicio${total !== 1 ? 's' : ''} calibrado${cal !== 1 ? 's' : ''}`}
+                          ? t('noExercises')
+                          : t('exerciseSummary', { calibrated: cal, total })}
                       </p>
                     </div>
 
@@ -230,11 +233,11 @@ export default function InstructorDashboard() {
                                 : "bg-secondary border-border text-muted-foreground hover:border-ok/30 hover:text-foreground"
                             )}
                           >
-                            {copied === s.access_code ? '✓ copiado' : s.access_code}
+                            {copied === s.access_code ? t('copied') : s.access_code}
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="left" className="text-xs">
-                          Copiar código de acceso
+                          {t('copyCodeTooltip')}
                         </TooltipContent>
                       </Tooltip>
                       <Tooltip>
@@ -257,7 +260,7 @@ export default function InstructorDashboard() {
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="left" className="text-xs">
-                          Compartir enlace de acceso
+                          {t('shareLinkTooltip')}
                         </TooltipContent>
                       </Tooltip>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50">

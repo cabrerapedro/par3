@@ -99,5 +99,86 @@
       "emailRequired": "Email requerido",
       "emailAndCodeRequired": "Email y código requeridos"
     }
+  },
+  "instructor": {
+    "dashboard": {
+      "greeting": "Hola, {name}",
+      "title": "Mis Alumnos",
+      "newStudent": "Nuevo alumno",
+      "statStudents": "Alumnos",
+      "statExercises": "Ejercicios",
+      "statCalibrated": "Calibrados",
+      "searchPlaceholder": "Buscar alumno o código...",
+      "emptyTitle": "Sin alumnos todavía",
+      "emptyDescription": "Crea el primer perfil para empezar a calibrar su técnica",
+      "createFirst": "Crear primer alumno",
+      "noResultsFor": "No se encontró ningún alumno con \"{query}\"",
+      "noExercises": "Sin ejercicios aún",
+      "exerciseSummary": "{calibrated} de {total} {total, plural, one {ejercicio calibrado} other {ejercicios calibrados}}",
+      "copied": "✓ copiado",
+      "copyCodeTooltip": "Copiar código de acceso",
+      "shareLinkTooltip": "Compartir enlace de acceso",
+      "shareTitle": "parell.golf - Acceso de práctica",
+      "shareText": "{name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf"
+    },
+    "profile": {
+      "backToDashboard": "Dashboard",
+      "activeStudents": "Alumnos activos",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Tu nombre",
+      "emailLabel": "Correo",
+      "emailHelp": "El correo no se puede cambiar desde aquí.",
+      "saved": "✓ Guardado",
+      "saving": "Guardando...",
+      "saveCta": "Guardar cambios",
+      "confirmSignOutPrompt": "¿Cerrar sesión?",
+      "signOut": "Cerrar sesión",
+      "cancel": "Cancelar"
+    }
+  },
+  "student": {
+    "journey": {
+      "brandLink": "parell.golf",
+      "greeting": "Hola, {name}",
+      "title": "Mis Ejercicios",
+      "subtitle": "Técnicas calibradas por tu instructor",
+      "calibratedExercises": "Ejercicios calibrados",
+      "instructorPreparing": "Tu instructor está preparando tus técnicas",
+      "allReady": "¡Todas las técnicas listas para practicar!",
+      "pendingCount": "{count, plural, one {# pendiente} other {# pendientes}} de calibrar con tu instructor",
+      "emptyTitle": "Tu instructor aún no creó ejercicios",
+      "emptyDescription": "Cuando tu instructor calibre tu técnica, aparecerán aquí listos para practicar",
+      "typeSwing": "Swing",
+      "typePosture": "Postura",
+      "angleFaceOn": "De frente",
+      "angleDtl": "De perfil",
+      "statusReady": "Listo",
+      "statusPending": "Pendiente"
+    },
+    "profile": {
+      "backLink": "Mis ejercicios",
+      "changePhoto": "Cambiar foto",
+      "addPhoto": "Agregar foto",
+      "nameLabel": "Nombre",
+      "golfInfoLabel": "Info de golf",
+      "dominantHandLabel": "Mano dominante",
+      "handRight": "Diestro",
+      "handLeft": "Zurdo",
+      "handicapLabel": "Handicap",
+      "handicapPlaceholder": "Ej. 12, +2",
+      "yearsLabel": "Años jugando",
+      "homeCourseLabel": "Club / Campo base",
+      "homeCoursePlaceholder": "Ej. Club de Golf Los Encinos",
+      "bioLabel": "Sobre mí",
+      "bioOptional": "(opcional)",
+      "bioPlaceholder": "Cuéntanos algo sobre ti o tu juego...",
+      "avatarUploadError": "Error al subir la foto. Los demás cambios se guardarán.",
+      "saved": "✓ Guardado",
+      "saving": "Guardando...",
+      "saveCta": "Guardar cambios",
+      "confirmSignOutPrompt": "¿Cerrar sesión?",
+      "signOut": "Cerrar sesión",
+      "cancel": "Cancelar"
+    }
   }
 }
