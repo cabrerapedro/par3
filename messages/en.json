@@ -181,6 +181,7 @@
       "switchToDark": "Dark mode"
     },
     "annotationCanvas": {
+      "canvasAria": "Annotation canvas",
       "toolArrow": "Arrow",
       "toolLine": "Line",
       "toolCircle": "Circle",
@@ -189,6 +190,9 @@
       "audioStop": "Stop",
       "audioReady": "Audio ready",
       "audioStart": "Record audio",
+      "discardAudio": "Discard audio",
+      "micPermissionDenied": "Microphone permission denied",
+      "micStartFailed": "Couldn't start the microphone",
       "notePlaceholder": "Optional note…",
       "cancel": "Cancel",
       "save": "Save annotation"

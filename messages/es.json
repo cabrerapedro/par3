@@ -181,6 +181,7 @@
       "switchToDark": "Modo oscuro"
     },
     "annotationCanvas": {
+      "canvasAria": "Lienzo de anotación",
       "toolArrow": "Flecha",
       "toolLine": "Línea",
       "toolCircle": "Círculo",
@@ -189,6 +190,9 @@
       "audioStop": "Detener",
       "audioReady": "Audio listo",
       "audioStart": "Grabar audio",
+      "discardAudio": "Descartar audio",
+      "micPermissionDenied": "Permiso de micrófono denegado",
+      "micStartFailed": "No se pudo iniciar el micrófono",
       "notePlaceholder": "Nota opcional…",
       "cancel": "Cancelar",
       "save": "Guardar anotación"

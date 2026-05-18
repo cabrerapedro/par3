@@ -14,11 +14,6 @@
 // Audio: we capture a Blob and hand it to the parent. The parent posts to
 // /api/transcribe on save — keeps this component focused on UI, not API
 // orchestration.
-//
-// TODO(i18n): the toolbar labels and aria-labels below are still inline
-// Spanish. Move them into messages/{es,en}.json under `annotationCanvas`
-// once the bulk i18n migration lands. Component shape and props won't
-// change; only string literals.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
@@ -177,8 +172,8 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
     } catch (err) {
       setRecorderError(
         err instanceof DOMException && err.name === 'NotAllowedError'
-          ? 'Permiso de micrófono denegado'
-          : 'No se pudo iniciar el micrófono',
+          ? t('micPermissionDenied')
+          : t('micStartFailed'),
       )
     }
   }
@@ -238,7 +233,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          aria-label="Lienzo de anotación"
+          aria-label={t('canvasAria')}
         />
       </div>
 
@@ -310,7 +305,7 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
             type="button"
             onClick={clearAudio}
             className="h-9 px-2 rounded-lg text-xs text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Descartar audio"
+            aria-label={t('discardAudio')}
           >
             ✕
           </button>
