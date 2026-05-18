@@ -1,5 +1,13 @@
 import type { Landmark, Baseline, CalibrationMark, CameraAngle, SwingPhaseName, SwingPhase, SwingBaseline } from './types'
 
+// Local shape — matches lib/processClip's ProcessedFrame but defined here to
+// avoid the cycle (processClip imports calculateMetrics from this file).
+interface FrameLike {
+  timestamp_ms: number
+  landmarks: Landmark[]
+  metrics: Record<string, number>
+}
+
 type LM = Landmark
 
 function angleBetween(a: LM, b: LM, c: LM): number {
@@ -408,4 +416,57 @@ export function generateSwingSummary(phaseChecks: SwingPhaseCheck[], t: Translat
   }
 
   return parts.join(' ')
+}
+
+/**
+ * Build the per-clip baseline from a MediaPipe frame stream.
+ * Shared between the annotate save flow and the orphan-clip retry path.
+ *
+ * Position clips: average every frame (the student is meant to be static).
+ * Swing clips: detect phases (address → top → impact → finish), then build
+ * a phase-wise baseline. If phase detection fails (frames too short, no
+ * clear swing trajectory), returns null so the caller can leave the clip
+ * in 'pending' rather than persisting bogus data.
+ */
+export function buildClipBaseline(
+  frames: FrameLike[],
+  clipType: 'position' | 'swing',
+  cameraAngle: CameraAngle,
+  selectedMetrics: string[],
+): Baseline | SwingBaseline | null {
+  if (frames.length === 0) return null
+
+  const marks: CalibrationMark[] = frames.map((f) => ({
+    timestamp_ms: f.timestamp_ms,
+    landmarks: f.landmarks,
+    metrics: f.metrics,
+  }))
+
+  if (clipType === 'position') {
+    return calculateBaseline(marks, selectedMetrics)
+  }
+
+  const phases = detectSwingPhases(frames.map((f) => f.landmarks), cameraAngle)
+  if (!phases) return null
+
+  const swingMarks: CalibrationMark[] = [
+    { timestamp_ms: 0, landmarks: marks[0].landmarks, metrics: marks[0].metrics, phases },
+  ]
+  return calculateSwingBaseline(swingMarks, selectedMetrics)
+}
+
+/**
+ * Heuristic for surfacing "no person detected" / "muy pocas detecciones" to
+ * the instructor. Returns the detection ratio (frames with valid landmarks
+ * divided by expected frames at the given fps + duration). A ratio < 0.3
+ * means MediaPipe lost track for most of the clip — the instructor should
+ * re-record rather than trust whatever baseline gets built from the scraps.
+ */
+export function clipDetectionRatio(
+  frameCount: number,
+  durationSeconds: number,
+  fps = 10,
+): number {
+  const expected = Math.max(1, Math.floor(durationSeconds * fps))
+  return Math.min(1, frameCount / expected)
 }

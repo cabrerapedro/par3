@@ -353,7 +353,13 @@
         "deleteConfirmTitle": "¿Eliminar este clip?",
         "deleteConfirmDescription": "Vas a perder el video, las anotaciones y los frames procesados. Esta acción no se puede deshacer.",
         "deleteConfirmCancel": "Cancelar",
-        "deleteConfirmAction": "Eliminar"
+        "deleteConfirmAction": "Eliminar",
+        "retryCta": "Reintentar procesamiento",
+        "retrying": "Procesando frames… {pct}%",
+        "retryFailed": "No se pudo reprocesar",
+        "retryNoBaseline": "No se pudo construir la referencia. Volvé a grabar el clip.",
+        "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Volvé a grabar con mejor encuadre.",
+        "pendingHint": "Este clip quedó sin terminar. Tocá Reintentar procesamiento para calcularle la referencia."
       },
       "annotate": {
         "title": "Revisar y anotar",
@@ -387,7 +393,8 @@
         "discardConfirmCancel": "Seguir editando",
         "discardConfirmAction": "Descartar",
         "missingName": "Poné un nombre al clip antes de guardar.",
-        "missingVideo": "No hay un video grabado. Volvé a grabar."
+        "missingVideo": "No hay un video grabado. Volvé a grabar.",
+        "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Volvé a grabarlo con mejor encuadre."
       }
     }
   },

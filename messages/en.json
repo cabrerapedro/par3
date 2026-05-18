@@ -353,7 +353,13 @@
         "deleteConfirmTitle": "Delete this clip?",
         "deleteConfirmDescription": "You'll lose the video, annotations, and processed frames. This can't be undone.",
         "deleteConfirmCancel": "Cancel",
-        "deleteConfirmAction": "Delete"
+        "deleteConfirmAction": "Delete",
+        "retryCta": "Retry processing",
+        "retrying": "Processing frames… {pct}%",
+        "retryFailed": "Couldn't reprocess",
+        "retryNoBaseline": "Couldn't build the reference. Re-record the clip.",
+        "lowDetection": "We only detected the student in {pct}% of the video. Re-record with a better frame.",
+        "pendingHint": "This clip didn't finish processing. Tap Retry processing to build its reference."
       },
       "annotate": {
         "title": "Review and annotate",
@@ -387,7 +393,8 @@
         "discardConfirmCancel": "Keep editing",
         "discardConfirmAction": "Discard",
         "missingName": "Add a clip name before saving.",
-        "missingVideo": "No video recorded. Go back and record one."
+        "missingVideo": "No video recorded. Go back and record one.",
+        "lowDetection": "We only detected the student in {pct}% of the video. Re-record with a better frame."
       }
     }
   },

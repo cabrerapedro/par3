@@ -31,13 +31,7 @@ import { supabase } from '@/lib/supabase'
 import { getOrCreateTodayClass } from '@/lib/classes'
 import { processClip, type ProcessedFrame } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
-import {
-  METRICS_BY_ANGLE,
-  calculateBaseline,
-  calculateSwingBaseline,
-  detectSwingPhases,
-} from '@/lib/baseline'
-import type { CalibrationMark } from '@/lib/types'
+import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
 import { useClipFlow } from '../layout'
 
 type CameraAngle = 'face_on' | 'dtl'
@@ -226,36 +220,8 @@ export default function ClipAnnotatePage() {
     [],
   )
 
-  // Build the per-clip baseline from MediaPipe frames. Position clips
-  // average every frame (the student is meant to be static). Swing clips
-  // try to find address/top/impact/finish and build a phase-wise baseline;
-  // if phase detection fails we leave the clip in 'pending' so the
-  // instructor can retry — rather than persisting a bogus baseline.
-  const buildBaseline = useCallback(
-    (frames: ProcessedFrame[], selectedMetrics: string[]) => {
-      if (frames.length === 0) return null
-
-      const marks: CalibrationMark[] = frames.map((f) => ({
-        timestamp_ms: f.timestamp_ms,
-        landmarks: f.landmarks,
-        metrics: f.metrics,
-      }))
-
-      if (clipType === 'position') {
-        return calculateBaseline(marks, selectedMetrics)
-      }
-
-      // Swing: detect phases from the landmark trajectory.
-      const phases = detectSwingPhases(frames.map((f) => f.landmarks), angle)
-      if (!phases) return null
-
-      const swingMarks: CalibrationMark[] = [
-        { timestamp_ms: 0, landmarks: marks[0].landmarks, metrics: marks[0].metrics, phases },
-      ]
-      return calculateSwingBaseline(swingMarks, selectedMetrics)
-    },
-    [angle, clipType],
-  )
+  // Build-baseline logic lives in lib/baseline as buildClipBaseline now so the
+  // orphan-clip retry path on the detail page can reuse the same logic.
 
   const handleSave = async () => {
     if (saveStage !== 'idle') return
@@ -337,7 +303,22 @@ export default function ClipAnnotatePage() {
 
       // 6. Build the baseline and flip the clip to calibrated.
       setSaveStage('baseline')
-      const baseline = buildBaseline(frames, selectedMetrics)
+
+      // Detection-ratio sanity check (M4). If MediaPipe lost the person for
+      // most of the clip the baseline would be garbage — surface that and
+      // leave the clip in 'pending' so the instructor can re-record.
+      const detection = clipDetectionRatio(frames.length, recorded.durationMs / 1000, 10)
+      if (detection < 0.3) {
+        await supabase
+          .from('clips')
+          .update({ status: 'pending' })
+          .eq('id', clip.id)
+        setSaveStage('idle')
+        setError(t('lowDetection', { pct: Math.round(detection * 100) }))
+        return
+      }
+
+      const baseline = buildClipBaseline(frames, clipType, angle, selectedMetrics)
 
       // Generate the personal-reference summary string once, here, so the
       // student detail page doesn't have to hit Claude on every page load

@@ -16,6 +16,9 @@ import { useAuth } from '@/lib/auth'
 import type { Clip } from '@/lib/classes'
 import { SVGAnnotationOverlay } from '@/components/SVGAnnotationOverlay'
 import type { Stroke } from '@/components/AnnotationCanvas'
+import { processClip } from '@/lib/processClip'
+import { insertClipFrames } from '@/lib/frames'
+import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +59,12 @@ export default function ClipDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  // H7 — orphan-clip recovery: re-run the post-save pipeline for a clip
+  // whose initial save was interrupted (browser back, tab close, transient
+  // network) and left the row in 'pending' with a video but no baseline.
+  const [retrying, setRetrying] = useState(false)
+  const [retryPct, setRetryPct] = useState(0)
+  const [retryError, setRetryError] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
@@ -116,6 +125,69 @@ export default function ClipDetailPage() {
     if (!v) return
     const rect = v.getBoundingClientRect()
     setStageSize({ width: Math.round(rect.width), height: Math.round(rect.height) })
+  }
+
+  async function retryProcessing() {
+    if (!clip || !clip.video_url || retrying) return
+    setRetrying(true)
+    setRetryPct(0)
+    setRetryError(null)
+
+    try {
+      // 1. Fetch the stored video back from Supabase Storage as a Blob.
+      const res = await fetch(clip.video_url)
+      if (!res.ok) throw new Error(`Couldn't fetch video (HTTP ${res.status})`)
+      const blob = await res.blob()
+
+      // 2. Run MediaPipe over every frame. processClip's per-frame timeout
+      // cap (H5 fix) means a stuck WASM session will throw instead of
+      // looping for minutes.
+      const frames = await processClip({
+        videoBlob: blob,
+        cameraAngle: clip.camera_angle,
+        fps: 10,
+        onProgress: (p) => setRetryPct(Math.round(p * 100)),
+      })
+
+      // 3. Detection-ratio sanity check (M4).
+      const durationSeconds = blob.size > 0 ? frames.length / 10 + 1 : 30
+      const detection = clipDetectionRatio(frames.length, durationSeconds, 10)
+      if (detection < 0.3) {
+        setRetryError(t('lowDetection', { pct: Math.round(detection * 100) }))
+        setRetrying(false)
+        return
+      }
+
+      // 4. Persist frames (best-effort) + rebuild baseline.
+      if (frames.length > 0) {
+        try { await insertClipFrames(clip.id, frames) } catch {}
+      }
+      const selectedMetrics = clip.selected_metrics?.length
+        ? clip.selected_metrics
+        : METRICS_BY_ANGLE[clip.camera_angle] ?? []
+      const baseline = buildClipBaseline(frames, clip.clip_type, clip.camera_angle, selectedMetrics)
+
+      if (!baseline) {
+        setRetryError(t('retryNoBaseline'))
+        setRetrying(false)
+        return
+      }
+
+      // 5. Flip the row to calibrated. Skip the AI summary on retry — the
+      // student detail page falls back to the on-demand fetch path.
+      await supabase
+        .from('clips')
+        .update({ baseline, status: 'calibrated' })
+        .eq('id', clip.id)
+
+      // 6. Reload to show the new state.
+      setRetrying(false)
+      await load()
+    } catch (e: unknown) {
+      setRetrying(false)
+      const reason = e instanceof Error ? e.message : String(e)
+      setRetryError(`${t('retryFailed')}: ${reason}`)
+    }
   }
 
   async function handleDelete() {
@@ -195,6 +267,33 @@ export default function ClipDetailPage() {
             </span>
           )}
         </div>
+
+        {/* Pending-state recovery banner — H7 fix. Shown when a clip's save
+            was interrupted (no baseline yet) but the video did upload. */}
+        {clip.status === 'pending' && clip.video_url && (
+          <div className="bg-warn/10 border border-warn/30 rounded-xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">{t('pendingHint')}</p>
+              {retryError && <p className="text-xs text-bad">{retryError}</p>}
+              {retrying && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden max-w-xs">
+                    <div className="h-full bg-warn transition-all duration-200" style={{ width: `${retryPct}%` }} />
+                  </div>
+                  <span className="text-xs text-muted-foreground tabular-nums">{t('retrying', { pct: retryPct })}</span>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={retryProcessing}
+              disabled={retrying}
+              className="h-9 px-4 rounded-lg bg-warn text-black text-sm font-semibold hover:bg-warn/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            >
+              {t('retryCta')}
+            </button>
+          </div>
+        )}
 
         {/* Video stage with annotation marker timeline */}
         <div ref={stageRef} className="relative bg-black rounded-2xl overflow-hidden">
