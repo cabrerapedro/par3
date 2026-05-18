@@ -70,7 +70,7 @@ function Hero() {
             Tu alumno practica con tu referencia exacta,<br className="hidden md:inline" /> no con un estándar genérico.
           </h1>
           <p className="text-lg md:text-[19px] text-ink-soft leading-[1.55] mt-7 max-w-[560px]">
-            Grabás 15 segundos del movimiento correcto del alumno durante la clase, lo anotás con voz y dibujo sobre el frame clave, y lo guardás. Él practica solo en el rango con esa referencia en su teléfono. La app compara cada ensayo contra tu calibración y te devuelve su semana el sábado siguiente.
+            Calibrás la técnica de tu alumno una vez. Él la practica toda la semana con esa referencia en su teléfono. La app te devuelve cada sesión — no un score genérico.
           </p>
 
           <div className="flex flex-wrap gap-3 mt-9">
@@ -89,7 +89,7 @@ function Hero() {
           </div>
 
           <p className="small-caps font-mono text-[10px] text-ink-mute mt-6">
-            Sin tarjeta · hasta tres alumnos · español e inglés
+            Sin tarjeta · español e inglés
           </p>
         </div>
 
@@ -135,10 +135,6 @@ function Manifesto() {
         <div className="max-w-[720px]">
           <p className="font-display font-medium text-2xl md:text-[30px] leading-[1.28]">
             El instructor enseña una hora a la semana. El alumno practica seis. Entre la clase y la práctica suele caer la mitad de lo aprendido — no por falta de esfuerzo, sino porque la memoria es frágil y el cuerpo se acomoda a sus viejos hábitos en cuanto cierra la puerta de la academia.
-          </p>
-
-          <p className="text-[17px] leading-[1.6] text-ink-soft mt-8">
-            Parell es un cuaderno. El instructor lo escribe durante la clase: graba el movimiento correcto del alumno, lo anota con su voz y su dedo sobre el frame clave, lo guarda. El alumno lo abre cada vez que va al rango. La técnica no es un recuerdo borroso del sábado — es una referencia visible, comparable, exacta.
           </p>
 
           <div className="border-t border-rule mt-12 pt-12">
@@ -273,9 +269,9 @@ function TresPrincipios() {
         </div>
 
         <p
-          className="font-display italic text-[17px] md:text-[19px] text-accent leading-[1.5] mt-10 md:mt-12 max-w-[640px]"
+          className="font-display italic text-[20px] md:text-[24px] text-accent leading-[1.4] mt-10 md:mt-12"
         >
-          Pero ninguna decisión es de la IA. El criterio es siempre del instructor — la tecnología solo mide y traduce.
+          La IA mide. Vos enseñás.
         </p>
       </div>
     </section>
@@ -459,7 +455,7 @@ function Acceso() {
             numeral="I"
             who="Para instructores"
             title="Empezá con tres alumnos."
-            body="Sin tarjeta. Calibrá un par de ejercicios con cada alumno, mirá qué tal lo siente la primera semana. Si funciona, escalás."
+            body="Probá con tus primeros tres alumnos. Si funciona, escalás."
             ctaText="Crear cuenta"
             ctaHref="/instructor/login"
             secondaryText="Ya tengo cuenta"
@@ -470,7 +466,7 @@ function Acceso() {
             numeral="II"
             who="Para alumnos"
             title="Ingresá con tu código."
-            body="Tu instructor te dio un código de seis caracteres. Es todo lo que necesitás — el acceso es gratis y no requiere tarjeta."
+            body="Tu instructor te dio un código de 6 caracteres. Es todo lo que necesitás."
             ctaText="Ingresar con código"
             ctaHref="/student/login"
             secondaryText="¿No tenés código?"
