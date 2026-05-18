@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Student, Checkpoint } from '@/lib/types'
@@ -14,13 +15,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
-function timeAgo(date: Date) {
-  const days = Math.floor((Date.now() - date.getTime()) / 86400000)
-  if (days === 0) return 'Hoy'
-  if (days === 1) return 'Ayer'
-  if (days < 7) return `Hace ${days} días`
-  if (days < 30) return `Hace ${Math.floor(days / 7)} sem`
-  return `Hace ${Math.floor(days / 30)} mes${Math.floor(days / 30) !== 1 ? 'es' : ''}`
+function useTimeAgo() {
+  const t = useTranslations('instructor.students')
+  return (date: Date) => {
+    const days = Math.floor((Date.now() - date.getTime()) / 86400000)
+    if (days === 0) return t('timeToday')
+    if (days === 1) return t('timeYesterday')
+    if (days < 7) return t('timeDaysAgo', { days })
+    if (days < 30) return t('timeWeeksAgo', { weeks: Math.floor(days / 7) })
+    return t('timeMonthsAgo', { months: Math.floor(days / 30) })
+  }
 }
 
 export default function StudentProfile() {
@@ -28,6 +32,8 @@ export default function StudentProfile() {
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
+  const t = useTranslations('instructor.students')
+  const timeAgo = useTimeAgo()
 
   const [student, setStudent] = useState<Student | null>(null)
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
@@ -68,8 +74,8 @@ export default function StudentProfile() {
     if (!student) return
     const url = `${window.location.origin}/student/login?code=${student.access_code}`
     const shareData = {
-      title: 'parell.golf - Acceso de práctica',
-      text: `${student.name}, usa este enlace para acceder a tus ejercicios de práctica en parell.golf`,
+      title: t('shareTitle'),
+      text: t('shareText', { name: student.name }),
       url,
     }
     if (navigator.share) {
@@ -89,7 +95,7 @@ export default function StudentProfile() {
   if (loading) return <LoadingScreen />
   if (!student) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <p className="text-muted-foreground">Alumno no encontrado.</p>
+      <p className="text-muted-foreground">{t('notFound')}</p>
     </div>
   )
 
@@ -113,7 +119,7 @@ export default function StudentProfile() {
         <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center gap-3">
           <Link href="/instructor/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Mis alumnos
+            {t('backToStudents')}
           </Link>
         </div>
       </header>
@@ -135,10 +141,10 @@ export default function StudentProfile() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       {copied ? <polyline points="20 6 9 17 4 12" /> : <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
                     </svg>
-                    {copied ? 'Copiado!' : student.access_code}
+                    {copied ? t('copied') : student.access_code}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="text-xs">Copiar código de acceso del alumno</TooltipContent>
+                <TooltipContent className="text-xs">{t('copyCodeTooltip')}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -146,14 +152,14 @@ export default function StudentProfile() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       {shared ? <polyline points="20 6 9 17 4 12" /> : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>}
                     </svg>
-                    {shared ? 'Copiado!' : 'Compartir enlace'}
+                    {shared ? t('copied') : t('shareLinkLabel')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="text-xs">Enviar enlace de acceso al alumno</TooltipContent>
+                <TooltipContent className="text-xs">{t('shareLinkTooltip')}</TooltipContent>
               </Tooltip>
               {checkpoints.length > 0 && (
                 <Badge variant="outline" className={cn("text-xs", calibrated === checkpoints.length && calibrated > 0 ? "text-ok border-ok/20 bg-ok/10" : "text-muted-foreground border-border")}>
-                  {calibrated}/{checkpoints.length} calibrado{calibrated !== 1 ? 's' : ''}
+                  {t('calibratedBadge', { calibrated, total: checkpoints.length })}
                 </Badge>
               )}
             </div>
@@ -168,7 +174,7 @@ export default function StudentProfile() {
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-              Editar
+              {t('edit')}
             </Link>
             <button
               onClick={() => setDeleteDialog(true)}
@@ -177,7 +183,7 @@ export default function StudentProfile() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
-              Eliminar
+              {t('deleteAction')}
             </button>
           </div>
         </div>
@@ -189,15 +195,15 @@ export default function StudentProfile() {
             <div className="grid grid-cols-3 gap-3 mb-6">
               <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-foreground font-mono">{totalSessions}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Sesiones</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('statsSessions')}</p>
               </div>
               <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-foreground font-mono">{avgScore}%</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Score promedio</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('statsAvgScore')}</p>
               </div>
               <div className="bg-card border border-border rounded-xl px-4 py-3 text-center">
                 <p className="text-lg font-semibold text-foreground">{lastPractice ? timeAgo(lastPractice) : '—'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Última práctica</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('statsLastPractice')}</p>
               </div>
             </div>
           </>
@@ -207,15 +213,15 @@ export default function StudentProfile() {
 
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Ejercicios de práctica</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{checkpoints.length === 0 ? 'Crea el primer ejercicio para comenzar' : `${checkpoints.length} técnica${checkpoints.length !== 1 ? 's' : ''}`}</p>
+            <h2 className="text-sm font-semibold text-foreground">{t('exercisesTitle')}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{checkpoints.length === 0 ? t('exercisesEmptyHint') : t('exercisesCount', { count: checkpoints.length })}</p>
           </div>
           <Link
             href={`/instructor/students/${studentId}/checkpoints/new`}
             className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-ok text-black border border-ok hover:bg-ok/90 transition-all"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            Ejercicio
+            {t('addExercise')}
           </Link>
         </div>
 
@@ -224,9 +230,9 @@ export default function StudentProfile() {
             <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center mb-3">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 8v8M8 12h8" strokeLinecap="round" /></svg>
             </div>
-            <p className="text-sm font-medium text-foreground mb-1">Sin ejercicios todavía</p>
-            <p className="text-xs text-muted-foreground mb-4">Empieza calibrando la primera técnica de {student.name.split(' ')[0]}</p>
-            <Link href={`/instructor/students/${studentId}/checkpoints/new`} className="inline-flex h-8 px-3 text-xs border border-border rounded-lg hover:border-ok/40 items-center transition-all">Crear primer ejercicio</Link>
+            <p className="text-sm font-medium text-foreground mb-1">{t('exercisesEmptyTitle')}</p>
+            <p className="text-xs text-muted-foreground mb-4">{t('exercisesEmptySubtitle', { firstName: student.name.split(' ')[0] })}</p>
+            <Link href={`/instructor/students/${studentId}/checkpoints/new`} className="inline-flex h-8 px-3 text-xs border border-border rounded-lg hover:border-ok/40 items-center transition-all">{t('createFirstExercise')}</Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -250,12 +256,12 @@ export default function StudentProfile() {
                 <Link href={cp.status === 'pending' ? `/instructor/students/${studentId}/checkpoints/${cp.id}/calibrate` : `/instructor/students/${studentId}/checkpoints/${cp.id}`} className="flex-1 min-w-0">
                   <p className={cn("text-sm font-semibold truncate", cp.status === 'archived' ? "text-muted-foreground" : "text-foreground")}>{cp.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {cp.camera_angle === 'face_on' ? 'De frente' : 'De perfil'}
-                    {cp.calibration_marks?.length > 0 && <span className="ml-2 text-muted-foreground/60">· {cp.calibration_marks.length} marca{cp.calibration_marks.length !== 1 ? 's' : ''}</span>}
+                    {cp.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
+                    {cp.calibration_marks?.length > 0 && <span className="ml-2 text-muted-foreground/60">· {t('marksCount', { count: cp.calibration_marks.length })}</span>}
                   </p>
                   {stats && (
                     <p className="text-xs mt-1 flex items-center gap-2">
-                      <span className="text-blue/70">{stats.count} sesion{stats.count !== 1 ? 'es' : ''}</span>
+                      <span className="text-blue/70">{t('sessionsShort', { count: stats.count })}</span>
                       <span className="text-muted-foreground/40">·</span>
                       <span className="font-mono text-ok/80">{stats.lastScore}%</span>
                       <span className="text-muted-foreground/40">·</span>
@@ -269,7 +275,7 @@ export default function StudentProfile() {
                     cp.status === 'archived' ? "text-warn border-warn/20 bg-warn/10" :
                     "text-muted-foreground border-border"
                   )}>
-                    {cp.status === 'calibrated' ? 'Calibrado' : cp.status === 'archived' ? 'Archivado' : 'Pendiente'}
+                    {cp.status === 'calibrated' ? t('statusCalibrated') : cp.status === 'archived' ? t('statusArchived') : t('statusPending')}
                   </Badge>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>
@@ -283,12 +289,12 @@ export default function StudentProfile() {
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Eliminar a {student.name}</DialogTitle>
-            <DialogDescription>Se eliminarán todos sus ejercicios, referencias y sesiones de práctica. Esta acción no se puede deshacer.</DialogDescription>
+            <DialogTitle>{t('deleteDialogTitle', { name: student.name })}</DialogTitle>
+            <DialogDescription>{t('deleteDialogDescription')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={deleteStudent} disabled={deleting}>{deleting ? 'Eliminando...' : 'Eliminar alumno'}</Button>
+            <Button variant="outline" onClick={() => setDeleteDialog(false)}>{t('deleteCancel')}</Button>
+            <Button variant="destructive" onClick={deleteStudent} disabled={deleting}>{deleting ? t('deleting') : t('deleteConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

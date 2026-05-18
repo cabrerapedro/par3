@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ export default function EditStudent() {
   const router = useRouter()
   const params = useParams()
   const studentId = params.id as string
+  const t = useTranslations('instructor.students')
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -43,7 +45,7 @@ export default function EditStudent() {
       .update({ name: name.trim(), email: email.trim() || null })
       .eq('id', studentId)
     setSaving(false)
-    if (updateErr) { setError('Error al guardar los cambios.'); return }
+    if (updateErr) { setError(t('saveError')); return }
     router.push(`/instructor/students/${studentId}`)
   }
 
@@ -61,27 +63,27 @@ export default function EditStudent() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Perfil del alumno
+            {t('editBackToProfile')}
           </Link>
-          <span className="text-sm font-medium text-muted-foreground">Editar</span>
+          <span className="text-sm font-medium text-muted-foreground">{t('editTopLabel')}</span>
         </div>
       </header>
 
       <div className="max-w-sm mx-auto px-5 py-10">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Editar Alumno</h1>
-          <p className="text-muted-foreground text-sm">Actualiza el nombre o correo del alumno</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">{t('editTitle')}</h1>
+          <p className="text-muted-foreground text-sm">{t('editSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">Nombre</Label>
+            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wide">{t('nameLabel')}</Label>
             <Input
               id="name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Nombre del alumno"
+              placeholder={t('namePlaceholder')}
               required
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
             />
@@ -89,14 +91,14 @@ export default function EditStudent() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email" className="text-muted-foreground text-xs uppercase tracking-wide">
-              Correo <span className="normal-case font-normal text-muted-foreground/60">(opcional)</span>
+              {t('emailLabel')} <span className="normal-case font-normal text-muted-foreground/60">{t('emailOptional')}</span>
             </Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="alumno@correo.com"
+              placeholder={t('emailPlaceholder')}
               className="bg-card border-border text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ok/50 focus-visible:ring-0 h-11"
             />
           </div>
@@ -110,7 +112,7 @@ export default function EditStudent() {
             disabled={saving || !name.trim()}
             className="h-11 bg-ok text-background font-semibold hover:bg-ok/90 mt-2"
           >
-            {saving ? 'Guardando...' : 'Guardar cambios'}
+            {saving ? t('saving') : t('saveCta')}
           </Button>
         </form>
       </div>
