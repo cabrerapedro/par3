@@ -1,538 +1,338 @@
-# Par 3 — CLAUDE.md
+# parell.golf — CLAUDE.md
 
-## What is Par 3
-
-Par 3 (par3.app) is a digital copilot for golf teaching professionals. The instructor calibrates each student's optimal posture using video + AI pose detection, creating a personalized baseline. The student then practices on their own and compares their swings against that baseline.
-
-**Core positioning:** The instructor is the client, the student is the end user. We complement the instructor's method, never compete with it. The instructor is always right.
-
-## The Problem
-
-A golf student takes weekly lessons. The instructor corrects their posture, shows them the right positions, and the student understands in the moment. But when they go practice alone at the range, they don't remember what they were taught. They have no reference, no feedback, and potentially reinforce bad habits.
-
-The instructor has a physical calibration machine with adjustable guides (metal rods, pads) that physically constrain the student into correct positions. But when the student leaves the club, that physical reference is gone.
-
-**Par 3 digitizes that calibration so the student carries their personalized reference in their phone.**
-
-## Current Phase
-
-We are building the **MVP** — a working web application (PWA) that covers the complete instructor-calibration to student-practice loop.
+> Documento vivo. Actualizado: Mayo 2026.
+> Fuente de verdad del producto para Claude Code y cualquier colaborador técnico.
+> "Parell" significa "par" en catalán.
 
 ---
 
-## THE PRODUCT
+## Qué es parell.golf
 
-### Two Users, One Flow
+parell.golf es un **copiloto de práctica de golf** para instructores profesionales y sus alumnos.
 
-**The Instructor (Steve)** uses Par 3 on his iPad at the club to:
-1. Create student profiles
-2. Record calibration sessions per technique/checkpoint
-3. Mark the good moments during recording
-4. Build a personalized journey for each student
+El instructor graba el movimiento correcto del alumno durante la clase, lo anota con voz, texto y dibujo, y construye una referencia personal. El alumno practica solo en el rango con esa referencia en su teléfono. La app compara su técnica en tiempo real contra lo que el instructor calibró, prioriza qué practicar según su progreso, y cierra el loop para que el sábado instructor y alumno puedan hablar sobre una semana real de práctica.
 
-**The Student** uses Par 3 on their phone at the range to:
-1. See their journey with checkpoints created by their instructor
-2. Use Smart Mirror to check their address posture in real-time
-3. Record practice videos and compare against their personal baseline
-4. Track improvement over time
+**Principio irrenunciable:** El instructor es siempre la autoridad. parell.golf complementa su método, nunca lo contradice ni lo reemplaza.
+
+**Dominio:** parell.golf
+**Idiomas:** Español e inglés desde el inicio. i18n en todas las strings desde el día 1.
+**Modelo de negocio:** Suscripción mensual del instructor. El precio varía según la cantidad de alumnos activos incluidos. El alumno accede gratis.
 
 ---
 
-## DETAILED FLOWS
+## Los dos usuarios
 
-### Flow 1: Instructor Creates Student Profile
+### Instructor (cliente que paga)
 
-1. Instructor opens Par 3 on iPad
-2. Taps "Nuevo Alumno"
-3. Enters: name, email (optional), basic info
-4. Student profile is created with an empty journey
-5. Instructor can now start calibrating
+- Enseña en academia o club. Target: 30+ alumnos activos.
+- Usa parell.golf en **iPad durante la clase** — no entre clases.
+- Durante una clase trabaja varios movimientos según cómo avanza el alumno.
+- No es técnico. La app tiene que ser obvia sin explicaciones.
+- Su workflow natural: graba → pausa en el frame clave → dibuja y explica con voz → guarda.
 
-**UI:** Simple list of students. Tap to select. Plus button to add new. No complex forms.
+### Alumno (usuario final, accede gratis)
 
-### Flow 2: Instructor Calibration Session
-
-This is the core flow. The instructor works with the student (usually on the calibration machine or at the range) and records their technique checkpoint by checkpoint.
-
-**Step 1: Select student and create checkpoint**
-1. Instructor selects the student from the list
-2. Sees the student's journey (list of existing checkpoints, or empty)
-3. Taps "Nuevo Checkpoint"
-4. Names it (e.g., "Address de frente", "Backswing de perfil", "Postura sentado")
-5. Selects camera angle: "De frente" (face-on) or "De perfil" (down-the-line)
-
-**Step 2: Record with live MediaPipe**
-1. Camera activates with MediaPipe skeleton overlay running in real-time
-2. The instructor sees the student's body with landmarks drawn on screen
-3. The student performs swings while the instructor observes
-4. Recording is continuous but SHORT — typically 2-5 minutes per checkpoint
-5. NOT one-hour continuous recordings. One recording per technique/checkpoint.
-
-**Step 3: Mark the good moments**
-1. While recording, the instructor watches the student
-2. When they see a swing or position that is CORRECT for this student, they tap a green "Bien" button
-3. Each tap captures the landmarks from the surrounding ~3 seconds (the swing that just happened)
-4. The instructor can tap "Bien" multiple times during the recording (e.g., 3-5 good swings)
-5. Everything NOT marked is simply ignored for baseline purposes
-
-**Step 4: Save checkpoint**
-1. Instructor taps "Stop Recording"
-2. The app processes the marked moments and calculates the baseline:
-   - Averages the landmark angles from all "Bien" marks
-   - Calculates the acceptable range (mean plus/minus standard deviation) per metric
-3. Shows a summary: "3 good moments captured. Baseline: spine 28-32 degrees, knees 155-162 degrees..."
-4. Instructor can optionally add a text note: "Focus on keeping spine angle constant"
-5. Taps "Save" — checkpoint is added to the student's journey
-
-**Step 5: Repeat for next technique**
-1. Instructor goes back to the student's journey
-2. Now shows: "1. Address de frente (calibrated)"
-3. Can add "2. Address de perfil", "3. Backswing de perfil", etc.
-4. Each checkpoint = one short recording with its own baseline
-5. The journey grows organically over one or multiple lessons
-
-### Flow 3: Student Views Their Journey
-
-1. Student opens Par 3 on their phone
-2. Logs in with access code provided by instructor
-3. Sees their journey: a list of checkpoints created by their instructor
-   - 1. Address de frente (calibrated)
-   - 2. Address de perfil (calibrated)
-   - 3. Backswing de perfil (calibrated)
-   - 4. Downswing (pending — next class)
-4. Each checkpoint shows:
-   - Name and camera angle
-   - Reference video clip from calibration (can rewatch)
-   - Instructor's note if any
-   - "Practicar" button to start comparing
-5. Student taps a checkpoint to practice it
-
-### Flow 4: Student Practice — Smart Mirror (Real-Time)
-
-For static posture checks (address position) before swinging.
-
-1. Student selects a checkpoint (e.g., "Address de frente")
-2. Taps "Smart Mirror"
-3. Camera activates with MediaPipe overlay
-4. The app compares their current posture against THEIR personal baseline for this checkpoint
-5. Shows colored lines:
-   - Green: Within their baseline range
-   - Yellow: Close to the edge of their range
-   - Red: Outside their baseline range
-6. Side panel shows each metric with status and deviation
-7. Status pill: "Postura correcta" or "2 ajustes necesarios"
-8. Student adjusts until everything is green, THEN swings
-9. This mode is for pre-swing setup, not swing analysis
-
-### Flow 5: Student Practice — Video Analysis (Post-Recording)
-
-For analyzing the full swing after recording.
-
-1. Student selects a checkpoint (e.g., "Backswing de perfil")
-2. Taps "Grabar Practica"
-3. Sets up phone on tripod, selects correct camera angle
-4. Records their swing (short clip, 5-15 seconds)
-5. App processes the video frame-by-frame through MediaPipe
-6. Shows results compared against THEIR personal baseline:
-   - Skeleton overlay on the video with colored lines
-   - Per-metric comparison with deviation from baseline
-   - Overall assessment: which metrics were good, which need work
-7. Recommendation from the copilot (2-3 sentences, positive framing)
-8. Student can record multiple attempts and see improvement
-9. Practice sessions are saved for history
-
-### Flow 6: Student Practice History (Simple)
-
-1. Student can see a list of past practice sessions per checkpoint
-2. Each session shows: date, which metrics were good/bad, deviation from baseline
-3. Simple trend: "Your spine consistency improved from 60% to 82% over 3 sessions"
-4. Minimal for MVP — no fancy charts, just a list with key metrics
+- Practica en el rango entre clases, típicamente durante la semana.
+- Usa parell.golf en su **teléfono**.
+- Quiere saber exactamente qué practicar y si lo está haciendo bien.
+- No quiere pensar — quiere instrucciones claras y feedback inmediato.
 
 ---
 
-## DATA MODEL
+## Flujo del Instructor
 
-### Instructor
-- id (uuid, primary key)
-- name (text)
-- email (text, unique)
-- created_at (timestamp)
+El instructor está en la academia con su alumno. Saca el iPad.
 
-### Student
-- id (uuid, primary key)
-- instructor_id (uuid, foreign key to instructor)
-- name (text)
-- email (text, optional)
-- access_code (text, 6-digit code, unique)
-- created_at (timestamp)
+**1. Acceso al alumno**
+- Abre parell.golf → ve su lista de alumnos.
+- Selecciona al alumno. La clase del día se crea automáticamente si pasaron más de 24 horas desde la última grabación con ese alumno. Sin fricción, sin botón "crear clase".
 
-### Checkpoint
-- id (uuid, primary key)
-- student_id (uuid, foreign key to student)
-- name (text, e.g., "Address de frente")
-- camera_angle (text, "face_on" or "dtl")
-- display_order (integer, position in journey)
-- instructor_note (text, optional)
-- calibration_video_url (text, Supabase Storage URL)
-- calibration_marks (jsonb, array of mark objects)
-- baseline (jsonb, calculated metrics with mean/min/max/std)
-- status (text, "calibrated" or "pending")
-- created_at (timestamp)
+**2. Durante la clase — grabar un clip**
+- Cuando quiere dejar un baseline de un movimiento específico:
+  - Toca "Grabar" → apunta el iPad → graba 15-30 segundos (2-3 repeticiones del movimiento correcto del alumno).
+  - Para la grabación.
+  - El video se graba limpio. Sin overlay de skeleton durante la grabación.
 
-### calibration_marks JSON structure
+**3. Post-grabación — revisar y anotar**
+- Revisa el clip. Puede activar el overlay de skeleton si quiere ver los ángulos (opt-in, no default).
+- Pausa en el frame clave que quiere marcar.
+- Activa "Anotar":
+  - Dibuja con el dedo: líneas, flechas, círculos para señalar lo que importa.
+  - Mientras dibuja, habla — el audio se graba automáticamente y simultáneamente.
+  - Puede agregar texto si quiere.
+- Toca "Listo" → el clip con sus anotaciones queda disponible para el alumno de inmediato.
+
+**4. Repite durante la clase**
+- Vuelve al perfil del alumno y graba otro clip cuando lo necesita.
+- Todos los clips del día quedan agrupados bajo la clase automática.
+
+**5. El sábado — ver lo que hizo el alumno**
+- Desde el perfil del alumno puede ver:
+  - Cuántas veces practicó esa semana y en qué días.
+  - En qué clips mejoró, en cuáles está estancado.
+  - Los intentos grabados del alumno — puede reproducirlos para dar feedback específico en clase.
+
+---
+
+## Flujo del Alumno
+
+El alumno llega al rango. Saca el teléfono.
+
+**1. Pantalla principal — qué practicar hoy**
+- Ve "Practicá esto hoy" — 1-2 clips priorizados automáticamente según su progreso.
+- La priorización considera: días sin practicar ese clip + score promedio reciente.
+- Puede ver también todos los clips de su última clase y el historial completo.
+
+**2. Repasar el clip del instructor**
+- Ve el video del instructor con los dibujos superpuestos en el frame anotado.
+- Escucha el audio del instructor explicando.
+- Puede activar el skeleton del instructor si quiere ver los ángulos técnicos.
+
+**3. Practicar — espejo en tiempo real**
+- Toca "Practicar esto".
+- La cámara se activa en modo espejo: el alumno se ve en tiempo real.
+- Ve indicadores de colores (verde / amarillo / rojo) por métrica.
+- Ve UNA sola instrucción de texto a la vez: "Inclinarte más desde las caderas hasta sentir la misma posición que en el video."
+- Skeleton opt-in — oculto por default.
+- Cuando está listo, toca "Grabar".
+
+**4. Post-práctica — resultados**
+- Ve su video con la evaluación superpuesta.
+- Ve comparación contra el clip del instructor (toggle o lado a lado).
+- Ve qué estuvo bien y UNA cosa para mejorar.
+- El intento queda guardado automáticamente.
+
+**5. Progreso**
+- Puede ver su evolución por clip a lo largo del tiempo.
+- La app genera un resumen en lenguaje simple de cómo avanzó esa semana.
+
+---
+
+## Modelo de datos
+
+La unidad central es el **Clip**, agrupado en **Clases** automáticas por fecha, dentro del perfil de un **Alumno** que pertenece a un **Instructor**.
+
+```
+Instructor
+└── Alumno
+    └── Clase (agrupación automática, umbral 24hs desde última grabación)
+        └── Clip
+            ├── Video original (almacenado completo en Supabase Storage)
+            ├── Landmarks de TODOS los frames (raw, para ML futuro)
+            ├── Métricas calculadas por frame
+            ├── Tipo: postura | swing
+            ├── Ángulo de cámara: face_on | dtl
+            ├── Baseline (calculado del clip completo)
+            ├── Anotaciones
+            │   ├── frame_timestamp_ms (dónde pausó el instructor)
+            │   ├── strokes (vectorial JSON — tipo, color, puntos)
+            │   ├── audio_url + audio_transcript
+            │   └── text_note (opcional)
+            └── Sesiones de práctica del alumno
+                ├── Video del intento
+                ├── Landmarks de TODOS los frames (raw, para ML futuro)
+                ├── Métricas por frame
+                ├── Score general (%)
+                └── Score por métrica
+```
+
+### Schema de anotaciones (vectorial, no rasterizado)
+
 ```json
-[
-  {
-    "timestamp_ms": 32000,
-    "landmarks": [{"x": 0.5, "y": 0.3, "z": -0.1, "visibility": 0.99}, ...],
-    "metrics": {
-      "spine_angle": 29.5,
-      "head_lateral": 0.012,
-      "knee_flex": 158,
-      "arm_angle": 172,
-      "shoulder_level": 0.008
+{
+  "frame_timestamp_ms": 2340,
+  "strokes": [
+    {
+      "type": "arrow",
+      "color": "#ef4444",
+      "points": [[0.42, 0.31], [0.38, 0.55]],
+      "label": "columna"
+    },
+    {
+      "type": "circle",
+      "color": "#f59e0b",
+      "center": [0.55, 0.48],
+      "radius": 0.06
     }
-  }
-]
-```
-
-### baseline JSON structure
-```json
-{
-  "spine_angle": { "mean": 29.5, "min": 28, "max": 32, "std": 1.5 },
-  "head_lateral": { "mean": 0.015, "min": 0.008, "max": 0.025, "std": 0.006 },
-  "knee_flex": { "mean": 158, "min": 155, "max": 162, "std": 2.8 },
-  "arm_angle": { "mean": 172, "min": 168, "max": 176, "std": 3.2 },
-  "shoulder_level": { "mean": 0.01, "min": 0.005, "max": 0.018, "std": 0.005 }
+  ],
+  "audio_url": "https://...",
+  "audio_transcript": "Fijate cómo la columna está más erguida de lo ideal...",
+  "text_note": null
 }
 ```
 
-### PracticeSession
-- id (uuid, primary key)
-- student_id (uuid, foreign key to student)
-- checkpoint_id (uuid, foreign key to checkpoint)
-- video_url (text, optional)
-- date (timestamp)
-- duration_seconds (integer)
-- results (jsonb, per-metric comparison against baseline)
-- overall_score (integer, percentage of metrics within baseline)
-- created_at (timestamp)
+Las anotaciones se guardan como vectores (no como imagen) para poder escalar, reusar y etiquetar automáticamente en el futuro.
 
-### results JSON structure
-```json
-{
-  "spine_angle": { "value": 35, "deviation": 5.5, "status": "bad" },
-  "head_lateral": { "value": 0.018, "deviation": 0.003, "status": "ok" },
-  "knee_flex": { "value": 160, "deviation": 2, "status": "ok" },
-  "arm_angle": { "value": 165, "deviation": 7, "status": "warn" },
-  "shoulder_level": { "value": 0.012, "deviation": 0.002, "status": "ok" }
-}
-```
+### Tablas principales (Supabase / PostgreSQL)
+
+| Tabla | Descripción |
+|-------|-------------|
+| `instructors` | Cuenta del instructor, plan de suscripción |
+| `students` | Alumnos, vinculados al instructor, código de acceso |
+| `classes` | Agrupación automática por fecha (umbral 24hs por alumno) |
+| `clips` | Metadata de cada grabación, baseline calculado |
+| `clip_frames` | Landmarks de todos los frames de cada clip (raw para ML) |
+| `clip_annotations` | Dibujos vectoriales, audio, texto por clip |
+| `practice_sessions` | Intentos del alumno por clip |
+| `session_frames` | Landmarks de todos los frames de cada intento (raw para ML) |
 
 ---
 
-## TECHNICAL ARCHITECTURE
+## Arquitectura técnica
 
-### Stack
+### Stack (mantener)
 
-| Component | Technology | Rationale |
-|-----------|-----------|-----------|
-| Frontend | HTML + CSS + Vanilla JS | MVP speed, no build step, runs everywhere |
-| Pose Detection | MediaPipe Pose via CDN | 33 landmarks, on-device, free, no server |
-| Backend | Supabase | Auth, PostgreSQL, file storage, free tier |
-| Hosting | Vercel or Netlify | Static hosting with HTTPS (required for camera) |
-| PWA | Service Worker + Manifest | Installable on iPad and phone home screen |
+| Componente | Tecnología |
+|-----------|-----------|
+| Frontend | Next.js 15 (App Router) + TypeScript |
+| Estilos | Tailwind CSS v4 + shadcn/ui |
+| Pose detection | MediaPipe Pose (CDN, on-device, sin enviar video a servidores) |
+| Backend / DB | Supabase (PostgreSQL + Auth + Storage) |
+| Hosting | Vercel |
+| LLM para feedback | Anthropic Claude API |
+| Transcripción de audio | Whisper API (a implementar) |
+| Email | Resend |
+| i18n | next-intl |
 
-### Why Supabase
+### Cambios de arquitectura requeridos respecto a Sweep
 
-Instructor and student use different devices. The instructor calibrates on iPad, the student practices on phone. The baseline data must be shared. Supabase gives us auth, database, and file storage in one service with a generous free tier.
-
-### MediaPipe Integration
-
-CDN imports (no npm needed):
-- @mediapipe/camera_utils
-- @mediapipe/drawing_utils
-- @mediapipe/pose
-
-Key landmarks used:
-- Nose (0): Head position tracking
-- Ears (7, 8): Head tilt
-- Shoulders (11, 12): Spine angle top, shoulder level
-- Elbows (13, 14): Arm angle
-- Wrists (15, 16): Arm extension
-- Hips (23, 24): Spine angle bottom
-- Knees (25, 26): Knee flex
-- Ankles (27, 28): Base stability
-
-### Analysis per camera angle
-
-**Face-on (de frente) detects:**
-- Head lateral displacement: Nose(0) vs Midpoint of Hips(23,24). Horizontal distance normalized.
-- Shoulder level: Shoulder_L(11).y vs Shoulder_R(12).y. Vertical distance normalized.
-- Arm position: Average angle of Shoulder to Elbow to Wrist chains for both arms.
-
-**Down-the-line (de perfil) detects:**
-- Spine inclination: Angle of line from Midpoint(Shoulders) to Midpoint(Hips) vs vertical.
-- Knee flex: Average angle of Hip to Knee to Ankle chains for both legs.
-- Head forward position: Nose(0) horizontal distance vs Midpoint(Shoulders).
-
-### Baseline comparison logic
-
-For each metric during practice:
-- Calculate deviation = absolute value of (current_value minus baseline.mean)
-- If deviation is within 1.0 standard deviations: status is "ok" (green)
-- If deviation is within 2.0 standard deviations: status is "warn" (yellow)
-- If deviation is beyond 2.0 standard deviations: status is "bad" (red)
-
-If baseline has very low standard deviation (instructor marked very consistent positions), the ranges will be tight. If there is more variance in the marks, the ranges will be wider. This is self-calibrating.
-
-### Smoothing
-- Real-time mode (Smart Mirror and Calibration): 6-frame smoothing buffer
-- Video analysis mode: No smoothing, process each frame independently
-
-### "Bien" button capture logic
-
-When instructor taps "Bien":
-1. Capture landmark data from the last 3 seconds (~30 frames at 10fps)
-2. Average those frames into a single landmark set for this mark
-3. Calculate all metrics for this averaged set
-4. Store as one entry in calibration_marks array
-5. Show brief green flash confirmation on screen
-6. Increment mark counter display
-
-### Baseline calculation on save
-
-1. Take all marks from calibration_marks array
-2. For each metric: compute mean, min, max, standard deviation
-3. Acceptable range = mean plus/minus (std times 1.5), or (min minus padding) to (max plus padding), whichever is wider
-4. Use conservative padding: better to accept slightly off positions than reject correct ones
-
-### File Structure
-
-```
-par3/
-├── index.html              — Entry point, routes to instructor or student view
-├── css/
-│   └── styles.css          — All styles (dark theme, responsive)
-├── js/
-│   ├── app.js              — Navigation, routing, shared state
-│   ├── mediapipe.js        — Pose detection, analysis, skeleton drawing
-│   ├── calibration.js      — Instructor calibration flow
-│   ├── mirror.js           — Student smart mirror
-│   ├── video-analysis.js   — Student video recording and analysis
-│   ├── baseline.js         — Baseline calculation and comparison
-│   └── supabase.js         — Supabase client, auth, CRUD
-├── manifest.json           — PWA manifest
-├── sw.js                   — Service worker for caching
-└── CLAUDE.md               — This file
-```
-
-### Supabase Setup
-
-Tables: instructors, students, checkpoints, practice_sessions (as defined in data model above).
-
-Storage buckets: calibration-videos, practice-videos.
-
-Auth strategy for MVP:
-- Instructor: email + password via Supabase auth
-- Student: 6-digit access code generated by instructor, stored in students table. Student enters code to log in. No email required, minimal friction.
-
-Row Level Security: Instructor reads/writes their own students and checkpoints. Student reads their own checkpoints and writes their own practice sessions.
+| Área | Antes (Sweep) | Ahora (parell.golf) |
+|------|--------------|---------------------|
+| Unidad central | `checkpoint` suelto | `clip` dentro de `class` |
+| Creación de clase | Manual por el instructor | Automática (umbral 24hs) |
+| Grabación | Sesión larga con botón "Bien" | Clip corto intencional |
+| Landmarks guardados | Solo frames marcados como buenos | Todos los frames de todos los clips |
+| Anotaciones | Texto + audio separados | Canvas vectorial + audio simultáneo |
+| Pantalla principal alumno | Lista de checkpoints | "Practicá esto hoy" (priorizado) |
+| Nombre del producto | Sweep | parell.golf |
+| i18n | No | Sí, desde el día 1 |
 
 ---
 
-## DESIGN SYSTEM
+## Análisis de pose
 
-### Brand
-- Name: **par3** (lowercase)
-- Domain: **par3.app**
-- The "3" is always rendered in the green accent color
-- Tagline: "Tu copiloto de practica"
+### MediaPipe — comportamiento
 
-### Colors (Dark Theme)
-- Background: #060a08
-- Surface: #0e1410
-- Surface elevated: #141c17
-- Surface hover: #1a241e
-- Border: #1e2b23
-- Border light: #2a3830
-- Text primary: #e4ebe6
-- Text secondary: #a3b5a8
-- Text muted: #5e7464
-- Green (ok/brand): #34d178
-- Red (bad): #f04848
-- Yellow (warn): #e8b930
-- Blue (info/analysis): #6888ff
+- 33 landmarks por frame, coordenadas normalizadas (0-1).
+- On-device: el video nunca sale del dispositivo.
+- Visibilidad mínima requerida: 0.65. Por debajo se ignora, nunca se inventa.
+- Si el cuerpo no está completo en el encuadre, se muestran solo las métricas detectables.
 
-### Typography
-- Primary: DM Sans (Google Fonts CDN)
-- Monospace: JetBrains Mono (Google Fonts CDN)
+### Métricas por ángulo de cámara
 
-### UI Principles
-- Dark, minimal, professional sports tech aesthetic
-- Touch-friendly: large tap targets for iPad during lessons
-- The "Bien" button must be LARGE (at least 80x80px), fixed at bottom of screen
-- Spanish copy throughout
-- Responsive: iPad (instructor) and phone (student)
-- No unnecessary animations — performance matters during live analysis
+**De frente (face_on):** posición lateral de cabeza, extensión de brazos, nivel de hombros, balanceo de cadera, ancho de stance, distribución de peso.
+
+**De perfil (dtl):** inclinación de columna, flexión de rodillas, cabeza adelante, bisagra de cadera, brazo trasero, altura de cabeza.
+
+### Modos
+
+**Postura:** baseline del clip completo, comparación frame a frame en espejo.
+
+**Swing:** detección de 4 fases (address, top, impacto, finish) por trayectoria Y de muñecas. Baseline y comparación por fase.
+
+### Umbrales de comparación
+
+- ≤ 1 std de la media: verde
+- 1-2 std: amarillo
+- > 2 std: rojo
+
+### Lo que MediaPipe no puede detectar
+
+Grip, posición del palo, tempo, ángulos de muñeca, calidad del impacto, distribución real de peso. No intentar inferir estas cosas.
 
 ---
 
-## ANALYSIS RULES DETAIL
+## UX — principios
 
-### Face-on View (de frente)
+**Skeleton opt-in siempre.** Nunca visible por default. El instructor lo activa al revisar si quiere ver ángulos. El alumno lo activa al practicar si quiere ver la comparación técnica.
 
-**Head Lateral Displacement**
-- Landmarks: Nose(0) vs Midpoint(Hip_L(23), Hip_R(24))
-- Metric: Horizontal distance in normalized coordinate space
-- During calibration: Capture actual value when instructor marks good
-- During practice: Compare against calibrated baseline range
+**Una instrucción a la vez.** Nunca mostrar múltiples correcciones simultáneas al alumno.
 
-**Shoulder Level**
-- Landmarks: Shoulder_L(11).y vs Shoulder_R(12).y
-- Metric: Vertical distance normalized
-- Note: Some tilt is normal. Baseline captures what is correct for THIS student.
+**Feedback en positivo.** Nunca "está mal". Siempre "inclinarte hacia...".
 
-**Arm Position**
-- Landmarks: Shoulder(11,12) to Elbow(13,14) to Wrist(15,16)
-- Metric: Average arm angle in degrees
-- Note: Depends on player build. Baseline is personal.
+**Sin números para el alumno.** Los grados y distancias se traducen a lenguaje corporal. "Tu columna está 4° más erguida" → "Inclinarte un poco más desde las caderas".
 
-### Down-the-Line View (de perfil)
+**El flujo de anotación es el corazón del producto.** Tiene que ser tan simple como usar el dedo en la pantalla en una conversación:
+1. Pausa el video en el frame clave.
+2. Toca "Anotar".
+3. Dibuja con el dedo. Habla mientras dibujás. El audio se graba automáticamente.
+4. Toca "Listo".
 
-**Spine Inclination**
-- Landmarks: Midpoint(Shoulders 11,12) to Midpoint(Hips 23,24)
-- Metric: Angle of this line vs vertical, in degrees
-- Most critical metric for beginners.
+Sin formularios intermedios. Sin pasos extra. Un gesto continuo.
 
-**Knee Flex**
-- Landmarks: Hip(23,24) to Knee(25,26) to Ankle(27,28)
-- Metric: Average knee angle in degrees
+**Touch-first.** Targets mínimos de 48px. El instructor usa el iPad con los dedos durante la clase.
 
-**Head Forward Position**
-- Landmarks: Nose(0) vs Midpoint(Shoulders 11,12)
-- Metric: Horizontal distance normalized
-
-### What MediaPipe CANNOT detect (do not attempt)
-- Grip (fingers occluded)
-- Club position or path (tracks body not objects)
-- Swing tempo
-- Wrist angles (insufficient precision)
-- Impact quality
-- Weight distribution
+**Performance primero** en pantallas con análisis en tiempo real. Sin animaciones innecesarias.
 
 ---
 
-## FEEDBACK LANGUAGE
+## Estrategia de datos para modelo propio
 
-All in Spanish. Always positive framing. One correction at a time.
+### El activo diferencial
 
-Good patterns:
-- "Tu columna esta 3 grados mas erguida que tu referencia. Inclinate un poco mas desde las caderas."
-- "Cabeza centrada, igual que en tu calibracion. Bien!"
-- "Tus rodillas estan un poco mas flexionadas de lo habitual. Endereza ligeramente."
+parell.golf tiene acceso a algo que ningún dataset público tiene: **anotaciones de expertos reales sobre movimientos reales de alumnos reales**. Cada vez que un instructor pausa en el frame 2.3 y dibuja una línea en la columna diciendo "esto está mal", produce un label humano de alta calidad sobre un error técnico específico.
 
-Bad patterns (never use):
-- English text in UI
-- Negative framing ("Your posture is wrong")
-- Multiple corrections at once ("Error in 4 metrics")
-- Raw technical values ("Spine angle: 35.2 degrees, expected: 29.1 plus/minus 2.3")
+Con suficiente volumen esto permite entrenar:
+- Un detector de errores técnicos sin calibración manual por alumno.
+- Un modelo que predice qué corrección funciona para cada tipo de error.
+- Un modelo que estima cuánto le llevará a un alumno mejorar una métrica.
 
-Copilot summary pattern (after video analysis):
-- Start with what was good
-- Then ONE thing that needs work (the most important)
-- Then actionable advice
-- Example: "Tu postura general se ve bien, la flexion de rodillas y posicion de cabeza estan dentro de tu rango. La columna esta un poco mas erguida que tu referencia. Antes de cada swing, enfocate en inclinar mas desde las caderas hasta sentir la misma posicion que en la maquina."
+### Qué capturar sin penalizar UX
 
----
+El instructor no hace nada extra. Todo se captura de lo que ya pasa naturalmente:
 
-## MVP SCOPE
-
-### Must have
-- Instructor login (email + password via Supabase)
-- Student list (create, view, select)
-- Student access via 6-digit code
-- Checkpoint creation with name and camera angle
-- Calibration recording with live MediaPipe overlay
-- "Bien" button during recording that captures landmark data
-- Baseline calculation from marked moments
-- Student journey view (list of calibrated checkpoints)
-- Smart Mirror mode (real-time comparison against baseline)
-- Video recording and analysis (post-recording comparison)
-- Results display with per-metric comparison and copilot summary
-- Practice session history (simple list per checkpoint)
-- PWA installable on home screen
-- Responsive for iPad and phone
-
-### Nice to have
-- Instructor can rewatch calibration video with marks highlighted
-- Student can see reference clip alongside practice video
-- Instructor note per checkpoint
-- Simple trend visualization for practice sessions
-- Instructor can see student practice history
-
-### NOT in MVP
-- Journey phases or drag-and-drop
-- Reminders or notifications
-- Gamification or streaks
-- Voice notes
-- AI class recaps
-- Marketplace
-- Payments or Stripe
-- Multi-club support
-- Simultaneous dual-camera recording
+| Dato | Fuente | Valor para ML |
+|------|--------|---------------|
+| Landmarks de todos los frames del clip | Post-grabación | Ground truth de movimiento correcto |
+| Landmarks de todos los frames del intento | Post-sesión | Variación respecto al correcto |
+| Frame exacto donde el instructor pausa | Interacción natural | Label implícito: "este frame es importante" |
+| Posición y tipo de cada stroke del dibujo | Canvas vectorial | Label explícito: "esta zona del cuerpo tiene un problema" |
+| Audio transcripto | Whisper | Label textual del error y la corrección |
+| Tiempo hasta mejorar por métrica | Historial de sesiones | Curva de aprendizaje por tipo de error |
+| Recalibraciones (nuevo clip del mismo movimiento) | Flujo natural | Label implícito: "el anterior no era suficientemente bueno" |
 
 ---
 
-## IMPLEMENTATION NOTES
+## Alcance del MVP
 
-### Camera and Recording on Web
-- Use navigator.mediaDevices.getUserMedia() for camera access
-- Requires HTTPS (use Vercel/Netlify for hosting, localhost for dev)
-- Use MediaRecorder API to save video clips
-- Process MediaPipe in parallel with recording
-- iPad Safari works well for camera in PWA mode
+### Incluido
 
-### Video Storage
-- Calibration videos: Always upload to Supabase Storage
-- Practice videos: Upload to Supabase Storage for history
-- Compress to 720p (sufficient for MediaPipe)
+- Auth del instructor (email + password via Supabase)
+- Auth del alumno (código de 6 caracteres generado por el instructor)
+- Lista de alumnos del instructor
+- Creación automática de clase (umbral 24hs)
+- Grabación de clips cortos durante la clase (video limpio)
+- Revisión post-grabación con overlay de skeleton opt-in
+- Canvas vectorial de anotación + audio simultáneo
+- Almacenamiento de landmarks de todos los frames
+- Vista "Practicá esto hoy" con priorización simple
+- Espejo en tiempo real con indicadores de colores y una instrucción
+- Grabación de práctica del alumno
+- Resultados: evaluación + comparación con clip del instructor
+- Vista del instructor del progreso semanal del alumno
+- i18n: español e inglés
+- PWA instalable en iPad y teléfono
 
-### Performance
-- MediaPipe Pose with modelComplexity: 1
-- Process at 10-15 fps for smooth overlay
-- Use requestAnimationFrame for rendering
-- The "Bien" button must respond instantly, no debounce
+### Fuera del MVP
 
-### The "Bien" Button UX
-- At least 80x80px, fixed bottom of screen
-- Green color, high contrast against dark camera feed
-- On tap: green flash/pulse confirmation animation
-- Counter showing marks: "3 marcas"
-- Must not block view of the student on screen
-
----
-
-## DEVELOPMENT ORDER
-
-1. Set up Supabase: project, tables, storage buckets, auth
-2. Build instructor flow: login, student list, create checkpoint, calibration recording with "Bien" marks, save baseline
-3. Build student flow: login with code, journey view, smart mirror, video analysis, results
-4. Add PWA: manifest, service worker, responsive design
-5. Polish: loading states, error handling, edge cases
-6. Test with real users: instructor calibrates a real student, student practices at range
+- Pagos y billing
+- Notificaciones push
+- Modelo propio de ML (se captura la data, no se usa aún)
+- Multi-instructor por academia
+- Chat instructor-alumno
+- Gamificación
 
 ---
 
-## KEY DECISIONS (DO NOT VIOLATE)
+## Decisiones clave — no violar
 
-1. The instructor is always right. We complement, never contradict.
-2. Better no feedback than wrong feedback. Conservative thresholds.
-3. Baselines are personal. No universal correct angles. Every student has their own.
-4. One correction at a time. Never overwhelm the student.
-5. Positive framing always. "Try to maintain..." not "You are losing..."
-6. Short recordings per checkpoint. 2-5 minutes max, not hour-long sessions.
-7. The "Bien" button is sacred. Easiest interaction in the app.
-8. Spanish UI. English code comments and variable names.
-9. MVP means MVP. No feature creep. Working end-to-end, then iterate.
-10. Browser-first PWA. No app store for MVP.
+1. El instructor es siempre la autoridad. Nunca contradecir su calibración.
+2. Guardar landmarks de todos los frames de todos los clips y sesiones. Siempre.
+3. Anotaciones como vectores JSON, nunca como imagen rasterizada.
+4. Una sola instrucción visible al alumno a la vez.
+5. Skeleton opt-in, nunca default.
+6. i18n desde el día 1. Ninguna string hardcodeada en componentes.
+7. Audio del instructor y dibujo son simultáneos — no pasos separados.
+8. La clase se crea automáticamente. El instructor nunca toca un botón para crearla.
+9. Feedback siempre en positivo.
+10. Performance primero en pantallas con análisis en tiempo real.
