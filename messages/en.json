@@ -569,9 +569,7 @@
       "chipStagnant": "Stuck",
       "chipDeclining": "Dropped",
       "chipNew": "New",
-      "chipNoSessions": "Not practiced",
-      "legacyExercisesTitle": "Earlier exercises",
-      "legacyExercisesHint": "These come from the old flow. Your coach will migrate them soon."
+      "chipNoSessions": "Not practiced"
     },
     "profile": {
       "backLink": "My exercises",
@@ -597,27 +595,6 @@
       "confirmSignOutPrompt": "Sign out?",
       "signOut": "Sign out",
       "cancel": "Cancel"
-    },
-    "checkpoint": {
-      "backToJourney": "My exercises",
-      "notFound": "Exercise not found.",
-      "archivedTitle": "This exercise was archived",
-      "archivedDesc": "Your coach archived this exercise. Talk to your coach if you need access.",
-      "backToJourneyLink": "Back to my exercises",
-      "statusCalibrated": "Calibrated",
-      "angleFaceOn": "Face-on",
-      "angleDtl": "Down-the-line",
-      "swingBadge": "Swing",
-      "historyAction": "History",
-      "recordPractice": "Record practice",
-      "practice": "Practice",
-      "swingsCalibratedSummary": "{count, plural, one {# swing calibrated} other {# swings calibrated}} · personal reference active",
-      "positionsCalibratedSummary": "{count, plural, one {# position calibrated} other {# positions calibrated}} · personal reference active",
-      "instructorNoteTitle": "Note from your coach",
-      "instructorReferenceTitle": "Your coach's reference",
-      "personalReferenceTitle": "Your personal reference",
-      "summaryLoading": "Generating summary...",
-      "summaryDisclaimer": "AI-generated summary. May contain inaccuracies."
     },
     "practice": {
       "backFallback": "Back",
@@ -692,24 +669,6 @@
       "metricsVisible": "{visible}/{total} metrics visible",
       "stepIntoFrame": "Step into the frame",
       "waitingPose": "Waiting for pose detection..."
-    },
-    "history": {
-      "loadingError": "No sessions yet",
-      "backToCheckpoint": "← {name}",
-      "title": "Your progress",
-      "sessionsCount": "{count, plural, one {# session recorded} other {# sessions recorded}}",
-      "sinceStart": "since the start",
-      "scorePerSession": "Score per session",
-      "thresholdGood": "80% — good",
-      "thresholdAverage": "50% — average",
-      "secondSessionHint": "Record a second session to see your progress on the chart",
-      "emptyTitle": "No sessions yet",
-      "emptyDesc": "Record your first practice to start tracking progress",
-      "recordPractice": "Record practice",
-      "practice": "Practice",
-      "sessionsHeader": "Sessions",
-      "latest": "Latest",
-      "inRange": "in range"
     },
     "clip": {
       "backToJourney": "My exercises",

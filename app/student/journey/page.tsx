@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import type { Checkpoint } from '@/lib/types'
 import type { Class, Clip } from '@/lib/classes'
 import { pickTopClipsForToday } from '@/lib/prioritization'
 import {
@@ -45,7 +44,6 @@ export default function StudentJourney() {
   const [classes, setClasses] = useState<Class[]>([])
   const [clips, setClips] = useState<Clip[]>([])
   const [sessions, setSessions] = useState<SessionLike[]>([])
-  const [legacy, setLegacy] = useState<Checkpoint[]>([])
   const [fetching, setFetching] = useState(true)
   const [previousOpen, setPreviousOpen] = useState(false)
 
@@ -60,7 +58,7 @@ export default function StudentJourney() {
 
   async function load(studentId: string) {
     setFetching(true)
-    const [{ data: cls }, { data: cl }, { data: ps }, { data: cps }] = await Promise.all([
+    const [{ data: cls }, { data: cl }, { data: ps }] = await Promise.all([
       supabase
         .from('classes')
         .select('*')
@@ -77,17 +75,10 @@ export default function StudentJourney() {
         .select('clip_id, checkpoint_id, overall_score, date')
         .eq('student_id', studentId)
         .order('date', { ascending: false }),
-      supabase
-        .from('checkpoints')
-        .select('*')
-        .eq('student_id', studentId)
-        .neq('status', 'archived')
-        .order('display_order'),
     ])
     setClasses(cls ?? [])
     setClips(cl ?? [])
     setSessions((ps as SessionLike[]) ?? [])
-    setLegacy(cps ?? [])
     setFetching(false)
   }
 
@@ -157,7 +148,7 @@ export default function StudentJourney() {
           <div className="flex justify-center py-20">
             <div className="w-5 h-5 rounded-full border-2 border-ok border-t-transparent animate-spin" />
           </div>
-        ) : clips.length === 0 && legacy.length === 0 ? (
+        ) : clips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl text-center">
             <div className="text-5xl mb-4">🏌️</div>
             <p className="text-foreground font-semibold mb-1">{t('emptyTitle')}</p>
@@ -254,47 +245,6 @@ export default function StudentJourney() {
               </section>
             )}
 
-            {/* Legacy checkpoint fallback — survives the migration window */}
-            {legacy.length > 0 && (
-              <section className="mb-6">
-                <div className="mb-3">
-                  <h2 className="text-base font-semibold text-foreground">{t('legacyExercisesTitle')}</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('legacyExercisesHint')}</p>
-                </div>
-                <ul className="flex flex-col gap-2">
-                  {legacy.map((cp, i) => {
-                    const isReady = cp.status === 'calibrated'
-                    return (
-                      <li key={cp.id}>
-                        <Link
-                          href={isReady ? `/student/checkpoint/${cp.id}` : '#'}
-                          className={cn(
-                            'flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors',
-                            isReady
-                              ? 'border-border bg-card hover:bg-secondary/40 cursor-pointer'
-                              : 'border-border bg-card/50 opacity-60 pointer-events-none',
-                          )}
-                        >
-                          <span className="size-7 rounded-full flex items-center justify-center text-xs font-mono bg-secondary text-muted-foreground border border-border shrink-0">
-                            {i + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{cp.name}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {cp.checkpoint_type === 'swing' ? t('typeSwing') : t('typePosture')} ·{' '}
-                              {cp.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
-                            </p>
-                          </div>
-                          <Badge variant="outline" className={cn('text-xs', isReady ? 'text-ok border-ok/30 bg-ok/10' : 'text-muted-foreground border-border')}>
-                            {isReady ? t('statusReady') : t('statusPending')}
-                          </Badge>
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            )}
           </>
         )}
       </div>
