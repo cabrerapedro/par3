@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAuth } from '@/lib/auth'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Wordmark } from '@/components/Wordmark'
@@ -91,10 +92,16 @@ function Hero() {
         </div>
 
         <div className="relative">
-          {/* TODO: cuando esté hero-address.png, reemplazar el SVG por <img> */}
-          <div className="relative border border-rule bg-paper-2 aspect-[4/5] p-6">
-            <HoganLarge />
-            <div className="absolute top-6 right-6">
+          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
+            <Image
+              src="/images/hero-address.png"
+              alt="Postura de dirección — vista de perfil, con anotaciones técnicas del instructor"
+              fill
+              priority
+              sizes="(min-width: 768px) 40vw, 100vw"
+              className="object-cover"
+            />
+            <div className="absolute top-6 right-6 z-10">
               <Stamp>PAR</Stamp>
             </div>
           </div>
@@ -105,54 +112,6 @@ function Hero() {
         </div>
       </div>
     </section>
-  )
-}
-
-function HoganLarge() {
-  return (
-    <svg viewBox="0 0 240 320" className="w-full h-full block text-ink">
-      <line x1="120" y1="100" x2="120" y2="190" style={{ stroke: 'var(--color-accent)' }} strokeWidth="0.7" strokeDasharray="2 2.5" opacity="0.5" />
-      <g stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="118" cy="76" r="10" />
-        <line x1="118" y1="86" x2="118" y2="100" />
-        <line x1="118" y1="100" x2="134" y2="186" />
-        <line x1="110" y1="106" x2="128" y2="106" />
-        <line x1="120" y1="108" x2="154" y2="190" />
-        <line x1="122" y1="108" x2="158" y2="190" />
-        <circle cx="156" cy="191" r="2.6" fill="currentColor" />
-        <line x1="130" y1="184" x2="142" y2="188" />
-        <line x1="134" y1="188" x2="126" y2="240" />
-        <line x1="126" y1="240" x2="120" y2="284" />
-        <line x1="140" y1="188" x2="146" y2="240" />
-        <line x1="146" y1="240" x2="150" y2="284" />
-        <line x1="112" y1="284" x2="128" y2="284" strokeWidth="1.8" />
-        <line x1="142" y1="284" x2="160" y2="284" strokeWidth="1.8" />
-      </g>
-      <g stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round">
-        <line x1="156" y1="191" x2="202" y2="280" />
-        <line x1="198" y1="280" x2="210" y2="283" strokeWidth="3.6" />
-      </g>
-      <circle cx="188" cy="282" r="3" fill="currentColor" />
-      <line x1="28" y1="286" x2="216" y2="286" stroke="currentColor" strokeWidth="0.6" opacity="0.5" />
-      <g style={{ color: 'var(--color-accent)' }}>
-        <path d="M 118,128 A 24 24 0 0 1 126,124" fill="none" stroke="currentColor" strokeWidth="1" />
-        <text x="128" y="130" fontSize="9" fill="currentColor" fontFamily="var(--font-jb-mono)" fontWeight="500">32°</text>
-        <line x1="60" y1="148" x2="118" y2="134" stroke="currentColor" strokeWidth="0.7" />
-        <text x="18" y="146" fontSize="8" fill="currentColor" fontFamily="var(--font-jb-mono)" letterSpacing="1">columna</text>
-        <text x="18" y="158" fontSize="6.5" fill="var(--color-ink-mute)" fontFamily="var(--font-jb-mono)" letterSpacing="0.5">ref 28–34°</text>
-        <line x1="180" y1="232" x2="148" y2="240" stroke="currentColor" strokeWidth="0.7" />
-        <text x="184" y="234" fontSize="8" fill="currentColor" fontFamily="var(--font-jb-mono)" letterSpacing="1">rodillas</text>
-        <text x="184" y="246" fontSize="6.5" fill="var(--color-ink-mute)" fontFamily="var(--font-jb-mono)" letterSpacing="0.5">flex 22°</text>
-        <line x1="188" y1="278" x2="188" y2="262" stroke="currentColor" strokeWidth="0.7" strokeDasharray="2 2" />
-        <text x="180" y="258" fontSize="7" fill="currentColor" fontFamily="var(--font-jb-mono)" letterSpacing="1">bola</text>
-      </g>
-      <g style={{ color: 'var(--color-ink-mute)' }}>
-        <line x1="112" y1="296" x2="160" y2="296" stroke="currentColor" strokeWidth="0.5" />
-        <line x1="112" y1="293" x2="112" y2="299" stroke="currentColor" strokeWidth="0.5" />
-        <line x1="160" y1="293" x2="160" y2="299" stroke="currentColor" strokeWidth="0.5" />
-        <text x="124" y="306" fontSize="6.5" fill="currentColor" fontFamily="var(--font-jb-mono)" letterSpacing="0.5">stance 48cm</text>
-      </g>
-    </svg>
   )
 }
 
@@ -207,14 +166,16 @@ function ComoFunciona() {
             who="Durante la clase"
             title="El instructor calibra."
             body="Con el iPad en mano, graba 15 segundos del movimiento correcto del alumno. Pausa, dibuja con el dedo sobre el frame clave, habla. Lo guarda. La técnica queda como un manual técnico — exacto, suyo."
-            visual={<MiniHogan />}
+            imageSrc="/images/como-calibra.png"
+            imageAlt="Instructor con iPad junto a alumno en posición de address"
           />
           <Panel
             numeral="II"
             who="Entre clases"
             title="El alumno practica."
             body="Abre el teléfono en el rango. Ve la referencia de su profesor, la escucha, la entiende. Activa el espejo. La app le dice qué corregir, una cosa a la vez, en lenguaje corporal — sin jerga, sin números."
-            visual={<MiniMirror />}
+            imageSrc="/images/como-practica.png"
+            imageAlt="Alumno practicando solo en el rango con el teléfono en un trípode mostrando feedback"
             divider
           />
           <Panel
@@ -222,7 +183,8 @@ function ComoFunciona() {
             who="El sábado siguiente"
             title="La conversación se reanuda."
             body="El instructor abre el perfil del alumno y ve la semana entera como un yardage book: qué practicó, qué le costó, qué mejoró. La clase del sábado deja de empezar de cero."
-            visual={<MiniScorecard />}
+            imageSrc="/images/como-revisa.png"
+            imageAlt="Dos pares de manos revisando un iPad con el scorecard semanal del alumno"
             divider
           />
         </div>
@@ -231,93 +193,21 @@ function ComoFunciona() {
   )
 }
 
-function Panel({ numeral, who, title, body, visual, divider }: { numeral: string; who: string; title: string; body: string; visual: React.ReactNode; divider?: boolean }) {
+function Panel({ numeral, who, title, body, imageSrc, imageAlt, divider }: { numeral: string; who: string; title: string; body: string; imageSrc: string; imageAlt: string; divider?: boolean }) {
   return (
     <div className={`px-7 py-10 ${divider ? 'md:border-l border-rule' : ''}`}>
-      {/* TODO: reemplazar visual SVG por <img src="/images/como-*.png" /> cuando estén las láminas */}
-      <div className="aspect-[4/3] bg-paper-2 border border-rule mb-6 flex items-center justify-center">
-        {visual}
+      <div className="relative aspect-[4/3] bg-paper-2 border border-rule mb-6 overflow-hidden">
+        <Image
+          src={imageSrc}
+          alt={imageAlt}
+          fill
+          sizes="(min-width: 768px) 33vw, 100vw"
+          className="object-cover"
+        />
       </div>
       <p className="small-caps font-mono text-[10px] text-accent">{numeral} · {who}</p>
       <h3 className="font-display font-semibold text-[22px] leading-[1.2] mt-2">{title}</h3>
       <p className="text-sm leading-[1.6] text-ink-soft mt-3">{body}</p>
-    </div>
-  )
-}
-
-function MiniHogan() {
-  return (
-    <svg viewBox="0 0 120 100" className="w-[80%] h-[80%] text-ink">
-      <g stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="58" cy="22" r="4" />
-        <line x1="58" y1="26" x2="58" y2="34" />
-        <line x1="58" y1="34" x2="66" y2="62" />
-        <line x1="60" y1="38" x2="74" y2="62" />
-        <line x1="61" y1="38" x2="76" y2="62" />
-        <circle cx="75" cy="63" r="1.4" fill="currentColor" />
-        <line x1="65" y1="62" x2="62" y2="82" />
-        <line x1="62" y1="82" x2="58" y2="94" />
-        <line x1="68" y1="62" x2="70" y2="82" />
-        <line x1="70" y1="82" x2="72" y2="94" />
-        <line x1="54" y1="94" x2="62" y2="94" strokeWidth="1.1" />
-        <line x1="68" y1="94" x2="76" y2="94" strokeWidth="1.1" />
-      </g>
-      <line x1="75" y1="63" x2="96" y2="93" stroke="currentColor" strokeWidth="0.7" />
-      <line x1="94" y1="93" x2="100" y2="94.6" stroke="currentColor" strokeWidth="2.2" />
-      <circle cx="89" cy="94" r="1.6" fill="currentColor" />
-      <line x1="18" y1="96" x2="106" y2="96" stroke="currentColor" strokeWidth="0.4" opacity="0.5" />
-      <path d="M 58,42 A 12 12 0 0 1 62,40" style={{ stroke: 'var(--color-accent)' }} strokeWidth="0.7" fill="none" />
-      <text x="63" y="44" fontSize="4" style={{ fill: 'var(--color-accent)' }} fontFamily="var(--font-jb-mono)">32°</text>
-    </svg>
-  )
-}
-
-function MiniMirror() {
-  return (
-    <div className="w-[120px] h-[168px] border border-rule bg-paper p-3.5 flex flex-col justify-between">
-      <div>
-        <p className="small-caps font-mono text-[7px] text-ink-mute">En espejo</p>
-        <p className="text-[9px] text-ink leading-tight mt-1">Inclinate desde la cadera hasta sentir peso en el pie.</p>
-      </div>
-      <div className="text-center border-y border-rule py-2.5">
-        <p className="font-display font-semibold text-3xl tabular-nums text-warn leading-none">+1</p>
-        <p className="small-caps font-mono text-[7px] text-ink-mute mt-1">Columna</p>
-      </div>
-      <div className="flex justify-between text-[7px]">
-        <span className="text-ok">● hombros</span>
-        <span className="text-bad">● peso</span>
-      </div>
-    </div>
-  )
-}
-
-function MiniScorecard() {
-  const cells: string[][] = [
-    ['Postura', 'E', '+1', 'E', '—', 'E'],
-    ['Hombros', '+1', 'E', '+1', 'E', 'E'],
-    ['Peso', '+3', '+2', '+1', '+1', '+1'],
-  ]
-  const colorFor = (s: string) => s === 'E' ? 'var(--color-ok)' : s === '+1' ? 'var(--color-warn)' : s === '—' ? 'var(--color-ink-mute)' : 'var(--color-bad)'
-  return (
-    <div className="w-[85%] border border-rule bg-paper">
-      <div className="grid grid-cols-[1.4fr_repeat(5,1fr)] border-b border-rule bg-paper-2">
-        <div className="p-1.5"><span className="small-caps font-mono text-[7px] text-ink-mute">Ej.</span></div>
-        {['L', 'M', 'M', 'J', 'V'].map((d, i) => (
-          <div key={i} className="p-1.5 text-center border-l border-rule">
-            <span className="small-caps font-mono text-[7px] text-ink-mute">{d}</span>
-          </div>
-        ))}
-      </div>
-      {cells.map((row, ri) => (
-        <div key={ri} className={`grid grid-cols-[1.4fr_repeat(5,1fr)] ${ri < cells.length - 1 ? 'border-b border-rule' : ''}`}>
-          <div className="p-1.5"><span className="text-[8px] text-ink">{row[0]}</span></div>
-          {row.slice(1).map((s, i) => (
-            <div key={i} className="p-1.5 text-center border-l border-rule">
-              <span className="font-mono tabular-nums text-[9px] font-medium" style={{ color: colorFor(s) }}>{s}</span>
-            </div>
-          ))}
-        </div>
-      ))}
     </div>
   )
 }
