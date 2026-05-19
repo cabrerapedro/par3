@@ -151,7 +151,7 @@
     "profile": "Mi perfil",
     "logout": "Cerrar sesión",
     "logoutConfirmTitle": "¿Cerrar sesión?",
-    "logoutConfirmDescription": "Podés volver a entrar en cualquier momento.",
+    "logoutConfirmDescription": "Puedes volver a entrar en cualquier momento.",
     "logoutConfirmCancel": "Cancelar",
     "logoutConfirmAction": "Salir"
   },
@@ -205,12 +205,12 @@
       "resendIn": "Reenviar en {seconds}s",
       "resend": "Reenviar código",
       "changeEmail": "Cambiar email",
-      "invalidLink": "El enlace no es válido. Pedí uno nuevo a tu instructor."
+      "invalidLink": "El enlace no es válido. Pide uno nuevo a tu instructor."
     },
     "errors": {
       "invalidCredentials": "Correo o contraseña incorrectos.",
       "signupGeneric": "Error al crear cuenta.",
-      "confirmEmail": "Revisa tu correo para confirmar la cuenta. Después iniciá sesión normalmente.",
+      "confirmEmail": "Revisa tu correo para confirmar la cuenta. Después inicia sesión normalmente.",
       "noSession": "No hay sesión activa.",
       "profileUpdate": "Error al actualizar el perfil.",
       "wrongCode": "Código incorrecto. Verifica con tu instructor.",
@@ -288,7 +288,7 @@
       "weekLastPractice": "Última: {when}",
       "weekNothingYet": "Aún sin práctica registrada.",
       "classesTitle": "Clases",
-      "classesEmpty": "Aún no grabaste ningún clip. Tocá Clip nuevo arriba para empezar.",
+      "classesEmpty": "Aún no has grabado ningún clip. Toca Clip nuevo arriba para empezar.",
       "classDateLabel": "Clase del {date}",
       "classClipCount": "{count, plural, one {# clip} other {# clips}}",
       "classExpand": "Ver clips",
@@ -327,16 +327,16 @@
       "record": {
         "title": "Nuevo clip",
         "back": "Volver al alumno",
-        "preRecordHint": "Posicioná al alumno y tocá grabar cuando esté listo.",
-        "recordingHint": "Tocá parar cuando termine el movimiento.",
+        "preRecordHint": "Posiciona al alumno y toca grabar cuando esté listo.",
+        "recordingHint": "Toca parar cuando termine el movimiento.",
         "recordStart": "Grabar",
         "recordStop": "Parar",
         "flipCamera": "Cambiar cámara",
         "loadingCamera": "Iniciando cámara…",
-        "cameraError": "No se pudo acceder a la cámara. Verificá los permisos del navegador.",
+        "cameraError": "No se pudo acceder a la cámara. Verifica los permisos del navegador.",
         "recordingFailed": "No se pudo iniciar la grabación.",
-        "tooShort": "El clip es muy corto. Intentá grabar al menos 3 segundos.",
-        "maxLengthHit": "Llegaste al máximo de 60 segundos."
+        "tooShort": "El clip es muy corto. Intenta grabar al menos 3 segundos.",
+        "maxLengthHit": "Has llegado al máximo de 60 segundos."
       },
       "detail": {
         "back": "Volver al alumno",
@@ -360,9 +360,9 @@
         "retryCta": "Reintentar procesamiento",
         "retrying": "Procesando frames… {pct}%",
         "retryFailed": "No se pudo reprocesar",
-        "retryNoBaseline": "No se pudo construir la referencia. Volvé a grabar el clip.",
-        "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Volvé a grabar con mejor encuadre.",
-        "pendingHint": "Este clip quedó sin terminar. Tocá Reintentar procesamiento para calcularle la referencia."
+        "retryNoBaseline": "No se pudo construir la referencia. Vuelve a grabar el clip.",
+        "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Vuelve a grabar con mejor encuadre.",
+        "pendingHint": "Este clip quedó sin terminar. Toca Reintentar procesamiento para calcularle la referencia."
       },
       "annotate": {
         "title": "Revisar y anotar",
@@ -372,7 +372,7 @@
         "speedLabel": "Velocidad",
         "annotateMoment": "Anotar este momento",
         "annotationsTitle": "Anotaciones",
-        "annotationsEmpty": "Pausá el video y tocá Anotar este momento para marcar una posición clave.",
+        "annotationsEmpty": "Pausa el video y toca Anotar este momento para marcar una posición clave.",
         "annotationAt": "En {timestamp}",
         "deleteAnnotation": "Eliminar anotación",
         "nameLabel": "Nombre del clip",
@@ -395,9 +395,9 @@
         "discardConfirmDescription": "Vas a perder el video grabado y las anotaciones.",
         "discardConfirmCancel": "Seguir editando",
         "discardConfirmAction": "Descartar",
-        "missingName": "Poné un nombre al clip antes de guardar.",
-        "missingVideo": "No hay un video grabado. Volvé a grabar.",
-        "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Volvé a grabarlo con mejor encuadre."
+        "missingName": "Pon un nombre al clip antes de guardar.",
+        "missingVideo": "No hay un video grabado. Vuelve a grabar.",
+        "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Vuelve a grabarlo con mejor encuadre."
       }
     }
   },
@@ -411,7 +411,7 @@
       "instructorPreparing": "Tu instructor está preparando tus técnicas",
       "allReady": "¡Todas las técnicas listas para practicar!",
       "pendingCount": "{count, plural, one {# pendiente} other {# pendientes}} de calibrar con tu instructor",
-      "emptyTitle": "Tu instructor aún no creó ejercicios",
+      "emptyTitle": "Tu instructor aún no ha creado ejercicios",
       "emptyDescription": "Cuando tu instructor calibre tu técnica, aparecerán aquí listos para practicar",
       "typeSwing": "Swing",
       "typePosture": "Postura",
@@ -419,7 +419,7 @@
       "angleDtl": "De perfil",
       "statusReady": "Listo",
       "statusPending": "Pendiente",
-      "todayTitle": "Practicá esto hoy",
+      "todayTitle": "Practica esto hoy",
       "todaySubtitle": "Tu instructor priorizó esto para tu próxima sesión.",
       "practiceCta": "Practicar",
       "lastPracticed": "Última: {when}",
@@ -427,7 +427,7 @@
       "currentScore": "Score: {score}%",
       "lastClassTitle": "Tu última clase",
       "lastClassDate": "Clase del {date}",
-      "lastClassEmpty": "Tu instructor aún no grabó ningún clip.",
+      "lastClassEmpty": "Tu instructor aún no ha grabado ningún clip.",
       "previousClassesTitle": "Clases anteriores",
       "previousClassesShow": "Ver clases anteriores",
       "previousClassesHide": "Ocultar",
@@ -440,7 +440,7 @@
     "profile": {
       "backLink": "Mis ejercicios",
       "changePhoto": "Cambiar foto",
-      "addPhoto": "Agregar foto",
+      "addPhoto": "Añadir foto",
       "nameLabel": "Nombre",
       "golfInfoLabel": "Info de golf",
       "dominantHandLabel": "Mano dominante",
@@ -476,7 +476,7 @@
       "useTabletTitle": "Usa un iPad o tablet para grabar",
       "useTabletDesc": "La grabación funciona mejor en una pantalla grande con trípode.",
       "recordWithCamera": "Grabar con cámara",
-      "recordWithCameraDesc": "Coloca el celular en un trípode y graba tu swing",
+      "recordWithCameraDesc": "Coloca el móvil en un trípode y graba tu swing",
       "uploadVideo": "Subir video",
       "uploadVideoDesc": "Selecciona un video ya grabado",
       "angleHint": "Ángulo: {angle} · Captura todo el cuerpo",
@@ -500,8 +500,8 @@
       "recommendation": "Recomendación",
       "recordAgain": "Volver a grabar",
       "viewCheckpoint": "Ver ejercicio",
-      "saveFailed": "No se pudo guardar tu práctica. Volvé a intentar.",
-      "mediaPipeStuck": "MediaPipe se trabó. Recargá la página e intentá de nuevo."
+      "saveFailed": "No se pudo guardar tu práctica. Vuelve a intentar.",
+      "mediaPipeStuck": "MediaPipe se quedó atascado. Recarga la página e intenta de nuevo."
     },
     "mirror": {
       "statusOk": "Postura correcta",
@@ -560,7 +560,7 @@
       "summaryLoading": "Generando resumen...",
       "summaryDisclaimer": "Resumen generado por IA. Puede contener imprecisiones.",
       "annotationsTitle": "Notas de tu instructor",
-      "annotationsEmpty": "Tu instructor todavía no agregó notas en este clip.",
+      "annotationsEmpty": "Tu instructor todavía no ha añadido notas en este clip.",
       "annotationAtTime": "En {time}",
       "annotationStrokes": "{count, plural, one {# anotación visual} other {# anotaciones visuales}}",
       "annotationAudio": "Audio del instructor",

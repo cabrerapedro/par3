@@ -70,7 +70,7 @@ function Hero() {
             Tu alumno practica con tu referencia exacta,<br className="hidden md:inline" /> no con un estándar genérico.
           </h1>
           <p className="text-lg md:text-[19px] text-ink-soft leading-[1.55] mt-7 max-w-[560px]">
-            Calibrás la técnica de tu alumno una vez. Él la practica toda la semana con esa referencia en su teléfono. La app te devuelve cada sesión — no un score genérico.
+            Calibras la técnica de tu alumno una vez. Él la practica toda la semana con esa referencia en su teléfono. La app te devuelve cada sesión — no un score genérico.
           </p>
 
           <div className="flex flex-wrap gap-3 mt-9">
@@ -236,7 +236,7 @@ function TresPrincipios() {
             {/* Light mode: real illustration */}
             <Image
               src="/images/sistema-ia-light.png"
-              alt="Esquema editorial — silueta con 33 landmarks cognac y la traducción «inclinate desde la cadera»"
+              alt="Esquema editorial — silueta con 33 landmarks cognac y la traducción «inclínate desde la cadera»"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover block dark:hidden"
@@ -256,11 +256,11 @@ function TresPrincipios() {
               Tu corrección, en cada ensayo del alumno.
             </h2>
             <p className="text-[17px] md:text-[18px] leading-[1.6] text-ink-soft mt-7 max-w-[520px]">
-              Una IA propia compara cada ensayo del alumno contra la calibración que hiciste para él y le devuelve una instrucción a la vez en lenguaje corporal: <em className="not-italic text-ink">"inclinate desde la cadera"</em>, no "−4° spine angle". Mientras él practica, tu mirada está en el rango.
+              Una IA propia compara cada ensayo del alumno contra la calibración que hiciste para él y le devuelve una instrucción a la vez en lenguaje corporal: <em className="not-italic text-ink">"inclínate desde la cadera"</em>, no "−4° spine angle". Mientras él practica, tu mirada está en el rango.
             </p>
             <div className="border-t border-rule mt-10 pt-6">
               <p className="font-display italic text-[22px] md:text-[26px] text-accent leading-[1.35]">
-                La IA mide. Vos enseñás.
+                La IA mide. Tú enseñas.
               </p>
             </div>
           </div>
@@ -357,7 +357,7 @@ function SistemaIA() {
         <line x1="156" y1="148" x2="186" y2="138" strokeWidth="0.6" strokeDasharray="2 2" />
       </g>
       <text x="186" y="130" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
-        Inclinate
+        Inclínate
       </text>
       <text x="186" y="142" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
         desde la
@@ -383,7 +383,7 @@ function Acceso() {
         <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
           <p className="small-caps font-mono text-[11px] text-accent">Acceso</p>
           <h2 className="font-display font-semibold text-3xl md:text-[40px] leading-[1.1]">
-            Empezá según tu rol.
+            Empieza según tu rol.
           </h2>
         </div>
 
@@ -391,8 +391,8 @@ function Acceso() {
           <AccessBlock
             numeral="I"
             who="Para instructores"
-            title="Empezá con tres alumnos."
-            body="Probá con tus primeros tres alumnos. Si funciona, escalás."
+            title="Empieza con tres alumnos."
+            body="Prueba con tus primeros tres alumnos. Si funciona, escalas."
             ctaText="Crear cuenta"
             ctaHref="/instructor/login"
             secondaryText="Ya tengo cuenta"
@@ -402,11 +402,11 @@ function Acceso() {
           <AccessBlock
             numeral="II"
             who="Para alumnos"
-            title="Ingresá con tu código."
-            body="Tu instructor te dio un código de 6 caracteres. Es todo lo que necesitás."
-            ctaText="Ingresar con código"
+            title="Entra con tu código."
+            body="Tu instructor te dio un código de 6 caracteres. Es todo lo que necesitas."
+            ctaText="Entrar con código"
             ctaHref="/student/login"
-            secondaryText="¿No tenés código?"
+            secondaryText="¿No tienes código?"
             secondaryHref="#"
             stamp="ACCESO LIBRE"
             divider
@@ -459,7 +459,7 @@ function Cierre() {
     <section className="border-b border-rule py-16 md:py-24">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 text-center">
         <p className="font-display italic font-medium text-[28px] md:text-[40px] leading-[1.2] text-ink max-w-[760px] mx-auto">
-          Tu método sigue vivo cuando vos no estás.
+          Tu método sigue vivo cuando no estás.
         </p>
       </div>
     </section>
