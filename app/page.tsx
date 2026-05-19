@@ -232,7 +232,7 @@ function TresPrincipios() {
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
           {/* Image — contemporary photo of golfer with 33 cognac landmarks overlaid */}
-          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
+          <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
             <Image
               src="/images/sistema-ia-photo-light.png"
               alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo — la app midiendo cada articulación en tiempo real"
