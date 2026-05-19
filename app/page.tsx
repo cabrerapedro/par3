@@ -61,12 +61,12 @@ function Header() {
 function Hero() {
   return (
     <section className="border-b border-rule">
-      <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-16 md:py-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-12 md:py-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
         <div>
           <p className="small-caps font-mono text-[11px] text-accent">
             Una app para instructores de golf
           </p>
-          <h1 className="font-display font-semibold text-[40px] md:text-[60px] leading-[1.05] tracking-[-0.025em] mt-6">
+          <h1 className="font-display font-semibold text-[34px] sm:text-[40px] md:text-[60px] leading-[1.05] tracking-[-0.025em] mt-6">
             Tu alumno practica con tu referencia exacta,<br className="hidden md:inline" /> no con un estándar genérico.
           </h1>
           <p className="text-lg md:text-[19px] text-ink-soft leading-[1.55] mt-7 max-w-[560px]">
@@ -128,7 +128,7 @@ function Hero() {
 
 function Manifesto() {
   return (
-    <section id="metodo" className="border-b border-rule py-20 md:py-28">
+    <section id="metodo" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 grid md:grid-cols-[180px_1fr] gap-12 md:gap-16">
         <p className="small-caps font-mono text-[11px] text-accent">El método</p>
 
@@ -156,7 +156,7 @@ function Manifesto() {
 
 function ComoFunciona() {
   return (
-    <section id="como-funciona" className="border-b border-rule py-20 md:py-28">
+    <section id="como-funciona" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
           <p className="small-caps font-mono text-[11px] text-accent">Cómo funciona</p>
@@ -228,7 +228,7 @@ function Panel({ numeral, who, title, body, imageBase, imageAlt, divider }: { nu
 
 function TresPrincipios() {
   return (
-    <section id="principios" className="border-b border-rule py-20 md:py-28">
+    <section id="principios" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
           {/* Image — contemporary photo of golfer with 33 cognac landmarks overlaid */}
@@ -276,7 +276,7 @@ function TresPrincipios() {
 
 function Acceso() {
   return (
-    <section id="acceso" className="border-b border-rule py-20 md:py-28">
+    <section id="acceso" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[180px_1fr] gap-12 md:gap-16 items-baseline mb-12 md:mb-14">
           <p className="small-caps font-mono text-[11px] text-accent">Acceso</p>
@@ -321,8 +321,9 @@ function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryTex
   stamp: string; divider?: boolean
 }) {
   return (
-    <div className={`relative px-10 py-12 border-b border-rule ${divider ? 'md:border-l' : ''}`}>
-      <div className="absolute top-8 right-8">
+    <div className={`relative px-6 py-10 sm:px-8 md:px-10 md:py-12 border-b border-rule ${divider ? 'md:border-l' : ''}`}>
+      {/* Stamp: in-flow on mobile (avoids overlap with title), absolute on md+ */}
+      <div className="mb-6 md:mb-0 md:absolute md:top-8 md:right-8">
         <Stamp>{stamp}</Stamp>
       </div>
       <p className="small-caps font-mono text-[10px] text-accent">{numeral} · {who}</p>
@@ -332,7 +333,7 @@ function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryTex
       <p className="text-[15px] leading-[1.6] text-ink-soft mt-4 mb-8 max-w-[400px]">
         {body}
       </p>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Link
           href={ctaHref}
           className="inline-flex items-center justify-center h-10 px-5 text-sm font-medium tracking-[0.01em] bg-primary text-primary-foreground rounded-md hover:opacity-85 transition-opacity"
@@ -354,7 +355,7 @@ function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryTex
 
 function Cierre() {
   return (
-    <section className="border-b border-rule py-16 md:py-24">
+    <section className="border-b border-rule py-12 md:py-24">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 text-center">
         <p className="font-display italic font-medium text-[28px] md:text-[40px] leading-[1.2] text-ink max-w-[760px] mx-auto">
           Tu método sigue vivo cuando no estás.
