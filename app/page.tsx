@@ -238,14 +238,14 @@ function TresPrincipios() {
               alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo — la app midiendo cada articulación en tiempo real"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
-              className="object-cover block dark:hidden"
+              className="object-contain block dark:hidden"
             />
             <Image
               src="/images/sistema-ia-photo-dark.png"
               alt=""
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
-              className="object-cover hidden dark:block"
+              className="object-contain hidden dark:block"
             />
           </div>
 
