@@ -231,20 +231,22 @@ function TresPrincipios() {
     <section id="principios" className="border-b border-rule py-20 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
-          {/* Image — body schematic with landmarks + callout */}
+          {/* Image — contemporary photo of golfer with 33 cognac landmarks overlaid */}
           <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
-            {/* Light mode: real illustration */}
             <Image
-              src="/images/sistema-ia-light.png"
-              alt="Esquema editorial — silueta con 33 landmarks cognac y la traducción «inclínate desde la cadera»"
+              src="/images/sistema-ia-photo-light.png"
+              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo — la app midiendo cada articulación en tiempo real"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover block dark:hidden"
             />
-            {/* Dark mode: SVG fallback until sistema-ia-dark.png is generated */}
-            <div className="hidden dark:block absolute inset-0">
-              <SistemaIA />
-            </div>
+            <Image
+              src="/images/sistema-ia-photo-dark.png"
+              alt=""
+              fill
+              sizes="(min-width: 768px) 45vw, 100vw"
+              className="object-cover hidden dark:block"
+            />
           </div>
 
           {/* Text */}
@@ -267,110 +269,6 @@ function TresPrincipios() {
         </div>
       </div>
     </section>
-  )
-}
-
-function SistemaIA() {
-  // Esquema editorial: silueta frontal del alumno + 33 landmarks cognac +
-  // pequeño callout cognac con la traducción ("Inclinate desde la cadera.")
-  // saliendo del cuerpo. Es "AI como valor" en una sola imagen: el cuerpo
-  // medido junto a la frase que el alumno recibe.
-  return (
-    <svg viewBox="0 0 240 320" className="absolute inset-0 w-full h-full text-ink">
-      {/* Marco/label superior — plate de manual */}
-      <text x="16" y="22" fontSize="6.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="1.2">
-        ESQUEMA · 33 LANDMARKS
-      </text>
-      <line x1="16" y1="28" x2="100" y2="28" stroke="currentColor" strokeWidth="0.4" opacity="0.4" />
-
-      {/* Body silhouette — front view */}
-      <g stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        {/* Cabeza */}
-        <circle cx="120" cy="64" r="14" />
-        {/* Cuello */}
-        <line x1="120" y1="78" x2="120" y2="92" />
-        {/* Línea de hombros */}
-        <line x1="92" y1="96" x2="148" y2="96" />
-        {/* Torso (espina visible suavemente) */}
-        <line x1="120" y1="92" x2="120" y2="188" />
-        {/* Brazos */}
-        <line x1="92" y1="96" x2="84" y2="148" />
-        <line x1="84" y1="148" x2="82" y2="202" />
-        <line x1="148" y1="96" x2="156" y2="148" />
-        <line x1="156" y1="148" x2="158" y2="202" />
-        {/* Línea de cadera */}
-        <line x1="100" y1="188" x2="140" y2="188" />
-        {/* Piernas */}
-        <line x1="108" y1="188" x2="106" y2="244" />
-        <line x1="106" y1="244" x2="104" y2="296" />
-        <line x1="132" y1="188" x2="134" y2="244" />
-        <line x1="134" y1="244" x2="136" y2="296" />
-        {/* Pies */}
-        <line x1="92" y1="296" x2="116" y2="296" strokeWidth="1.5" />
-        <line x1="124" y1="296" x2="148" y2="296" strokeWidth="1.5" />
-      </g>
-
-      {/* 33 landmarks en cognac */}
-      <g style={{ fill: 'var(--color-accent)' }}>
-        {/* Cara — nariz, ojos, orejas, comisuras */}
-        <circle cx="120" cy="64" r="2" />
-        <circle cx="113" cy="58" r="1.2" />
-        <circle cx="127" cy="58" r="1.2" />
-        <circle cx="109" cy="60" r="1" />
-        <circle cx="131" cy="60" r="1" />
-        <circle cx="107" cy="66" r="0.9" />
-        <circle cx="133" cy="66" r="0.9" />
-        <circle cx="115" cy="72" r="1" />
-        <circle cx="125" cy="72" r="1" />
-        {/* Hombros */}
-        <circle cx="92" cy="96" r="2.2" />
-        <circle cx="148" cy="96" r="2.2" />
-        {/* Codos */}
-        <circle cx="84" cy="148" r="2.2" />
-        <circle cx="156" cy="148" r="2.2" />
-        {/* Muñecas */}
-        <circle cx="82" cy="202" r="2.2" />
-        <circle cx="158" cy="202" r="2.2" />
-        {/* Manos — dedos representativos */}
-        <circle cx="78" cy="210" r="1.2" />
-        <circle cx="84" cy="212" r="1.2" />
-        <circle cx="156" cy="210" r="1.2" />
-        <circle cx="162" cy="212" r="1.2" />
-        {/* Caderas */}
-        <circle cx="108" cy="188" r="2.2" />
-        <circle cx="132" cy="188" r="2.2" />
-        {/* Rodillas */}
-        <circle cx="106" cy="244" r="2.2" />
-        <circle cx="134" cy="244" r="2.2" />
-        {/* Tobillos */}
-        <circle cx="104" cy="296" r="2.2" />
-        <circle cx="136" cy="296" r="2.2" />
-        {/* Pies — talón + punta por lado */}
-        <circle cx="92" cy="296" r="1.6" />
-        <circle cx="116" cy="296" r="1.6" />
-        <circle cx="124" cy="296" r="1.6" />
-        <circle cx="148" cy="296" r="1.6" />
-      </g>
-
-      {/* Callout cognac — la traducción saliendo del cuerpo */}
-      <g style={{ stroke: 'var(--color-accent)' }} fill="none">
-        <line x1="156" y1="148" x2="186" y2="138" strokeWidth="0.6" strokeDasharray="2 2" />
-      </g>
-      <text x="186" y="130" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
-        Inclínate
-      </text>
-      <text x="186" y="142" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
-        desde la
-      </text>
-      <text x="186" y="154" fontSize="8.5" style={{ fill: 'var(--color-ink)' }} fontFamily="Bricolage Grotesque, ui-sans-serif, system-ui, sans-serif" fontStyle="italic">
-        cadera.
-      </text>
-
-      {/* Bottom label */}
-      <text x="16" y="312" fontSize="5.5" style={{ fill: 'var(--color-ink-mute)' }} fontFamily="var(--font-jb-mono)" letterSpacing="0.8">
-        REF · TU CALIBRACIÓN
-      </text>
-    </svg>
   )
 }
 
