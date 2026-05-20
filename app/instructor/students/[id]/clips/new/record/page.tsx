@@ -196,9 +196,9 @@ export default function ClipRecordPage() {
   const timeLabel = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="h-[100dvh] overflow-hidden bg-background text-foreground flex flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border">
         <Link
           href={`/instructor/students/${studentId}`}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -213,7 +213,7 @@ export default function ClipRecordPage() {
       </div>
 
       {/* Camera feed */}
-      <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden">
+      <div className="relative flex-1 min-h-0 flex items-center justify-center bg-black overflow-hidden">
         <video
           ref={videoRef}
           autoPlay
@@ -256,7 +256,7 @@ export default function ClipRecordPage() {
       </div>
 
       {/* Hint + record control */}
-      <div className="px-6 py-5 flex flex-col items-center gap-4 border-t border-border bg-background">
+      <div className="shrink-0 px-6 py-5 flex flex-col items-center gap-4 border-t border-border bg-background">
         <p className="text-sm text-muted-foreground text-center max-w-md leading-snug">
           {recording ? t('recordingHint') : t('preRecordHint')}
         </p>

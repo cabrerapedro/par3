@@ -31,7 +31,7 @@ export default function NewStudent() {
 
     const { data, error: insertErr } = await supabase
       .from('students')
-      .insert({ instructor_id: instructor.id, name, email: email || null, access_code: generateCode() })
+      .insert({ instructor_id: instructor.id, name, email: email.trim().toLowerCase(), access_code: generateCode() })
       .select()
       .single()
 
@@ -84,7 +84,7 @@ export default function NewStudent() {
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                  {t('emailLabel')} <span className="font-normal text-muted-foreground">{t('emailOptional')}</span>
+                  {t('emailLabel')}
                 </Label>
                 <Input
                   id="email"
@@ -92,8 +92,10 @@ export default function NewStudent() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder={t('emailPlaceholder')}
+                  required
                   className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-primary/20 h-12 text-base"
                 />
+                <p className="text-muted-foreground/70 text-xs">{t('emailRequiredHint')}</p>
               </div>
 
               {error && (
@@ -104,7 +106,7 @@ export default function NewStudent() {
 
               <button
                 type="submit"
-                disabled={loading || !name.trim()}
+                disabled={loading || !name.trim() || !email.includes('@')}
                 className="h-12 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-85 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
               >
                 {loading ? t('creating') : t('createCta')}

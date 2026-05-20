@@ -270,6 +270,7 @@
       "namePlaceholder": "Student name",
       "emailLabel": "Email",
       "emailOptional": "(optional)",
+      "emailRequiredHint": "Needed to give the student access (via link or email code).",
       "emailPlaceholder": "student@email.com",
       "createError": "Couldn't create the student. Try again.",
       "creating": "Creating...",

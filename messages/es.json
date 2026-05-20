@@ -270,6 +270,7 @@
       "namePlaceholder": "Nombre del alumno",
       "emailLabel": "Correo",
       "emailOptional": "(opcional)",
+      "emailRequiredHint": "Necesario para darle acceso al alumno (por enlace o código por email).",
       "emailPlaceholder": "alumno@correo.com",
       "createError": "Error al crear alumno. Intenta de nuevo.",
       "creating": "Creando...",
