@@ -20,6 +20,7 @@ const COLOR_HEX: Record<StrokeColor, string> = {
 
 const STROKE_WIDTH = 4
 const ARROW_HEAD = 14
+const ENDPOINT_RADIUS = 6
 
 interface SVGAnnotationOverlayProps {
   width: number
@@ -89,7 +90,13 @@ function renderStroke(stroke: Stroke, key: number, w: number, h: number) {
   }
 
   if (stroke.type === 'line') {
-    return <line key={key} x1={ax} y1={ay} x2={bx} y2={by} {...common} />
+    return (
+      <g key={key}>
+        <line x1={ax} y1={ay} x2={bx} y2={by} {...common} />
+        <circle cx={ax} cy={ay} r={ENDPOINT_RADIUS} fill={stroke_} />
+        <circle cx={bx} cy={by} r={ENDPOINT_RADIUS} fill={stroke_} />
+      </g>
+    )
   }
 
   if (stroke.type === 'circle') {

@@ -59,6 +59,7 @@ export interface Student {
   name: string
   email?: string
   access_code: string
+  status?: 'active' | 'inactive'
   avatar_url?: string
   handicap?: string
   dominant_hand?: 'right' | 'left'

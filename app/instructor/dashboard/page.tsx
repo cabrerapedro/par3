@@ -23,6 +23,7 @@ export default function InstructorDashboard() {
   const [students, setStudents] = useState<StudentWithCps[]>([])
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
   const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
@@ -67,11 +68,23 @@ export default function InstructorDashboard() {
     setTimeout(() => setCopied(null), 1500)
   }
 
+  const isActive = (s: Student) => (s.status ?? 'active') !== 'inactive'
+
+  const inactiveCount = useMemo(
+    () => students.filter(s => !isActive(s)).length,
+    [students]
+  )
+
   const filtered = useMemo(() =>
-    students.filter(s =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.access_code.toLowerCase().includes(search.toLowerCase())
-    ), [students, search])
+    students.filter(s => {
+      const matchesSearch =
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.access_code.toLowerCase().includes(search.toLowerCase())
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' ? isActive(s) : !isActive(s))
+      return matchesSearch && matchesStatus
+    }), [students, search, statusFilter])
 
   const totalCalibrated = students.reduce((sum, s) =>
     sum + s.checkpoints.filter(c => c.status === 'calibrated').length, 0)
@@ -133,24 +146,46 @@ export default function InstructorDashboard() {
           </div>
         )}
 
-        {students.length > 2 && (
-          <div className="relative mb-6 max-w-md">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute">
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="pl-9 h-10"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute hover:text-ink transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-              </button>
+        {(students.length > 2 || inactiveCount > 0) && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+            {students.length > 2 && (
+              <div className="relative flex-1 max-w-md">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <Input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder={t('searchPlaceholder')}
+                  className="pl-9 h-10"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute hover:text-ink transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                )}
+              </div>
+            )}
+            {inactiveCount > 0 && (
+              <div className="flex items-center gap-1 sm:ml-auto shrink-0">
+                {(['active', 'all', 'inactive'] as const).map(key => (
+                  <button
+                    key={key}
+                    onClick={() => setStatusFilter(key)}
+                    className={cn(
+                      'small-caps font-mono text-[10px] px-3 h-8 border transition-colors',
+                      statusFilter === key
+                        ? 'border-ink bg-ink text-paper'
+                        : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
+                    )}
+                  >
+                    {key === 'active' ? t('filterActive') : key === 'inactive' ? t('filterInactive') : t('filterAll')}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -193,7 +228,14 @@ export default function InstructorDashboard() {
                 <Link key={s.id} href={`/instructor/students/${s.id}`}>
                   <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_120px_140px_60px] gap-3 md:gap-6 items-center py-4 border-b border-rule hover:bg-paper-2/60 transition-colors cursor-pointer">
                     <div className="min-w-0">
-                      <p className="font-display font-medium text-lg truncate">{s.name}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className={cn('font-display font-medium text-lg truncate', !isActive(s) && 'text-ink-mute')}>{s.name}</p>
+                        {!isActive(s) && (
+                          <span className="small-caps font-mono text-[9px] text-ink-mute border border-rule px-1.5 py-0.5 shrink-0">
+                            {t('statusInactive')}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-ink-mute mt-0.5 md:hidden">
                         {total === 0
                           ? t('noExercises')

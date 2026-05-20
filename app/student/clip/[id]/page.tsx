@@ -22,6 +22,7 @@ interface ClipAnnotation {
   audio_url: string | null
   audio_transcript: string | null
   text_note: string | null
+  snapshot_url: string | null
   created_at: string
 }
 
@@ -216,35 +217,42 @@ export default function ClipDetail() {
           ) : (
             <div className="flex flex-col gap-3">
               {annotations.map((ann, i) => (
-                <div key={ann.id} className="bg-card border border-border rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-ok/10 border border-ok/20 text-ok">
-                      #{i + 1}
-                    </span>
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {t('annotationAtTime', { time: formatTime(ann.frame_timestamp_ms / 1000) })}
-                    </span>
-                    {ann.strokes.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        · {t('annotationStrokes', { count: ann.strokes.length })}
-                      </span>
+                <div key={ann.id} className="bg-card border border-border rounded-xl p-3">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {ann.snapshot_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={ann.snapshot_url}
+                        alt={t('snapshotAlt')}
+                        className="w-full sm:w-72 shrink-0 self-start rounded-lg border border-border"
+                        loading="lazy"
+                      />
                     )}
+                    <div className="flex-1 min-w-0 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-ok/10 border border-ok/20 text-ok">
+                          #{i + 1}
+                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {t('annotationAtTime', { time: formatTime(ann.frame_timestamp_ms / 1000) })}
+                        </span>
+                        {ann.strokes.length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            · {t('annotationStrokes', { count: ann.strokes.length })}
+                          </span>
+                        )}
+                      </div>
+                      {ann.text_note && (
+                        <p className="text-foreground text-sm leading-relaxed">{ann.text_note}</p>
+                      )}
+                      {ann.audio_transcript && (
+                        <p className="text-muted-foreground text-sm leading-relaxed italic">&ldquo;{ann.audio_transcript}&rdquo;</p>
+                      )}
+                      {ann.audio_url && (
+                        <audio src={ann.audio_url} controls className="w-full h-9 mt-auto" style={{ accentColor: '#60a5fa' }} />
+                      )}
+                    </div>
                   </div>
-                  {ann.audio_url && (
-                    <div className="mb-2">
-                      <p className="text-xs text-muted-foreground mb-1">{t('annotationAudio')}</p>
-                      <audio src={ann.audio_url} controls className="w-full h-9" style={{ accentColor: '#60a5fa' }} />
-                    </div>
-                  )}
-                  {ann.audio_transcript && (
-                    <div className="mb-2">
-                      <p className="text-xs text-muted-foreground mb-1">{t('annotationTranscript')}</p>
-                      <p className="text-foreground text-sm leading-relaxed italic">&ldquo;{ann.audio_transcript}&rdquo;</p>
-                    </div>
-                  )}
-                  {ann.text_note && (
-                    <p className="text-foreground text-sm leading-relaxed">{ann.text_note}</p>
-                  )}
                 </div>
               ))}
             </div>

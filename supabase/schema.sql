@@ -21,9 +21,15 @@ create table if not exists students (
   name             text        not null,
   email            text,
   access_code      char(6)     not null unique,
+  status           text        not null default 'active' check (status in ('active', 'inactive')),
   preferred_locale text        not null default 'es' check (preferred_locale in ('es', 'en')),
   created_at       timestamptz default now()
 );
+
+-- Idempotent add for existing databases (create table above is skipped when the
+-- table already exists). Re-running this file backfills the column on prod.
+alter table students add column if not exists status text not null default 'active'
+  check (status in ('active', 'inactive'));
 
 -- Checkpoints
 create table if not exists checkpoints (
@@ -298,8 +304,13 @@ create table if not exists clips (
   baseline_summary text,
   selected_metrics text[] not null default '{}',
   status           text not null default 'pending' check (status in ('pending', 'calibrated', 'archived')),
+  -- share of sampled frames where MediaPipe detected the body (0..1)
+  detection_ratio  real,
   created_at       timestamptz default now()
 );
+
+-- Idempotent add for databases created before detection_ratio existed.
+alter table clips add column if not exists detection_ratio real;
 
 create index if not exists idx_clips_class    on clips(class_id);
 create index if not exists idx_clips_student  on clips(student_id);
@@ -325,8 +336,13 @@ create table if not exists clip_annotations (
   audio_url          text,
   audio_transcript   text,
   text_note          text,
+  -- composited still (video frame + drawing) captured at annotation time
+  snapshot_url       text,
   created_at         timestamptz default now()
 );
+
+-- Idempotent add for databases created before snapshot_url existed.
+alter table clip_annotations add column if not exists snapshot_url text;
 
 create index if not exists idx_clip_annotations_clip on clip_annotations(clip_id, frame_timestamp_ms);
 
@@ -513,15 +529,21 @@ create policy "clip_annotations_audio_read"
 -- ---------- Helper functions ----------
 
 -- Reads the access code from PostgREST's request.headers GUC, looks it up
--- in students, and returns the matching id (or null). STABLE so the planner
--- can fold it; SECURITY INVOKER (the default) because the lookup is
--- intentionally scoped to whatever rows the caller already has access to
--- — for anon callers that's a no-op, which is fine: we only ever care
--- about the resolved id.
+-- in students, and returns the matching id (or null).
+--
+-- MUST be SECURITY DEFINER: the anon SELECT policies on students / classes /
+-- clips / practice_sessions all filter by `= current_student_id()`. If this
+-- function ran as the invoker (anon), its internal `select ... from students`
+-- would re-trigger the students RLS policy, which calls current_student_id()
+-- again → infinite recursion ("stack depth limit exceeded"), breaking every
+-- student-side read. Running as the definer bypasses RLS for this scoped
+-- lookup, exactly like login_student() below.
 create or replace function public.current_student_id()
 returns uuid
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select id
   from public.students
@@ -645,7 +667,9 @@ create policy "checkpoints_anon_select"
 
 -- clip-videos uploads (authenticated instructor): first path segment must
 -- be a student belonging to this instructor.
---   Path convention: ${studentId}/${classId}/${uuid}.${ext}
+--   Path conventions:
+--     videos:    ${studentId}/${classId}/${uuid}.${ext}
+--     snapshots: ${studentId}/snapshots/${clipId}/${uuid}.jpg
 drop policy if exists "clip_videos_instructor_upload" on storage.objects;
 create policy "clip_videos_instructor_upload"
   on storage.objects for insert

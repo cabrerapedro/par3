@@ -28,6 +28,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
 interface AnnotationRow {
@@ -37,6 +39,7 @@ interface AnnotationRow {
   audio_url: string | null
   audio_transcript: string | null
   text_note: string | null
+  snapshot_url: string | null
 }
 
 function formatTime(ms: number): string {
@@ -59,6 +62,13 @@ export default function ClipDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  // Edit clip data (name / angle / type). Changing angle or type rebuilds the
+  // baseline, so we reuse the retry pipeline.
+  const [editOpen, setEditOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editAngle, setEditAngle] = useState<'face_on' | 'dtl'>('face_on')
+  const [editType, setEditType] = useState<'position' | 'swing'>('position')
+  const [savingEdit, setSavingEdit] = useState(false)
   // H7 — orphan-clip recovery: re-run the post-save pipeline for a clip
   // whose initial save was interrupted (browser back, tab close, transient
   // network) and left the row in 'pending' with a video but no baseline.
@@ -89,7 +99,7 @@ export default function ClipDetailPage() {
       supabase.from('clips').select('*').eq('id', clipId).single(),
       supabase
         .from('clip_annotations')
-        .select('id, frame_timestamp_ms, strokes, audio_url, audio_transcript, text_note')
+        .select('*')
         .eq('clip_id', clipId)
         .order('frame_timestamp_ms', { ascending: true }),
     ])
@@ -127,15 +137,16 @@ export default function ClipDetailPage() {
     setStageSize({ width: Math.round(rect.width), height: Math.round(rect.height) })
   }
 
-  async function retryProcessing() {
-    if (!clip || !clip.video_url || retrying) return
+  async function retryProcessing(target?: Clip) {
+    const c = target ?? clip
+    if (!c || !c.video_url || retrying) return
     setRetrying(true)
     setRetryPct(0)
     setRetryError(null)
 
     try {
       // 1. Fetch the stored video back from Supabase Storage as a Blob.
-      const res = await fetch(clip.video_url)
+      const res = await fetch(c.video_url)
       if (!res.ok) throw new Error(`Couldn't fetch video (HTTP ${res.status})`)
       const blob = await res.blob()
 
@@ -144,7 +155,7 @@ export default function ClipDetailPage() {
       // looping for minutes.
       const frames = await processClip({
         videoBlob: blob,
-        cameraAngle: clip.camera_angle,
+        cameraAngle: c.camera_angle,
         fps: 10,
         onProgress: (p) => setRetryPct(Math.round(p * 100)),
       })
@@ -160,12 +171,12 @@ export default function ClipDetailPage() {
 
       // 4. Persist frames (best-effort) + rebuild baseline.
       if (frames.length > 0) {
-        try { await insertClipFrames(clip.id, frames) } catch {}
+        try { await insertClipFrames(c.id, frames) } catch {}
       }
-      const selectedMetrics = clip.selected_metrics?.length
-        ? clip.selected_metrics
-        : METRICS_BY_ANGLE[clip.camera_angle] ?? []
-      const baseline = buildClipBaseline(frames, clip.clip_type, clip.camera_angle, selectedMetrics)
+      const selectedMetrics = c.selected_metrics?.length
+        ? c.selected_metrics
+        : METRICS_BY_ANGLE[c.camera_angle] ?? []
+      const baseline = buildClipBaseline(frames, c.clip_type, c.camera_angle, selectedMetrics)
 
       if (!baseline) {
         setRetryError(t('retryNoBaseline'))
@@ -178,7 +189,9 @@ export default function ClipDetailPage() {
       await supabase
         .from('clips')
         .update({ baseline, status: 'calibrated' })
-        .eq('id', clip.id)
+        .eq('id', c.id)
+      // Best-effort framing-quality cue (column may not exist yet).
+      await supabase.from('clips').update({ detection_ratio: detection }).eq('id', c.id)
 
       // 6. Reload to show the new state.
       setRetrying(false)
@@ -187,6 +200,51 @@ export default function ClipDetailPage() {
       setRetrying(false)
       const reason = e instanceof Error ? e.message : String(e)
       setRetryError(`${t('retryFailed')}: ${reason}`)
+    }
+  }
+
+  function openEdit() {
+    if (!clip) return
+    setEditName(clip.name)
+    setEditAngle(clip.camera_angle)
+    setEditType(clip.clip_type)
+    setEditOpen(true)
+  }
+
+  async function saveEdit() {
+    if (!clip || savingEdit) return
+    setSavingEdit(true)
+    const needsRecompute = editAngle !== clip.camera_angle || editType !== clip.clip_type
+    const update: {
+      name: string
+      camera_angle: 'face_on' | 'dtl'
+      clip_type: 'position' | 'swing'
+      selected_metrics: string[]
+      baseline?: null
+      status?: Clip['status']
+    } = {
+      name: editName.trim() || clip.name,
+      camera_angle: editAngle,
+      clip_type: editType,
+      selected_metrics: METRICS_BY_ANGLE[editAngle] ?? [],
+    }
+    if (needsRecompute) {
+      // The baseline was computed for the old angle/type — invalidate it and
+      // rebuild from the stored video below.
+      update.baseline = null
+      update.status = 'pending'
+    }
+    const { error: upErr } = await supabase.from('clips').update(update).eq('id', clip.id)
+    setSavingEdit(false)
+    setEditOpen(false)
+    if (upErr) {
+      setError(t('loadError'))
+      return
+    }
+    const newClip = { ...clip, ...update } as Clip
+    setClip(newClip)
+    if (needsRecompute) {
+      await retryProcessing(newClip)
     }
   }
 
@@ -219,7 +277,6 @@ export default function ClipDetailPage() {
     )
   }
 
-  const duration = clip.video_url ? null : null // we only know after metadata
   const baselineMetricKeys = clip.baseline && typeof clip.baseline === 'object' && !('_type' in (clip.baseline as object))
     ? Object.keys(clip.baseline as Record<string, unknown>)
     : []
@@ -239,13 +296,22 @@ export default function ClipDetailPage() {
             {t('back')}
           </Link>
           <h1 className="text-sm font-semibold truncate">{clip.name}</h1>
-          <button
-            type="button"
-            onClick={() => setDeleteOpen(true)}
-            className="text-sm text-muted-foreground hover:text-bad transition-colors"
-          >
-            {t('deleteCta')}
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={openEdit}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('editCta')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="text-sm text-muted-foreground hover:text-bad transition-colors"
+            >
+              {t('deleteCta')}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -264,6 +330,22 @@ export default function ClipDetailPage() {
           {clip.status === 'calibrated' && baselineMetricKeys.length > 0 && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-ok/10 text-ok border border-ok/30">
               {t('baselineMetricsCount', { count: baselineMetricKeys.length })}
+            </span>
+          )}
+          {typeof clip.detection_ratio === 'number' && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border',
+                clip.detection_ratio >= 0.6
+                  ? 'bg-ok/10 text-ok border-ok/30'
+                  : 'bg-warn/10 text-warn border-warn/30',
+              )}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+              {clip.detection_ratio >= 0.6 ? t('framingGood') : t('framingFair')}
             </span>
           )}
         </div>
@@ -286,7 +368,7 @@ export default function ClipDetailPage() {
             </div>
             <button
               type="button"
-              onClick={retryProcessing}
+              onClick={() => retryProcessing()}
               disabled={retrying}
               className="h-9 px-4 rounded-lg bg-warn text-black text-sm font-semibold hover:bg-warn/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
@@ -340,41 +422,102 @@ export default function ClipDetailPage() {
           ) : (
             <ul className="flex flex-col gap-2">
               {annotations.map((a) => (
-                <li key={a.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => seekTo(a.frame_timestamp_ms)}
-                    className="flex items-center gap-3 text-left"
-                  >
-                    <span className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">
-                      {formatTime(a.frame_timestamp_ms)}
-                    </span>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {a.strokes.length > 0 && (
-                        <Chip>{t('annotationStrokes', { count: a.strokes.length })}</Chip>
-                      )}
-                      {a.audio_url && <Chip>{t('annotationAudio')}</Chip>}
-                      {a.text_note && <Chip>{t('annotationNote')}</Chip>}
-                    </div>
-                  </button>
+                <li key={a.id} className="bg-card border border-border rounded-xl p-3">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {a.snapshot_url && (
+                      <button
+                        type="button"
+                        onClick={() => seekTo(a.frame_timestamp_ms)}
+                        className="shrink-0 self-start"
+                        aria-label={t('snapshotAlt')}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={a.snapshot_url}
+                          alt={t('snapshotAlt')}
+                          className="w-full sm:w-72 rounded-lg border border-border"
+                          loading="lazy"
+                        />
+                      </button>
+                    )}
 
-                  {a.audio_transcript && (
-                    <p className="text-sm text-muted-foreground italic leading-relaxed">
-                      “{a.audio_transcript}”
-                    </p>
-                  )}
-                  {a.text_note && (
-                    <p className="text-sm text-foreground leading-relaxed">{a.text_note}</p>
-                  )}
-                  {a.audio_url && (
-                    <audio src={a.audio_url} controls className="w-full h-10 mt-1" preload="metadata" />
-                  )}
+                    <div className="flex-1 min-w-0 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => seekTo(a.frame_timestamp_ms)}
+                        className="flex items-center gap-3 text-left"
+                      >
+                        <span className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">
+                          {formatTime(a.frame_timestamp_ms)}
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {a.strokes.length > 0 && (
+                            <Chip>{t('annotationStrokes', { count: a.strokes.length })}</Chip>
+                          )}
+                          {a.audio_url && <Chip>{t('annotationAudio')}</Chip>}
+                          {a.text_note && <Chip>{t('annotationNote')}</Chip>}
+                        </div>
+                      </button>
+
+                      {a.audio_transcript && (
+                        <p className="text-sm text-muted-foreground italic leading-relaxed">
+                          “{a.audio_transcript}”
+                        </p>
+                      )}
+                      {a.text_note && (
+                        <p className="text-sm text-foreground leading-relaxed">{a.text_note}</p>
+                      )}
+                      {a.audio_url && (
+                        <audio src={a.audio_url} controls className="w-full h-10 mt-auto" preload="metadata" />
+                      )}
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </section>
       </div>
+
+      {/* Edit clip data */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('editTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-1">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">{t('editNameLabel')}</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={clip.name} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">{t('editAngleLabel')}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <SegBtn active={editAngle === 'face_on'} onClick={() => setEditAngle('face_on')}>{tStudents('angleFaceOn')}</SegBtn>
+                <SegBtn active={editAngle === 'dtl'} onClick={() => setEditAngle('dtl')}>{tStudents('angleDtl')}</SegBtn>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">{t('editTypeLabel')}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <SegBtn active={editType === 'position'} onClick={() => setEditType('position')}>{t('typePosition')}</SegBtn>
+                <SegBtn active={editType === 'swing'} onClick={() => setEditType('swing')}>{t('typeSwing')}</SegBtn>
+              </div>
+            </div>
+            {(editAngle !== clip.camera_angle || editType !== clip.clip_type) && (
+              <p className="text-xs text-warn leading-snug">{t('editRecomputeHint')}</p>
+            )}
+          </div>
+          <DialogFooter className="flex-row gap-2">
+            <Button variant="outline" onClick={() => setEditOpen(false)} className="flex-1">
+              {t('editCancel')}
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit} className="flex-1">
+              {savingEdit ? t('editSaving') : t('editSave')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -411,6 +554,24 @@ function StatusBadge({ status, t }: { status: Clip['status']; t: ReturnType<type
       )}
       {c.label}
     </span>
+  )
+}
+
+function SegBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'h-10 rounded-lg text-sm font-medium border transition-colors',
+        active
+          ? 'bg-ok/15 text-ok border-ok/40'
+          : 'bg-secondary text-muted-foreground hover:text-foreground border-transparent',
+      )}
+    >
+      {children}
+    </button>
   )
 }
 

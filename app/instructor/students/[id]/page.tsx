@@ -58,7 +58,7 @@ export default function StudentProfile() {
     const [{ data: s }, { data: cls }, { data: cl }, { data: ps }] = await Promise.all([
       supabase.from('students').select('*').eq('id', studentId).single(),
       supabase.from('classes').select('*').eq('student_id', studentId).order('date', { ascending: false }),
-      supabase.from('clips').select('*').eq('student_id', studentId).order('created_at'),
+      supabase.from('clips').select('*').eq('student_id', studentId).order('created_at', { ascending: false }),
       supabase
         .from('practice_sessions')
         .select('clip_id, checkpoint_id, overall_score, date')
@@ -117,8 +117,8 @@ export default function StudentProfile() {
   const trackableIds = clips.map(c => c.id)
   const week = weeklyStats(sessions, trackableIds)
 
-  // Group clips by class. Most-recent class first; clips inside follow their
-  // created_at order from the query.
+  // Group clips by class. Most-recent class first; clips inside are newest-first
+  // (the query orders created_at desc).
   const clipsByClass: Record<string, Clip[]> = {}
   for (const c of clips) {
     if (!c.class_id) continue
@@ -261,7 +261,10 @@ export default function StudentProfile() {
                               >
                                 <ClipStatusDot status={clip.status} />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{clip.name}</p>
+                                  <div className="flex items-baseline gap-2">
+                                    <p className="text-sm font-medium truncate">{clip.name}</p>
+                                    <span className="font-mono text-xs text-ink-mute tabular-nums shrink-0">{formatTimeOfDay(clip.created_at)}</span>
+                                  </div>
                                   <p className="text-xs text-ink-mute mt-0.5 flex items-center gap-2 flex-wrap">
                                     <span>{clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}</span>
                                     {clip.clip_type === 'swing' && <span className="text-ink-mute/60">· swing</span>}
@@ -310,6 +313,15 @@ export default function StudentProfile() {
 
 function LoadingScreen() {
   return <div className="min-h-screen bg-paper flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>
+}
+
+// Time of day (e.g. "18:42") so the instructor can tell same-named clips apart.
+function formatTimeOfDay(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+  } catch {
+    return ''
+  }
 }
 
 function ClipStatusDot({ status }: { status: Clip['status'] }) {

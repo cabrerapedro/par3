@@ -30,6 +30,9 @@ export interface Clip {
   baseline_summary?: string | null
   selected_metrics: string[]
   status: ClipStatus
+  /** Share of sampled frames where MediaPipe detected the body (0..1). Used
+   *  as a calm "framing quality" cue on the instructor's clip detail. */
+  detection_ratio?: number | null
   created_at: string
 }
 
