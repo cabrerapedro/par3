@@ -300,6 +300,7 @@
       "clipStatusCalibrated": "Calibrated",
       "clipStatusArchived": "Archived",
       "clipNoSessions": "No student practice yet",
+      "clipPracticedCount": "{count, plural, one {# practice} other {# practices}}",
       "clipTrendImproved": "Improved",
       "clipTrendDeclining": "Dropped",
       "clipTrendStagnant": "Stuck",
