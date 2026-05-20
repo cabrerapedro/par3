@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, authClient, setStudentAccessCode } from './supabase'
+import { supabase, setStudentAccessCode } from './supabase'
 import type { Instructor, Locale, Student } from './types'
 
 type StudentUpdates = Partial<Pick<Student, 'name' | 'email' | 'avatar_url' | 'handicap' | 'dominant_hand' | 'years_playing' | 'home_course' | 'bio'>>
@@ -128,14 +128,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function instructorLogin(email: string, password: string): Promise<{ error?: string }> {
-    // authClient has no persisted session → no blocking on stale token refresh.
-    const { data, error } = await authClient.auth.signInWithPassword({ email, password })
+    // Single client: signInWithPassword sets AND persists the session here, so
+    // every later query/CRUD runs authenticated with a refreshable token. No
+    // second client, no fire-and-forget setSession, no race (the iOS bug).
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: 'invalidCredentials' }
 
-    // Fetch instructor using authClient (it has the fresh session in memory).
     if (data.user) {
       try {
-        const { data: inst } = await authClient.from('instructors').select('*').eq('id', data.user.id).single()
+        const { data: inst } = await supabase.from('instructors').select('*').eq('id', data.user.id).single()
         if (inst) {
           cacheInstructor(inst)
           syncLocaleFromDb(inst.preferred_locale)
@@ -143,16 +144,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {}
     }
 
-    // Transfer session to main client in background (for RLS on subsequent pages).
-    if (data.session) {
-      supabase.auth.setSession(data.session).catch(() => {})
-    }
-
     return {}
   }
 
   async function instructorSignup(email: string, password: string, name: string): Promise<{ error?: string }> {
-    const { data, error } = await authClient.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
@@ -170,13 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userId = data.user.id
     let inst: Instructor | null = null
     try {
-      const { data: found } = await authClient.from('instructors').select('*').eq('id', userId).single()
+      const { data: found } = await supabase.from('instructors').select('*').eq('id', userId).single()
       inst = found
     } catch {}
 
     if (!inst) {
       try {
-        await authClient.from('instructors').insert({
+        await supabase.from('instructors').insert({
           id: userId,
           name,
           email,
@@ -193,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (!inst.preferred_locale) {
       // Existing row without a locale set (legacy data) — backfill it.
       try {
-        await authClient
+        await supabase
           .from('instructors')
           .update({ preferred_locale: cookieLocale })
           .eq('id', userId)
@@ -202,9 +198,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     cacheInstructor(inst)
     syncLocaleFromDb(inst.preferred_locale)
-
-    // Transfer session to main client in background.
-    supabase.auth.setSession(data.session).catch(() => {})
 
     return {}
   }
