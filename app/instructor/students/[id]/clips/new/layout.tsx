@@ -17,11 +17,14 @@
 // /record.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type { CameraAngle } from '@/lib/types'
 
 interface RecordedClip {
   blob: Blob
   mime: string
   durationMs: number
+  /** Camera angle chosen on the record screen; pre-fills the review step. */
+  angle: CameraAngle
 }
 
 interface ClipFlowState {

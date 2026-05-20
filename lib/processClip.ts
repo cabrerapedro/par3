@@ -31,6 +31,12 @@ interface ProcessClipOptions {
   cameraAngle: CameraAngle
   /** Sampling rate in frames per second. Default 10 — matches the live overlay. */
   fps?: number
+  /**
+   * Known clip length in ms, measured at record time. Used as the source of
+   * truth because MediaRecorder webm blobs frequently report
+   * `video.duration === Infinity` at loadedmetadata.
+   */
+  durationMs?: number
   /** Reports progress 0..1 as frames are processed. */
   onProgress?: (progress: number) => void
   /** Aborts processing partway through; resolves with frames captured so far. */
@@ -47,7 +53,7 @@ interface ProcessClipOptions {
  * mark the clip as `pending` so the instructor can retry.
  */
 export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFrame[]> {
-  const { videoBlob, cameraAngle, fps = 10, onProgress, signal } = opts
+  const { videoBlob, cameraAngle, fps = 10, durationMs, onProgress, signal } = opts
 
   await loadMediaPipe()
 
@@ -65,15 +71,18 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
   })
 
   try {
-    await waitForEvent(video, 'loadedmetadata')
+    // Don't hang forever if metadata never arrives — fall back to the hint.
+    await waitForEvent(video, 'loadedmetadata', 8000).catch(() => {})
 
-    const duration = video.duration
-    if (!Number.isFinite(duration) || duration <= 0) {
+    // MediaRecorder webm blobs commonly report Infinity here. Trust the
+    // record-time measurement first; only fall back to the element's value.
+    const durationSec = await resolveDurationSec(video, durationMs)
+    if (durationSec <= 0) {
       return []
     }
 
     const intervalMs = 1000 / fps
-    const totalFrames = Math.max(1, Math.floor(duration * fps))
+    const totalFrames = Math.max(1, Math.floor(durationSec * fps))
     const frames: ProcessedFrame[] = []
     // If MediaPipe times out for this many consecutive frames we bail. At
     // ~1.5s per timeout, 10 ≈ 15s of stuck — enough signal that this isn't
@@ -86,12 +95,9 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
       if (signal?.aborted) break
 
       const timestampMs = Math.round(i * intervalMs)
-      video.currentTime = timestampMs / 1000
-      try {
-        await waitForEvent(video, 'seeked')
-      } catch {
-        continue
-      }
+      // Robust seek: never blocks forever (frame 0 often needs no seek, and a
+      // missing 'seeked' event must not freeze the whole save).
+      await seekTo(video, timestampMs / 1000)
 
       const result = await sendFrame(pose, video, (resolver) => {
         pendingResolver = resolver
@@ -102,6 +108,8 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
         if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
           throw new Error('MediaPipe timed out for too many consecutive frames')
         }
+        // Still advance the bar so the UI never looks frozen.
+        onProgress?.((i + 1) / totalFrames)
         continue
       }
       consecutiveTimeouts = 0
@@ -131,8 +139,65 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
   }
 }
 
-function waitForEvent(target: EventTarget, event: string): Promise<void> {
+/**
+ * Determine the clip duration in seconds. Prefers the record-time hint
+ * because MediaRecorder webm blobs report `video.duration === Infinity` at
+ * loadedmetadata. As a last resort, nudges the element (seek far past the
+ * end) to coax the browser into computing a real duration.
+ */
+async function resolveDurationSec(video: HTMLVideoElement, hintMs?: number): Promise<number> {
+  const fromEl = video.duration
+  if (Number.isFinite(fromEl) && fromEl > 0) return fromEl
+  if (hintMs && hintMs > 0) return hintMs / 1000
+
+  return new Promise<number>((resolve) => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      video.removeEventListener('durationchange', onChange)
+      video.removeEventListener('seeked', onChange)
+      const d = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0
+      try { video.currentTime = 0 } catch {}
+      resolve(d)
+    }
+    const onChange = () => {
+      if (Number.isFinite(video.duration) && video.duration > 0) finish()
+    }
+    video.addEventListener('durationchange', onChange)
+    video.addEventListener('seeked', onChange)
+    try { video.currentTime = 1e7 } catch { /* ignore */ }
+    setTimeout(finish, 2000)
+  })
+}
+
+/**
+ * Seek the video to `timeSec`, resolving once it lands — but never hanging.
+ * If we're already at that time (e.g. frame 0), or the 'seeked' event never
+ * fires, we resolve anyway after a short fallback so the loop keeps moving.
+ */
+function seekTo(video: HTMLVideoElement, timeSec: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (Math.abs(video.currentTime - timeSec) < 1e-3 && !video.seeking) {
+      resolve()
+      return
+    }
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      video.removeEventListener('seeked', finish)
+      resolve()
+    }
+    video.addEventListener('seeked', finish, { once: true })
+    try { video.currentTime = timeSec } catch { finish() }
+    setTimeout(finish, 2000)
+  })
+}
+
+function waitForEvent(target: EventTarget, event: string, timeoutMs?: number): Promise<void> {
   return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | null = null
     const onError = () => {
       cleanup()
       reject(new Error(`Video error on ${event}`))
@@ -142,11 +207,13 @@ function waitForEvent(target: EventTarget, event: string): Promise<void> {
       resolve()
     }
     function cleanup() {
+      if (timer) clearTimeout(timer)
       target.removeEventListener(event, onEvent)
       target.removeEventListener('error', onError)
     }
     target.addEventListener(event, onEvent, { once: true })
     target.addEventListener('error', onError, { once: true })
+    if (timeoutMs) timer = setTimeout(() => { cleanup(); reject(new Error(`Timeout on ${event}`)) }, timeoutMs)
   })
 }
 

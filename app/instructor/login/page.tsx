@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
@@ -9,14 +9,31 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Wordmark } from '@/components/Wordmark'
 
-export default function InstructorLogin() {
+export default function InstructorLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    }>
+      <InstructorLogin />
+    </Suspense>
+  )
+}
+
+function InstructorLogin() {
   const { instructorLogin, instructorSignup } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const t = useTranslations('auth.instructor')
   const tAuth = useTranslations('auth')
   const tErrors = useTranslations('auth.errors')
 
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  // Deep-link: /instructor/login?mode=signup opens straight on the signup form
+  // (the landing "Crear cuenta" CTA uses this).
+  const [mode, setMode] = useState<'login' | 'signup'>(
+    searchParams.get('mode') === 'signup' ? 'signup' : 'login'
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -61,7 +78,7 @@ export default function InstructorLogin() {
           <Wordmark size="lg" />
         </Link>
         <p className="small-caps font-mono text-[10px] text-ink-mute mt-3">
-          Para instructores
+          {tAuth('instructorRole')}
         </p>
       </div>
 

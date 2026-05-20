@@ -150,7 +150,7 @@ function StudentLogin() {
           <Wordmark size="lg" />
         </Link>
         <p className="small-caps font-mono text-[10px] text-ink-mute mt-3">
-          Para alumnos
+          {tAuth('studentRole')}
         </p>
       </div>
 

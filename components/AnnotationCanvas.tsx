@@ -1,21 +1,28 @@
 'use client'
 
-// AnnotationCanvas — Section 9 of PROMPT_CLAUDE_CODE.md.
+// AnnotationCanvas — the instructor's "annotate this moment" tool.
 //
-// Vector-drawing overlay used by the instructor's "annotate this moment"
-// flow. The parent freezes a video frame and renders this component on top
-// of it, sized to match the video. The instructor draws strokes (arrows,
-// lines, circles), optionally records voice + types a note, then either
-// saves or cancels.
+// Layout: the *drawing surface* (a transparent canvas) is portaled on top of
+// the frozen, sharp video frame so the instructor sees the whole frame
+// unobstructed. Every control — draw tools, voice status, note, save, cancel —
+// lives in a panel BELOW the video, never covering it.
 //
-// All coordinates are normalized to 0..1 so saved annotations render
-// correctly at any video size on the student's playback.
+// Voice (product decision #7: audio + drawing are simultaneous, not separate
+// steps): the mic starts automatically when this overlay opens. The instructor
+// just talks while drawing; a discreet "Recording your voice · 0:05" row shows
+// it's live, with a control to drop the audio for this annotation. The blob is
+// finalized on save. If mic permission is denied, drawing + note still work.
 //
-// Audio: we capture a Blob and hand it to the parent. The parent posts to
-// /api/transcribe on save — keeps this component focused on UI, not API
-// orchestration.
+// Drawing model (lines only): tap once to drop the start point, tap again to
+// set the end — like the line tool in golf-coaching apps. Each line gets a dot
+// at both ends. Arrows/circles were removed from authoring; SVGAnnotationOverlay
+// still renders legacy arrow/circle strokes for clips saved before this change.
+//
+// All coordinates are normalized 0..1 against the canvas (which equals the
+// video display size), so saved strokes anchor correctly on student playback.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
 // ---------- Public shape ----------
@@ -42,9 +49,25 @@ export interface AnnotationDraft {
 interface AnnotationCanvasProps {
   width: number
   height: number
+  /** The (relative, video-sized) element to portal the drawing surface into. */
+  surfaceEl: HTMLElement | null
+  /** Timestamp label of the frozen frame, shown in the header (e.g. "0:02.3"). */
+  header?: string
   onSave: (draft: AnnotationDraft) => void
   onCancel: () => void
 }
+
+export interface AnnotationCanvasHandle {
+  /**
+   * Finalize whatever is in progress (commit strokes, stop + attach audio,
+   * keep the note) and return it as a draft — or null if there's nothing
+   * worth keeping. Lets the parent rescue an open annotation when the
+   * instructor saves the whole clip without tapping "Save annotation" first.
+   */
+  flush: () => Promise<AnnotationDraft | null>
+}
+
+type MicState = 'recording' | 'off' | 'denied'
 
 const COLOR_HEX: Record<StrokeColor, string> = {
   red: '#f04848',
@@ -54,7 +77,8 @@ const COLOR_HEX: Record<StrokeColor, string> = {
 }
 
 const STROKE_WIDTH_PX = 4
-const ARROW_HEAD_PX = 14
+const ENDPOINT_RADIUS_PX = 6
+const MIN_LINE_DIST_SQ = 0.0006 // normalized; throws away accidental zero-length lines
 
 // Pick the best MIME type the browser supports for MediaRecorder. Order
 // matters: webm/opus first because that's what Chrome/Edge/Firefox use,
@@ -74,38 +98,144 @@ function pickAudioMime(): string | undefined {
   return undefined
 }
 
-export function AnnotationCanvas({ width, height, onSave, onCancel }: AnnotationCanvasProps) {
+function fmt(ms: number): string {
+  const s = Math.floor(ms / 1000)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCanvasProps>(function AnnotationCanvas(
+  { width, height, surfaceEl, header, onSave, onCancel },
+  ref,
+) {
   const t = useTranslations('components.annotationCanvas')
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Drawing state ----------------------------------------------------------
-  const [tool, setTool] = useState<StrokeKind>('arrow')
   const [color, setColor] = useState<StrokeColor>('red')
   const [strokes, setStrokes] = useState<Stroke[]>([])
-  const [drafting, setDrafting] = useState<Stroke | null>(null)
+  // Tap-tap: `start` holds the first point until the second tap commits the line.
+  const [start, setStart] = useState<[number, number] | null>(null)
+  const [preview, setPreview] = useState<[number, number] | null>(null)
   const [textNote, setTextNote] = useState('')
 
-  // Audio state ------------------------------------------------------------
-  const [recording, setRecording] = useState(false)
+  // Audio state (auto-recording) ------------------------------------------
+  const [micState, setMicState] = useState<MicState>('off')
+  const [audioMs, setAudioMs] = useState(0)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [audioMime, setAudioMime] = useState<string | undefined>()
-  const [recorderError, setRecorderError] = useState<string | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const startedAtRef = useRef(0)
+  const discardingRef = useRef(false)
+  const savingRef = useRef(false)
+  // Resolver used by handleSave to await the final blob after recorder.stop().
+  const stopResolverRef = useRef<((v: { blob: Blob; mime?: string } | null) => void) | null>(null)
 
-  // ---------- Render the canvas whenever strokes or drafting change ----
+  // The live preview line (start → current pointer), drawn while waiting for
+  // the second tap.
+  const draftLine = useMemo<Stroke | null>(
+    () => (start && preview ? { type: 'line', color, points: [start, preview] } : null),
+    [start, preview, color],
+  )
+
+  // ---------- Render the canvas whenever strokes / draft change ----------
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    drawAll(ctx, canvas.width, canvas.height, strokes, drafting)
-  }, [strokes, drafting, width, height])
+    drawAll(ctx, canvas.width, canvas.height, strokes, draftLine)
+  }, [strokes, draftLine, width, height])
 
-  // ---------- Pointer handlers ----------
+  // ---------- Audio: start the mic automatically on open ----------
 
-  // Convert a pointer event to normalized [0..1] coords relative to the canvas.
+  const startMic = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const mime = pickAudioMime()
+      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      recorder.onstop = () => {
+        streamRef.current?.getTracks().forEach((tr) => tr.stop())
+        streamRef.current = null
+        if (discardingRef.current) {
+          // The instructor turned audio off — drop everything captured.
+          discardingRef.current = false
+          audioChunksRef.current = []
+          stopResolverRef.current?.(null)
+          stopResolverRef.current = null
+          return
+        }
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || mime || 'audio/webm' })
+        setAudioBlob(blob)
+        setAudioMime(recorder.mimeType || mime)
+        stopResolverRef.current?.({ blob, mime: recorder.mimeType || mime })
+        stopResolverRef.current = null
+      }
+      recorder.start(250)
+      recorderRef.current = recorder
+      startedAtRef.current = Date.now()
+      setAudioBlob(null)
+      setAudioMs(0)
+      setMicState('recording')
+    } catch {
+      setMicState('denied')
+    }
+  }, [])
+
+  // Auto-start on mount; release the mic on unmount.
+  useEffect(() => {
+    startMic()
+    return () => {
+      const rec = recorderRef.current
+      if (rec && rec.state !== 'inactive') {
+        try { rec.stop() } catch {}
+      }
+      streamRef.current?.getTracks().forEach((tr) => tr.stop())
+      streamRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Tick the recording timer.
+  useEffect(() => {
+    if (micState !== 'recording') return
+    const id = setInterval(() => setAudioMs(Date.now() - startedAtRef.current), 200)
+    return () => clearInterval(id)
+  }, [micState])
+
+  const turnOffAudio = () => {
+    const rec = recorderRef.current
+    if (rec && rec.state !== 'inactive') {
+      discardingRef.current = true
+      rec.stop()
+    }
+    setAudioBlob(null)
+    setAudioMime(undefined)
+    setAudioMs(0)
+    setMicState('off')
+  }
+
+  // Stop the recorder and resolve with the finalized blob (or null).
+  const finalizeAudio = (): Promise<{ blob: Blob; mime?: string } | null> =>
+    new Promise((resolve) => {
+      const rec = recorderRef.current
+      if (micState !== 'recording' || !rec || rec.state === 'inactive') {
+        resolve(audioBlob ? { blob: audioBlob, mime: audioMime } : null)
+        return
+      }
+      stopResolverRef.current = resolve
+      rec.stop()
+    })
+
+  // ---------- Pointer handlers (tap-tap) ----------
+
   const toNormalized = useCallback((evt: React.PointerEvent<HTMLCanvasElement>): [number, number] => {
     const canvas = canvasRef.current
     if (!canvas) return [0, 0]
@@ -118,236 +248,197 @@ export function AnnotationCanvas({ width, height, onSave, onCancel }: Annotation
   const onPointerDown = (evt: React.PointerEvent<HTMLCanvasElement>) => {
     evt.preventDefault()
     const p = toNormalized(evt)
-    setDrafting({ type: tool, color, points: [p, p] })
-    canvasRef.current?.setPointerCapture(evt.pointerId)
+    if (!start) {
+      setStart(p)
+      setPreview(p)
+      return
+    }
+    const distSq = (start[0] - p[0]) ** 2 + (start[1] - p[1]) ** 2
+    if (distSq > MIN_LINE_DIST_SQ) {
+      setStrokes((prev) => [...prev, { type: 'line', color, points: [start, p] }])
+    }
+    setStart(null)
+    setPreview(null)
   }
 
   const onPointerMove = (evt: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drafting) return
+    if (!start) return
     evt.preventDefault()
-    const p = toNormalized(evt)
-    setDrafting({ ...drafting, points: [drafting.points[0], p] })
+    setPreview(toNormalized(evt))
   }
 
-  const onPointerUp = (evt: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drafting) return
-    evt.preventDefault()
-    canvasRef.current?.releasePointerCapture(evt.pointerId)
-
-    // Throw away degenerate strokes (a tap that didn't move).
-    const [a, b] = drafting.points
-    const distSq = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
-    if (distSq > 0.0005) {
-      setStrokes((prev) => [...prev, drafting])
+  const undo = () => {
+    if (start) {
+      setStart(null)
+      setPreview(null)
+      return
     }
-    setDrafting(null)
-  }
-
-  const eraseLast = () => {
     setStrokes((prev) => prev.slice(0, -1))
   }
 
-  // ---------- Audio handlers ----------
-
-  const startRecording = async () => {
-    setRecorderError(null)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mime = pickAudioMime()
-      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
-      audioChunksRef.current = []
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data)
-      }
-      recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || mime || 'audio/webm' })
-        setAudioBlob(blob)
-        setAudioMime(recorder.mimeType || mime)
-        // Release the mic.
-        stream.getTracks().forEach((t) => t.stop())
-      }
-      recorder.start(250) // small timeslice so we get data even if the user stops fast
-      recorderRef.current = recorder
-      setRecording(true)
-    } catch (err) {
-      setRecorderError(
-        err instanceof DOMException && err.name === 'NotAllowedError'
-          ? t('micPermissionDenied')
-          : t('micStartFailed'),
-      )
-    }
-  }
-
-  const stopRecording = () => {
-    const recorder = recorderRef.current
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop()
-    }
-    setRecording(false)
-  }
-
-  const clearAudio = () => {
-    setAudioBlob(null)
-    setAudioMime(undefined)
-  }
-
-  // Stop the recorder and release the mic if the component unmounts mid-recording.
-  useEffect(() => {
-    return () => {
-      const recorder = recorderRef.current
-      if (recorder && recorder.state !== 'inactive') {
-        try { recorder.stop() } catch {}
-      }
-    }
-  }, [])
-
   // ---------- Save / cancel ----------
 
-  const handleSave = () => {
-    onSave({
+  const canSave =
+    strokes.length > 0 ||
+    textNote.trim().length > 0 ||
+    audioBlob !== null ||
+    (micState === 'recording' && audioMs > 1000)
+
+  // Finalize the in-progress annotation into a draft (or null if there's
+  // nothing worth keeping). Always stops the mic.
+  const buildDraft = async (): Promise<AnnotationDraft | null> => {
+    const hasContent = canSave
+    const audio = await finalizeAudio()
+    if (!hasContent) return null
+    return {
       strokes,
-      audio_blob: audioBlob ?? undefined,
-      audio_mime: audioMime,
+      audio_blob: audio?.blob,
+      audio_mime: audio?.mime,
       text_note: textNote.trim() || undefined,
-    })
+    }
   }
 
-  const canSave = useMemo(() => {
-    return strokes.length > 0 || audioBlob !== null || textNote.trim().length > 0
-  }, [strokes.length, audioBlob, textNote])
+  // Re-created every render so flush() always closes over the latest state.
+  useImperativeHandle(ref, () => ({ flush: buildDraft }))
 
-  // ---------- Layout ----------
+  const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
+    const draft = await buildDraft()
+    if (draft) onSave(draft)
+    else onCancel()
+  }
 
-  // The toolbar lives at the bottom of the canvas. The canvas itself takes
-  // the parent-provided width/height so it overlays the video pixel-perfect.
+  const showHint = strokes.length === 0 && !start
+
+  // ---------- Render ----------
+
+  const surface = (
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      className="absolute inset-0 w-full h-full touch-none cursor-crosshair z-10"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      aria-label={t('canvasAria')}
+    />
+  )
 
   return (
-    <div className="relative flex flex-col gap-3" style={{ width }}>
-      <div className="relative" style={{ width, height }}>
-        <canvas
-          ref={canvasRef}
-          width={width}
-          height={height}
-          className="absolute inset-0 touch-none select-none cursor-crosshair"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          aria-label={t('canvasAria')}
-        />
-      </div>
+    <>
+      {surfaceEl && createPortal(surface, surfaceEl)}
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 flex-wrap rounded-md bg-card/95 backdrop-blur border border-border px-3 py-2.5">
-        {/* Tool group */}
-        <div className="flex items-center gap-1">
-          <ToolButton active={tool === 'arrow'} onClick={() => setTool('arrow')} label={t('toolArrow')}>
-            <ArrowIcon />
-          </ToolButton>
-          <ToolButton active={tool === 'line'} onClick={() => setTool('line')} label={t('toolLine')}>
-            <LineIcon />
-          </ToolButton>
-          <ToolButton active={tool === 'circle'} onClick={() => setTool('circle')} label={t('toolCircle')}>
-            <CircleIcon />
-          </ToolButton>
-        </div>
-
-        <Divider />
-
-        {/* Color group */}
-        <div className="flex items-center gap-1.5">
-          {(['red', 'yellow', 'green', 'white'] as StrokeColor[]).map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setColor(c)}
-              aria-label={t('colorLabel', { color: c })}
-              className={`size-7 rounded-full border-2 transition-transform ${
-                color === c ? 'border-foreground scale-110' : 'border-transparent hover:scale-105'
-              }`}
-              style={{ background: COLOR_HEX[c] }}
-            />
-          ))}
-        </div>
-
-        <Divider />
-
-        <button
-          type="button"
-          onClick={eraseLast}
-          disabled={strokes.length === 0}
-          className="h-9 px-3 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
-        >
-          {t('undo')}
-        </button>
-
-        <div className="flex-1" />
-
-        {/* Audio */}
-        <button
-          type="button"
-          onClick={recording ? stopRecording : startRecording}
-          className={`h-11 px-4 rounded-xl flex items-center gap-2 font-semibold transition-all ${
-            recording
-              ? 'bg-bad/15 text-bad border border-bad/40 animate-pulse'
-              : audioBlob
-                ? 'bg-ok/10 text-ok border border-ok/30 hover:bg-ok/15'
-                : 'bg-secondary text-foreground border border-border hover:bg-secondary/70'
-          }`}
-          aria-pressed={recording}
-        >
-          <MicIcon recording={recording} />
-          {recording ? t('audioStop') : audioBlob ? t('audioReady') : t('audioStart')}
-        </button>
-
-        {audioBlob && !recording && (
+      {/* Controls — always below the video, never covering it */}
+      <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="small-caps font-mono text-[11px] text-accent">
+            {t('annotatingLabel')}{header ? ` · ${header}` : ''}
+          </span>
           <button
             type="button"
-            onClick={clearAudio}
-            className="h-9 px-2 rounded-lg text-xs text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={t('discardAudio')}
+            onClick={onCancel}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            ✕
+            {t('cancel')}
+          </button>
+        </div>
+
+        {/* Voice status — automatic */}
+        {micState === 'recording' && (
+          <div className="flex items-center gap-2.5 h-11 px-3 rounded-md bg-bad/10 border border-bad/25">
+            <span className="size-2.5 rounded-full bg-bad animate-pulse shrink-0" />
+            <span className="text-sm font-medium text-bad">{t('audioRecording')}</span>
+            <span className="font-mono text-sm text-bad/80 tabular-nums">{fmt(audioMs)}</span>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={turnOffAudio}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-medium text-bad/90 hover:bg-bad/10 transition-colors"
+            >
+              <MicOffIcon />
+              {t('audioTurnOff')}
+            </button>
+          </div>
+        )}
+
+        {micState === 'off' && (
+          <button
+            type="button"
+            onClick={startMic}
+            className="flex items-center gap-2 h-11 px-3 rounded-md bg-secondary border border-border text-foreground hover:bg-secondary/70 transition-colors"
+          >
+            <MicIcon />
+            <span className="text-sm font-medium">{t('audioTurnOn')}</span>
+            <span className="text-xs text-muted-foreground">· {t('audioOff')}</span>
           </button>
         )}
-      </div>
 
-      {recorderError && (
-        <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-2.5">
-          {recorderError}
+        {micState === 'denied' && (
+          <div className="flex items-center gap-2 h-11 px-3 rounded-md bg-secondary/60 border border-border text-sm text-muted-foreground">
+            <MicOffIcon />
+            <span className="leading-snug">{t('audioDenied')}</span>
+            <div className="flex-1" />
+            <button type="button" onClick={startMic} className="text-xs font-medium text-foreground hover:underline">
+              {t('audioRetry')}
+            </button>
+          </div>
+        )}
+
+        {showHint && (
+          <p className="text-sm text-muted-foreground leading-snug">{t('lineHint')}</p>
+        )}
+
+        {/* Draw tools */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {(['red', 'yellow', 'green', 'white'] as StrokeColor[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                aria-label={t('colorLabel', { color: c })}
+                aria-pressed={color === c}
+                className={`size-7 rounded-full border-2 transition-transform ${
+                  color === c ? 'border-foreground scale-110' : 'border-border hover:scale-105'
+                }`}
+                style={{ background: COLOR_HEX[c] }}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={undo}
+            disabled={strokes.length === 0 && !start}
+            className="h-9 px-3 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+          >
+            {t('undo')}
+          </button>
         </div>
-      )}
 
-      {/* Optional text note */}
-      <textarea
-        value={textNote}
-        onChange={(e) => setTextNote(e.target.value)}
-        placeholder={t('notePlaceholder')}
-        rows={2}
-        className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-primary resize-y"
-      />
+        {/* Optional text note */}
+        <textarea
+          value={textNote}
+          onChange={(e) => setTextNote(e.target.value)}
+          placeholder={t('notePlaceholder')}
+          rows={2}
+          className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-primary resize-none"
+        />
 
-      {/* Save / cancel */}
-      <div className="flex items-center gap-2 justify-end">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="h-11 px-5 rounded-xl text-foreground bg-secondary hover:bg-secondary/70 transition-colors font-medium"
-        >
-          {t('cancel')}
-        </button>
+        {/* Save */}
         <button
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="h-11 rounded-md bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           {t('save')}
         </button>
       </div>
-    </div>
+    </>
   )
-}
+})
 
 // ---------------------------------------------------------------------------
 // Drawing primitives
@@ -358,14 +449,14 @@ function drawAll(
   w: number,
   h: number,
   strokes: Stroke[],
-  drafting: Stroke | null,
+  draft: Stroke | null,
 ) {
   ctx.clearRect(0, 0, w, h)
   for (const s of strokes) drawStroke(ctx, w, h, s)
-  if (drafting) drawStroke(ctx, w, h, drafting)
+  if (draft) drawStroke(ctx, w, h, draft, true)
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, w: number, h: number, s: Stroke) {
+function drawStroke(ctx: CanvasRenderingContext2D, w: number, h: number, s: Stroke, isDraft = false) {
   ctx.strokeStyle = COLOR_HEX[s.color]
   ctx.fillStyle = COLOR_HEX[s.color]
   ctx.lineWidth = STROKE_WIDTH_PX
@@ -377,18 +468,24 @@ function drawStroke(ctx: CanvasRenderingContext2D, w: number, h: number, s: Stro
   const bx = b[0] * w, by = b[1] * h
 
   if (s.type === 'line' || s.type === 'arrow') {
+    if (isDraft) ctx.setLineDash([8, 6])
     ctx.beginPath()
     ctx.moveTo(ax, ay)
     ctx.lineTo(bx, by)
     ctx.stroke()
+    ctx.setLineDash([])
 
-    if (s.type === 'arrow') drawArrowHead(ctx, ax, ay, bx, by)
+    if (s.type === 'arrow') {
+      drawArrowHead(ctx, ax, ay, bx, by)
+    } else {
+      drawDot(ctx, ax, ay)
+      drawDot(ctx, bx, by)
+    }
     return
   }
 
   if (s.type === 'circle') {
-    const dx = bx - ax, dy = by - ay
-    const radius = Math.hypot(dx, dy)
+    const radius = Math.hypot(bx - ax, by - ay)
     ctx.beginPath()
     ctx.arc(ax, ay, radius, 0, Math.PI * 2)
     ctx.stroke()
@@ -396,9 +493,15 @@ function drawStroke(ctx: CanvasRenderingContext2D, w: number, h: number, s: Stro
   }
 }
 
+function drawDot(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.beginPath()
+  ctx.arc(x, y, ENDPOINT_RADIUS_PX, 0, Math.PI * 2)
+  ctx.fill()
+}
+
 function drawArrowHead(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx: number, by: number) {
   const angle = Math.atan2(by - ay, bx - ax)
-  const head = ARROW_HEAD_PX
+  const head = 14
   const left = angle + Math.PI - Math.PI / 7
   const right = angle + Math.PI + Math.PI / 7
   ctx.beginPath()
@@ -417,70 +520,24 @@ function clamp01(n: number) {
 // Tiny presentational helpers
 // ---------------------------------------------------------------------------
 
-function ToolButton({
-  active,
-  onClick,
-  label,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  children: React.ReactNode
-}) {
+function MicIcon() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={active}
-      className={`size-10 rounded-lg flex items-center justify-center transition-colors ${
-        active
-          ? 'bg-ok/15 text-ok border border-ok/40'
-          : 'text-muted-foreground hover:bg-secondary hover:text-foreground border border-transparent'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Divider() {
-  return <div className="w-px h-6 bg-border" />
-}
-
-function ArrowIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="19" x2="19" y2="5" />
-      <polyline points="13 5 19 5 19 11" />
-    </svg>
-  )
-}
-
-function LineIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <line x1="5" y1="19" x2="19" y2="5" />
-    </svg>
-  )
-}
-
-function CircleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="7.5" />
-    </svg>
-  )
-}
-
-function MicIcon({ recording }: { recording: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={recording ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="3" width="6" height="11" rx="3" />
       <path d="M5 11a7 7 0 0 0 14 0" />
       <line x1="12" y1="18" x2="12" y2="21" />
       <line x1="9" y1="21" x2="15" y2="21" />
+    </svg>
+  )
+}
+
+function MicOffIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="2" y1="2" x2="22" y2="22" />
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
+      <path d="M17 11a5 5 0 0 1-.54 2.26M5 11a7 7 0 0 0 11 5.66" />
+      <line x1="12" y1="18" x2="12" y2="21" />
     </svg>
   )
 }
