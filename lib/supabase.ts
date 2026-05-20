@@ -31,24 +31,28 @@ function withStudentHeader(input: RequestInfo | URL, init?: RequestInit): Promis
   return fetch(input, { ...init, headers })
 }
 
+// Single Supabase client for both auth and data.
+//
+// History: an earlier version used `flowType: 'implicit'`, a no-op Web Locks
+// override, and a second `authClient` for login (transferring the session to
+// this client via a fire-and-forget `setSession`). That combination broke
+// token auto-refresh on iOS WebKit (Safari, and Chrome-on-iOS which is also
+// WebKit): the access token would expire after ~1h and never refresh, so every
+// request went out with an invalid JWT → 401 → no reads, no writes on the
+// phone while the desktop kept working.
+//
+// The fix is the standard, boring setup:
+// - flowType 'pkce' (robust refresh-token handling; the modern default)
+// - default Web Locks (serializes concurrent refreshes so two tabs/calls don't
+//   race and invalidate each other's refresh token — the actual iOS bug)
+// - one client, used for login AND queries, so the session is set + persisted
+//   atomically with no cross-client transfer race.
 export const supabase = createClient(url, key, {
   auth: {
-    flowType: 'implicit',
+    flowType: 'pkce',
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
-    // Bypass Web Locks to prevent deadlocks in PWA/single-device context.
-    // Trade-off: no cross-tab auth sync — acceptable for our use case.
-    lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => {
-      return await fn()
-    },
   },
   global: { fetch: withStudentHeader },
-})
-
-// Lightweight client for login/signup — no session persistence means
-// no initializePromise blocking on stale token refresh.
-// (No student header on this one — instructors auth via Supabase JWT.)
-export const authClient = createClient(url, key, {
-  auth: { persistSession: false, autoRefreshToken: false },
 })
