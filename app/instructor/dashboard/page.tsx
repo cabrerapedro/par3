@@ -14,13 +14,13 @@ import { UserMenu } from '@/components/UserMenu'
 import { Wordmark } from '@/components/Wordmark'
 import { cn } from '@/lib/utils'
 
-type StudentWithCps = Student & { checkpoints: { id: string; status: string }[] }
+type StudentWithClips = Student & { clips: { id: string; status: string }[] }
 
 export default function InstructorDashboard() {
   const { instructor, logout, loading } = useAuth()
   const router = useRouter()
   const t = useTranslations('instructor.dashboard')
-  const [students, setStudents] = useState<StudentWithCps[]>([])
+  const [students, setStudents] = useState<StudentWithClips[]>([])
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
@@ -36,10 +36,10 @@ export default function InstructorDashboard() {
     setFetching(true)
     const { data } = await supabase
       .from('students')
-      .select('*, checkpoints(id, status)')
+      .select('*, clips(id, status)')
       .eq('instructor_id', instructor!.id)
       .order('created_at', { ascending: false })
-    setStudents((data as StudentWithCps[]) ?? [])
+    setStudents((data as StudentWithClips[]) ?? [])
     setFetching(false)
   }
 
@@ -51,7 +51,7 @@ export default function InstructorDashboard() {
     setTimeout(() => setCopied(null), 1500)
   }
 
-  async function shareLink(s: StudentWithCps, e: React.MouseEvent) {
+  async function shareLink(s: StudentWithClips, e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     const url = `${window.location.origin}/student/login?code=${s.access_code}`
@@ -86,9 +86,12 @@ export default function InstructorDashboard() {
       return matchesSearch && matchesStatus
     }), [students, search, statusFilter])
 
+  // Exercises = the student's clips (the old "checkpoints" model is gone).
+  // Archived clips don't count toward the totals.
+  const liveClips = (s: StudentWithClips) => (s.clips ?? []).filter(c => c.status !== 'archived')
   const totalCalibrated = students.reduce((sum, s) =>
-    sum + s.checkpoints.filter(c => c.status === 'calibrated').length, 0)
-  const totalCheckpoints = students.reduce((sum, s) => sum + s.checkpoints.length, 0)
+    sum + liveClips(s).filter(c => c.status === 'calibrated').length, 0)
+  const totalClips = students.reduce((sum, s) => sum + liveClips(s).length, 0)
 
   if (loading || !instructor) return <LoadingScreen />
 
@@ -135,7 +138,7 @@ export default function InstructorDashboard() {
           <div className="grid grid-cols-3 gap-0 mb-8 border-t border-b border-rule">
             {[
               { label: t('statStudents'), value: students.length },
-              { label: t('statExercises'), value: totalCheckpoints },
+              { label: t('statExercises'), value: totalClips },
               { label: t('statCalibrated'), value: totalCalibrated },
             ].map((stat, i) => (
               <div key={stat.label} className={cn('px-5 py-4', i > 0 && 'border-l border-rule')}>
@@ -146,7 +149,7 @@ export default function InstructorDashboard() {
           </div>
         )}
 
-        {(students.length > 2 || inactiveCount > 0) && (
+        {students.length > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
             {students.length > 2 && (
               <div className="relative flex-1 max-w-md">
@@ -169,24 +172,23 @@ export default function InstructorDashboard() {
                 )}
               </div>
             )}
-            {inactiveCount > 0 && (
-              <div className="flex items-center gap-1 sm:ml-auto shrink-0">
-                {(['active', 'all', 'inactive'] as const).map(key => (
-                  <button
-                    key={key}
-                    onClick={() => setStatusFilter(key)}
-                    className={cn(
-                      'small-caps font-mono text-[10px] px-3 h-8 border transition-colors',
-                      statusFilter === key
-                        ? 'border-ink bg-ink text-paper'
-                        : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
-                    )}
-                  >
-                    {key === 'active' ? t('filterActive') : key === 'inactive' ? t('filterInactive') : t('filterAll')}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-1 sm:ml-auto shrink-0">
+              {(['active', 'all', 'inactive'] as const).map(key => (
+                <button
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
+                  className={cn(
+                    'small-caps font-mono text-[10px] px-3 h-8 border transition-colors',
+                    statusFilter === key
+                      ? 'border-ink bg-ink text-paper'
+                      : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
+                  )}
+                >
+                  {key === 'active' ? t('filterActive') : key === 'inactive' ? t('filterInactive') : t('filterAll')}
+                  {key === 'inactive' && inactiveCount > 0 && <span className="ml-1 tabular-nums">({inactiveCount})</span>}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -214,24 +216,27 @@ export default function InstructorDashboard() {
         ) : (
           <div className="border-t border-rule">
             {/* Header row */}
-            <div className="hidden md:grid grid-cols-[1fr_120px_140px_60px] gap-6 py-3 border-b border-rule">
+            <div className="hidden md:grid grid-cols-[1fr_120px_110px_140px_60px] gap-6 py-3 border-b border-rule">
               <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colName')}</span>
               <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colCode')}</span>
+              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colStatus')}</span>
               <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colExercises')}</span>
               <span />
             </div>
 
             {filtered.map(s => {
-              const total = s.checkpoints.length
-              const cal = s.checkpoints.filter(c => c.status === 'calibrated').length
+              const live = liveClips(s)
+              const total = live.length
+              const cal = live.filter(c => c.status === 'calibrated').length
               return (
                 <Link key={s.id} href={`/instructor/students/${s.id}`}>
-                  <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_120px_140px_60px] gap-3 md:gap-6 items-center py-4 border-b border-rule hover:bg-paper-2/60 transition-colors cursor-pointer">
+                  <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_120px_110px_140px_60px] gap-3 md:gap-6 items-center py-4 border-b border-rule hover:bg-paper-2/60 transition-colors cursor-pointer">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className={cn('font-display font-medium text-lg truncate', !isActive(s) && 'text-ink-mute')}>{s.name}</p>
+                        {/* Mobile-only inline tag; desktop uses the Estado column */}
                         {!isActive(s) && (
-                          <span className="small-caps font-mono text-[9px] text-ink-mute border border-rule px-1.5 py-0.5 shrink-0">
+                          <span className="md:hidden small-caps font-mono text-[9px] text-warn border border-warn/40 px-1.5 py-0.5 shrink-0">
                             {t('statusInactive')}
                           </span>
                         )}
@@ -285,6 +290,18 @@ export default function InstructorDashboard() {
                           {t('shareLinkTooltip')}
                         </TooltipContent>
                       </Tooltip>
+                    </div>
+
+                    <div className="hidden md:flex items-center">
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 small-caps font-mono text-[10px] px-2 py-1 border",
+                        isActive(s)
+                          ? "border-rule text-ink-soft"
+                          : "border-warn/40 text-warn"
+                      )}>
+                        <span className={cn("size-1.5 rounded-full", isActive(s) ? "bg-ok" : "bg-warn")} />
+                        {isActive(s) ? t('statusActive') : t('statusInactive')}
+                      </span>
                     </div>
 
                     <div className="hidden md:block">

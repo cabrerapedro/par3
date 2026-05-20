@@ -43,6 +43,7 @@ export default function StudentProfile() {
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shared, setShared] = useState(false)
+  const [statusSaving, setStatusSaving] = useState(false)
 
   useEffect(() => {
     if (authLoading) return
@@ -104,6 +105,15 @@ export default function StudentProfile() {
     router.replace('/instructor/dashboard')
   }
 
+  async function toggleStatus() {
+    if (!student || statusSaving) return
+    const next = (student.status ?? 'active') === 'inactive' ? 'active' : 'inactive'
+    setStatusSaving(true)
+    const { error } = await supabase.from('students').update({ status: next }).eq('id', student.id)
+    setStatusSaving(false)
+    if (!error) setStudent({ ...student, status: next })
+  }
+
   if (loading) return <LoadingScreen />
   if (!student) return (
     <div className="min-h-screen bg-paper flex items-center justify-center">
@@ -125,6 +135,8 @@ export default function StudentProfile() {
     if (!clipsByClass[c.class_id]) clipsByClass[c.class_id] = []
     clipsByClass[c.class_id].push(c)
   }
+
+  const isActiveStudent = (student.status ?? 'active') !== 'inactive'
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -148,6 +160,20 @@ export default function StudentProfile() {
             {student.email && <p className="text-ink-soft text-sm mt-1">{student.email}</p>}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={toggleStatus}
+              disabled={statusSaving}
+              title={t('statusHint')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border transition-colors disabled:opacity-50",
+                isActiveStudent
+                  ? "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
+                  : "border-warn/50 text-warn hover:border-warn"
+              )}
+            >
+              <span className={cn("size-1.5 rounded-full", isActiveStudent ? "bg-ok" : "bg-warn")} />
+              {isActiveStudent ? t('statusActive') : t('statusInactive')}
+            </button>
             <Link
               href={`/instructor/students/${studentId}/edit`}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-rule text-ink-soft hover:border-ink-soft hover:text-ink transition-colors"
