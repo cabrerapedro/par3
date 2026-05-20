@@ -292,7 +292,7 @@ function Acceso() {
             title="Empieza con tres alumnos."
             body="Prueba con tus primeros tres alumnos. Si funciona, escalas."
             ctaText="Crear cuenta"
-            ctaHref="/instructor/login"
+            ctaHref="/instructor/login?mode=signup"
             secondaryText="Ya tengo cuenta"
             secondaryHref="/instructor/login"
             stamp="GRATIS HASTA 3 ALUMNOS"

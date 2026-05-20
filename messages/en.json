@@ -166,6 +166,8 @@
   },
   "auth": {
     "back": "Back",
+    "instructorRole": "For coaches",
+    "studentRole": "For students",
     "instructor": {
       "loginTitle": "Welcome, coach",
       "loginSubtitle": "Access your students dashboard",

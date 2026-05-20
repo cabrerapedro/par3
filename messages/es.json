@@ -166,6 +166,8 @@
   },
   "auth": {
     "back": "Volver",
+    "instructorRole": "Para instructores",
+    "studentRole": "Para alumnos",
     "instructor": {
       "loginTitle": "Bienvenido, instructor",
       "loginSubtitle": "Accede a tu panel de alumnos",
