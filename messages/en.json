@@ -352,6 +352,7 @@
         "preRecordHint": "Get the student in position, then tap record when ready.",
         "recordingHint": "Tap stop when the movement ends.",
         "framingHint": "Point the iPad far enough back that the whole body fits. Record 2–3 reps (15–30s).",
+        "iosCameraHint": "Tap Record to open the camera and film your student. Fit the whole body in frame.",
         "framingGuideLabel": "Whole body",
         "angleQuestion": "Where are you filming from?",
         "angleFaceOn": "Face-on",
