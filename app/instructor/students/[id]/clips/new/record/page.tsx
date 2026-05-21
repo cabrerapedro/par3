@@ -428,7 +428,7 @@ function RecordDebugPanel() {
     return () => clearInterval(id)
   }, [])
   return (
-    <div className="absolute inset-x-0 bottom-0 z-50 max-h-[45vh] flex flex-col bg-black/90 text-green-300 font-mono text-[10px] leading-tight border-t-2 border-green-500">
+    <div className="fixed inset-x-0 top-0 z-50 max-h-[38vh] flex flex-col bg-black/90 text-green-300 font-mono text-[10px] leading-tight border-b-2 border-green-500">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-green-700 text-green-200">
         <span className="font-semibold">REC DEBUG</span>
         <div className="flex gap-2">
