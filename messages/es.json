@@ -352,6 +352,7 @@
         "preRecordHint": "Posiciona al alumno y toca grabar cuando esté listo.",
         "recordingHint": "Toca parar cuando termine el movimiento.",
         "framingHint": "Apunta el iPad a una distancia donde entre el cuerpo entero. Graba 2–3 repeticiones (15–30 s).",
+        "iosCameraHint": "Toca «Grabar» para abrir la cámara y filmar al alumno. Que entre el cuerpo entero.",
         "framingGuideLabel": "Cuerpo entero",
         "angleQuestion": "¿Desde dónde grabas?",
         "angleFaceOn": "De frente",
