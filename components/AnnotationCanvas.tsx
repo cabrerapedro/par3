@@ -100,7 +100,6 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
   // Tap-tap: `start` holds the first point until the second tap commits the line.
   const [start, setStart] = useState<[number, number] | null>(null)
   const [preview, setPreview] = useState<[number, number] | null>(null)
-  const [textNote, setTextNote] = useState('')
 
   // Audio state (auto-recording) ------------------------------------------
   const [micState, setMicState] = useState<MicState>('off')
@@ -276,11 +275,16 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     setStrokes((prev) => prev.slice(0, -1))
   }
 
+  const clearAll = () => {
+    setStrokes([])
+    setStart(null)
+    setPreview(null)
+  }
+
   // ---------- Save / cancel ----------
 
   const canSave =
     strokes.length > 0 ||
-    textNote.trim().length > 0 ||
     audioBlob !== null ||
     (micState === 'recording' && audioMs > 1000)
 
@@ -294,7 +298,6 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
       strokes,
       audio_blob: audio?.blob,
       audio_mime: audio?.mime,
-      text_note: textNote.trim() || undefined,
     }
   }
 
@@ -391,49 +394,49 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           <p className="text-sm text-muted-foreground leading-snug">{t('lineHint')}</p>
         )}
 
-        {/* Draw tools */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            {(['red', 'yellow', 'green', 'white'] as StrokeColor[]).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                aria-label={t('colorLabel', { color: c })}
-                aria-pressed={color === c}
-                className={`size-7 rounded-full border-2 transition-transform ${
-                  color === c ? 'border-foreground scale-110' : 'border-border hover:scale-105'
-                }`}
-                style={{ background: COLOR_HEX[c] }}
-              />
-            ))}
-          </div>
+        {/* Draw tools — colors sized for a fingertip / Pencil tap (>=48px) */}
+        <div className="flex items-center justify-center gap-3">
+          {(['red', 'yellow', 'green', 'white'] as StrokeColor[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColor(c)}
+              aria-label={t('colorLabel', { color: c })}
+              aria-pressed={color === c}
+              className={`size-12 rounded-full border-[3px] transition-transform ${
+                color === c ? 'border-foreground scale-110' : 'border-border hover:scale-105'
+              }`}
+              style={{ background: COLOR_HEX[c] }}
+            />
+          ))}
+        </div>
 
+        {/* Undo / clear — big, since drawing with a Pencil means lots of retries */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={undo}
             disabled={strokes.length === 0 && !start}
-            className="h-9 px-3 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+            className="flex-1 h-12 rounded-md text-sm font-medium text-foreground bg-secondary hover:bg-secondary/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {t('undo')}
           </button>
+          <button
+            type="button"
+            onClick={clearAll}
+            disabled={strokes.length === 0 && !start}
+            className="flex-1 h-12 rounded-md text-sm font-medium text-bad/90 bg-bad/10 hover:bg-bad/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {t('clearAll')}
+          </button>
         </div>
-
-        {/* Optional text note */}
-        <textarea
-          value={textNote}
-          onChange={(e) => setTextNote(e.target.value)}
-          placeholder={t('notePlaceholder')}
-          rows={2}
-          className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:border-primary resize-none"
-        />
 
         {/* Save */}
         <button
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          className="h-11 rounded-md bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="h-12 rounded-md bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           {t('save')}
         </button>

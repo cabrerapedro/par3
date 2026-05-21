@@ -136,6 +136,7 @@
       "toolCircle": "Circle",
       "colorLabel": "Color {color}",
       "undo": "Undo",
+      "clearAll": "Clear all",
       "audioRecording": "Recording your voice",
       "audioTurnOff": "Drop audio",
       "audioTurnOn": "Record voice",

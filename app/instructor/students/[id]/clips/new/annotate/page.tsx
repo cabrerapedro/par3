@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AnnotationCanvas, type AnnotationDraft, type AnnotationCanvasHandle, type Stroke, type StrokeColor } from '@/components/AnnotationCanvas'
 import { useAuth } from '@/lib/auth'
@@ -101,7 +100,6 @@ export default function ClipAnnotatePage() {
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null)
 
   // ---- Clip metadata + annotations local state --------------------
-  const [name, setName] = useState('')
   // Pre-filled from the angle the instructor chose on the record screen.
   const [angle, setAngle] = useState<CameraAngle>(() => recorded?.angle ?? 'face_on')
   const [clipType, setClipType] = useState<ClipType>('position')
@@ -330,7 +328,7 @@ export default function ClipAnnotatePage() {
     }
     const allAnnotations = pendingAnnotation ? [...annotations, pendingAnnotation] : annotations
 
-    const finalName = name.trim() || defaultName
+    const finalName = defaultName
     const selectedMetrics = METRICS_BY_ANGLE[angle] ?? []
 
     try {
@@ -540,8 +538,8 @@ export default function ClipAnnotatePage() {
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 p-4 lg:p-6">
-        {/* Video stage — 60% on lg+ */}
-        <div className="lg:basis-3/5 flex flex-col gap-3">
+        {/* Video stage — wider on lg+; full width when stacked (portrait iPad) */}
+        <div className="lg:basis-2/3 flex flex-col gap-3">
           <div className="flex justify-center">
             {/* inline-block so the stage hugs the video exactly — the canvas
                 overlays at inset-0 and its normalized coords stay aligned. */}
@@ -549,7 +547,7 @@ export default function ClipAnnotatePage() {
               <video
                 ref={videoRef}
                 src={videoUrl}
-                className="block max-h-[60vh] max-w-full"
+                className="block max-h-[64vh] max-w-full"
                 onLoadedMetadata={onLoadedMetadata}
                 onTimeUpdate={onTimeUpdate}
                 onPlay={onPlay}
@@ -617,9 +615,9 @@ export default function ClipAnnotatePage() {
             <button
               type="button"
               onClick={openCanvas}
-              className="self-start inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ok/15 text-ok border border-ok/30 hover:bg-ok/20 transition-colors font-medium text-sm"
+              className="self-start inline-flex items-center gap-2.5 min-h-[48px] px-5 py-3 rounded-xl bg-ok/15 text-ok border border-ok/30 hover:bg-ok/20 transition-colors font-semibold text-base"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
               </svg>
@@ -641,23 +639,10 @@ export default function ClipAnnotatePage() {
           )}
         </div>
 
-        {/* Right panel — 40% on lg+ */}
-        <aside className="lg:basis-2/5 flex flex-col gap-4">
+        {/* Right panel — narrower on lg+; stacks below the video in portrait */}
+        <aside className="lg:basis-1/3 flex flex-col gap-4">
           {/* Metadata form */}
           <div className="bg-card border border-border rounded-md p-4 flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="clip-name" className="text-sm">
-                {t('nameLabel')} <span className="font-normal text-muted-foreground">{t('nameOptional')}</span>
-              </Label>
-              <Input
-                id="clip-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('namePlaceholderOptional', { default: defaultName })}
-                className="bg-secondary border-border"
-              />
-            </div>
-
             <div className="flex flex-col gap-1.5">
               <Label className="text-sm">{t('angleLabel')}</Label>
               <div className="flex gap-2">
