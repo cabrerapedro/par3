@@ -196,20 +196,41 @@ export default function StudentProfile() {
           </div>
         </div>
 
-        {/* Access code + share link */}
-        <div className="flex items-center gap-2 mt-5 flex-wrap">
-          <button onClick={copyCode} className={cn("flex items-center gap-2 px-3 py-1.5 border text-xs font-mono font-medium tracking-[0.06em] transition-colors", copied ? "border-ok text-ok" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink")}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {copied ? <polyline points="20 6 9 17 4 12" /> : <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
+        {/* Access — a clean, photographable card. The student snaps a photo of
+            this and signs in calmly from home with the code (no QR, so it
+            doesn't yank them out of the lesson). */}
+        <div className="mt-6 border border-rule bg-paper-2/40">
+          <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-dashed border-rule">
+            <div className="min-w-0">
+              <p className="small-caps font-mono text-[10px] text-accent mb-1">{t('accessTitle')}</p>
+              <p className="text-sm text-ink-soft leading-snug">{t('accessPhotoHint')}</p>
+            </div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-ink-mute shrink-0">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
             </svg>
-            {copied ? t('copied') : student.access_code}
-          </button>
-          <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium transition-colors", shared ? "border-ok text-ok" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink")}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {shared ? <polyline points="20 6 9 17 4 12" /> : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>}
-            </svg>
-            {shared ? t('copied') : t('shareLinkLabel')}
-          </button>
+          </div>
+
+          <div className="px-5 py-7 flex flex-col items-center text-center gap-2.5">
+            <p className="font-display text-xl text-ink-soft">parell.golf</p>
+            <p className="font-mono font-semibold text-4xl md:text-5xl tracking-[0.18em] text-ink">{student.access_code}</p>
+            <p className="text-xs text-ink-mute mt-1">{t('accessInstruction')}</p>
+          </div>
+
+          <div className="px-5 py-3 flex items-center gap-2 border-t border-rule">
+            <button onClick={copyCode} className={cn("flex items-center gap-2 px-3 py-1.5 border text-xs font-mono font-medium tracking-[0.06em] transition-colors", copied ? "border-ok text-ok" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink")}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {copied ? <polyline points="20 6 9 17 4 12" /> : <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
+              </svg>
+              {copied ? t('copied') : t('copyCodeLabel')}
+            </button>
+            <button onClick={shareLink} className={cn("flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium transition-colors", shared ? "border-ok text-ok" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink")}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {shared ? <polyline points="20 6 9 17 4 12" /> : <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></>}
+              </svg>
+              {shared ? t('copied') : t('shareLinkLabel')}
+            </button>
+          </div>
         </div>
 
         {/* "Esta semana" — engagement only (did they practice), no score signals */}
