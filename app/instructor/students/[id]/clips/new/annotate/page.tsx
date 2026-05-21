@@ -32,7 +32,7 @@ import { getOrCreateTodayClass } from '@/lib/classes'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
 import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
-import { rlog } from '@/lib/recordDebug'
+import { rlog, jsInstanceId } from '@/lib/recordDebug'
 import { useClipFlow } from '../layout'
 
 type CameraAngle = 'face_on' | 'dtl'
@@ -66,7 +66,7 @@ export default function ClipAnnotatePage() {
   const studentId = params.id as string
   const { instructor } = useAuth()
 
-  const { recorded, getVideoUrl, reset } = useClipFlow()
+  const { recorded, hydrated, getVideoUrl, reset } = useClipFlow()
 
   const [saveStage, setSaveStage] = useState<SaveStage>('idle')
   const [framesPct, setFramesPct] = useState(0)
@@ -78,13 +78,15 @@ export default function ClipAnnotatePage() {
   const leavingRef = useRef(false)
 
   // ---- Guard: no recording → bounce back to /record ---------------
+  // Wait for `hydrated` so we don't bounce while the layout is still reading
+  // the clip back from IndexedDB after a re-mount.
   useEffect(() => {
-    rlog(`annotate mounted. recorded=${recorded ? `present (blob.size=${recorded.blob.size}, mime="${recorded.mime}", durationMs=${recorded.durationMs})` : 'NULL'} leaving=${leavingRef.current}`)
-    if (!recorded && !leavingRef.current) {
-      rlog('annotate: recorded NULL → router.replace(record) [THIS IS THE BOUNCE]')
+    rlog(`annotate guard. jsInstance=${jsInstanceId()} hydrated=${hydrated} recorded=${recorded ? `present (blob.size=${recorded.blob.size}, mime="${recorded.mime}", durationMs=${recorded.durationMs})` : 'NULL'} leaving=${leavingRef.current}`)
+    if (hydrated && !recorded && !leavingRef.current) {
+      rlog('annotate: hydrated & recorded NULL → router.replace(record) [THIS IS THE BOUNCE]')
       router.replace(`/instructor/students/${studentId}/clips/new/record`)
     }
-  }, [recorded, router, studentId])
+  }, [hydrated, recorded, router, studentId])
 
   const videoUrl = recorded ? getVideoUrl() : null
 
@@ -120,6 +122,17 @@ export default function ClipAnnotatePage() {
   // so we trust that and only override it if the element reports a finite one.
   useEffect(() => {
     if (recorded?.durationMs) setDuration(recorded.durationMs)
+  }, [recorded])
+
+  // On the rehydrate path `recorded` arrives after mount, so the useState
+  // initializer above ran with it still null. Seed the angle once it's known
+  // (only once, so we never clobber a manual change).
+  const angleSeededRef = useRef(false)
+  useEffect(() => {
+    if (!angleSeededRef.current && recorded?.angle) {
+      setAngle(recorded.angle)
+      angleSeededRef.current = true
+    }
   }, [recorded])
 
   // ---- Video event handlers ---------------------------------------

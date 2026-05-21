@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl'
 import type { CameraAngle } from '@/lib/types'
 import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
-import { rlog, debugEnabled, logRecorderSupport, getDebugLog, clearDebugLog } from '@/lib/recordDebug'
+import { rlog, debugEnabled, logRecorderSupport, getDebugLog, clearDebugLog, jsInstanceId } from '@/lib/recordDebug'
 import { useClipFlow } from '../layout'
 
 const MAX_LENGTH_MS = 60_000 // hard cap; spec says clips run 15–30 s
@@ -34,7 +34,7 @@ export default function ClipRecordPage() {
   const router = useRouter()
   const studentId = params.id as string
 
-  const { setRecorded } = useClipFlow()
+  const { commitRecorded } = useClipFlow()
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -107,7 +107,7 @@ export default function ClipRecordPage() {
   }, [t])
 
   useEffect(() => {
-    rlog('--- record page mounted ---')
+    rlog(`--- record page mounted --- jsInstance=${jsInstanceId()}`)
     logRecorderSupport()
     startCamera(facingMode)
     return () => {
@@ -153,7 +153,7 @@ export default function ClipRecordPage() {
         rlog(`ondataavailable: size=${e.data?.size ?? 0} type="${e.data?.type ?? ''}"`)
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         const rawMime = resolveRecordedMime(recorder, chunksRef.current, mime, 'video')
         const raw = new Blob(chunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startMsRef.current)
@@ -179,10 +179,12 @@ export default function ClipRecordPage() {
           return
         }
 
-        // Hand the recording straight to the review step — no post-processing
-        // of the blob (rewriting the container broke playback).
-        rlog('BRANCH: ok → setRecorded + router.push(annotate)')
-        setRecorded({ blob: raw, mime: rawMime, durationMs, angle: angleRef.current })
+        // Persist to IndexedDB BEFORE navigating: the layout context is lost
+        // when the layout re-mounts across this navigation on iPadOS, so
+        // annotate rehydrates the blob from storage instead of memory.
+        rlog('BRANCH: ok → commitRecorded(IDB) + router.push(annotate)')
+        await commitRecorded({ blob: raw, mime: rawMime, durationMs, angle: angleRef.current })
+        rlog('committed to IDB, pushing annotate')
         router.push(`/instructor/students/${studentId}/clips/new/annotate`)
       }
       // Timeslice: iOS/WebKit needs periodic dataavailable to reliably
