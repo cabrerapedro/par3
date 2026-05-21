@@ -10,6 +10,15 @@
 const LOG_KEY = 'par3_rec_debug_log'
 const FLAG_KEY = 'par3_rec_debug_on'
 
+// Generated once per JS module evaluation (i.e. once per document load). If the
+// SAME id shows up on /record and /annotate, the JS context survived → it was a
+// client-side (soft) navigation and the React layout re-mounted. If the ids
+// DIFFER, it was a hard navigation (full document reload).
+const JS_INSTANCE = Math.random().toString(36).slice(2, 8)
+export function jsInstanceId(): string {
+  return JS_INSTANCE
+}
+
 export function debugEnabled(): boolean {
   if (typeof window === 'undefined') return false
   try {

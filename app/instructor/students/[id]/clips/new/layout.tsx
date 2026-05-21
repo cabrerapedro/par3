@@ -17,19 +17,20 @@
 // /record.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { CameraAngle } from '@/lib/types'
+import { getHandoff, putHandoff, clearHandoff, type HandoffClip } from '@/lib/clipHandoff'
 
-interface RecordedClip {
-  blob: Blob
-  mime: string
-  durationMs: number
-  /** Camera angle chosen on the record screen; pre-fills the review step. */
-  angle: CameraAngle
-}
+type RecordedClip = HandoffClip
 
 interface ClipFlowState {
   recorded: RecordedClip | null
-  setRecorded: (clip: RecordedClip | null) => void
+  /**
+   * True once we've attempted to rehydrate from IndexedDB. Consumers (annotate)
+   * must wait for this before deciding "no recording → bounce", otherwise they
+   * bounce during the async rehydrate.
+   */
+  hydrated: boolean
+  /** Persist the recording (IndexedDB + memory) before navigating to annotate. */
+  commitRecorded: (clip: RecordedClip) => Promise<void>
   /**
    * One-shot object URL for the recorded blob, suitable for <video src>.
    * Created lazily on first access and revoked when reset() runs (or the
@@ -44,6 +45,7 @@ const ClipFlowContext = createContext<ClipFlowState | null>(null)
 
 export default function ClipFlowLayout({ children }: { children: ReactNode }) {
   const [recorded, setRecordedState] = useState<RecordedClip | null>(null)
+  const [hydrated, setHydrated] = useState(false)
   const urlRef = useRef<string | null>(null)
 
   const revokeUrl = useCallback(() => {
@@ -53,10 +55,32 @@ export default function ClipFlowLayout({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const setRecorded = useCallback(
-    (clip: RecordedClip | null) => {
+  // Rehydrate from IndexedDB on mount. On iPadOS the layout re-mounts across the
+  // record → annotate navigation and drops the in-memory blob; reading it back
+  // from IndexedDB is what makes the handoff survive.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const stored = await getHandoff()
+        if (!cancelled && stored) setRecordedState(stored)
+      } catch {
+        /* ignore — hydrated still flips so the guard can decide */
+      }
+      if (!cancelled) setHydrated(true)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const commitRecorded = useCallback(
+    async (clip: RecordedClip) => {
       revokeUrl()
       setRecordedState(clip)
+      try {
+        await putHandoff(clip)
+      } catch {
+        /* in-memory state still set; soft-nav path works without IDB */
+      }
     },
     [revokeUrl],
   )
@@ -70,11 +94,12 @@ export default function ClipFlowLayout({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     revokeUrl()
     setRecordedState(null)
+    void clearHandoff()
   }, [revokeUrl])
 
   // Clean up the dangling blob URL if the user closes the tab or navigates
-  // outside /clips/new entirely. revokeUrl already runs on reset() and
-  // setRecorded(null); this catches the bail-out paths.
+  // outside /clips/new entirely. revokeUrl already runs on reset(); this
+  // catches the bail-out paths.
   useEffect(() => {
     return () => {
       revokeUrl()
@@ -82,8 +107,8 @@ export default function ClipFlowLayout({ children }: { children: ReactNode }) {
   }, [revokeUrl])
 
   const value = useMemo<ClipFlowState>(
-    () => ({ recorded, setRecorded, getVideoUrl, reset }),
-    [recorded, setRecorded, getVideoUrl, reset],
+    () => ({ recorded, hydrated, commitRecorded, getVideoUrl, reset }),
+    [recorded, hydrated, commitRecorded, getVideoUrl, reset],
   )
 
   return <ClipFlowContext.Provider value={value}>{children}</ClipFlowContext.Provider>
