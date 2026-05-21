@@ -192,9 +192,9 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           stopResolverRef.current = null
         })()
       }
-      // No timeslice: a single dataavailable on stop yields one clean blob
-      // (chunked recording can produce glitchy/stuttery webm).
-      recorder.start()
+      // Timeslice (1s): iOS/WebKit needs periodic dataavailable to capture
+      // reliably. The WAV re-encode on stop handles any webm quirks anyway.
+      recorder.start(1000)
       recorderRef.current = recorder
       startedAtRef.current = Date.now()
       setAudioBlob(null)

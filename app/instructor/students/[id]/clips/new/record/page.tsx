@@ -166,6 +166,15 @@ export default function ClipRecordPage() {
         const raw = new Blob(chunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startMsRef.current)
 
+        // No data captured (can happen on iOS if the recorder didn't flush) —
+        // surface it instead of advancing with an empty, unplayable clip.
+        if (raw.size === 0) {
+          setError(t('recordingFailed'))
+          setRecording(false)
+          setElapsedMs(0)
+          return
+        }
+
         if (durationMs < MIN_LENGTH_MS) {
           // Don't keep the clip, surface the error, let them try again.
           setError(t('tooShort'))
@@ -182,9 +191,9 @@ export default function ClipRecordPage() {
           router.push(`/instructor/students/${studentId}/clips/new/annotate`)
         })()
       }
-      // No timeslice: one clean blob on stop (chunked recording can produce a
-      // glitchy webm with broken timestamps).
-      recorder.start()
+      // Timeslice (1s): iOS/WebKit needs periodic dataavailable to reliably
+      // capture — without it, stop() can yield an empty recording.
+      recorder.start(1000)
       recorderRef.current = recorder
       startMsRef.current = Date.now()
       setElapsedMs(0)
