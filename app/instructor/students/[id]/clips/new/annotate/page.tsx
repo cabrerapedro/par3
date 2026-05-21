@@ -367,10 +367,13 @@ export default function ClipAnnotatePage() {
       // 5. Run MediaPipe over every frame and write to clip_frames.
       setSaveStage('frames')
       setFramesPct(0)
+      // Posture is static, so a low sample rate is plenty and much faster on an
+      // iPad; a swing needs more temporal resolution to find its phases.
+      const fps = clipType === 'swing' ? 10 : 5
       const frames = await processClip({
         videoBlob: recorded.blob,
         cameraAngle: angle,
-        fps: 10,
+        fps,
         durationMs: recorded.durationMs,
         onProgress: (p) => setFramesPct(Math.round(p * 100)),
       })
@@ -388,7 +391,7 @@ export default function ClipAnnotatePage() {
       // Detection-ratio sanity check (M4). If MediaPipe lost the person for
       // most of the clip the baseline would be garbage — surface that and
       // leave the clip in 'pending' so the instructor can re-record.
-      const detection = clipDetectionRatio(frames.length, recorded.durationMs / 1000, 10)
+      const detection = clipDetectionRatio(frames.length, recorded.durationMs / 1000, fps)
       // Store the framing-quality cue. Best-effort + separate so a missing
       // detection_ratio column never blocks the save.
       await supabase.from('clips').update({ detection_ratio: detection }).eq('id', clip.id)

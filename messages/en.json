@@ -130,7 +130,7 @@
     "annotationCanvas": {
       "canvasAria": "Annotation canvas",
       "annotatingLabel": "Annotating",
-      "lineHint": "Tap to set the start, tap again to finish the line.",
+      "lineHint": "Drag your finger or pencil to draw a line.",
       "toolArrow": "Arrow",
       "toolLine": "Line",
       "toolCircle": "Circle",

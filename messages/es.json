@@ -130,7 +130,7 @@
     "annotationCanvas": {
       "canvasAria": "Lienzo de anotación",
       "annotatingLabel": "Anotando",
-      "lineHint": "Toca para marcar el inicio, toca de nuevo para terminar la línea.",
+      "lineHint": "Arrastra el dedo o el lápiz para trazar una línea.",
       "toolArrow": "Flecha",
       "toolLine": "Línea",
       "toolCircle": "Círculo",

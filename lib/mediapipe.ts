@@ -47,10 +47,19 @@ export async function loadMediaPipe(): Promise<void> {
   W.__mp_loaded = true
 }
 
+// Options for the underlying Pose model. Defaults match the live mirror
+// (accurate). The batch processor passes a lighter config (modelComplexity 0,
+// no smoothing) so frame-by-frame analysis is fast on an iPad.
+export interface PoseOptions {
+  modelComplexity?: 0 | 1 | 2
+  smoothLandmarks?: boolean
+}
+
 // Returns a singleton Pose instance. Only `new Pose()` is called once ever;
-// subsequent calls just update the onResults callback.
+// subsequent calls just update the onResults callback. `options` only take
+// effect on first creation (the WASM module can't be re-initialized).
 // Async because WASM initialization must complete before first send().
-export async function createPose(onResults: (r: any) => void) {
+export async function createPose(onResults: (r: any) => void, options?: PoseOptions) {
   if (W.__mp_pose) {
     W.__mp_pose.onResults(onResults)
     return W.__mp_pose
@@ -68,8 +77,8 @@ export async function createPose(onResults: (r: any) => void) {
   try {
     const pose = new Pose({ locateFile: (f: string) => `${MP_POSE}/${f}` })
     pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
+      modelComplexity: options?.modelComplexity ?? 1,
+      smoothLandmarks: options?.smoothLandmarks ?? true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
     })

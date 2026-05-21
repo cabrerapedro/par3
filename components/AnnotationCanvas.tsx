@@ -261,20 +261,14 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     return [clamp01(x), clamp01(y)]
   }, [])
 
+  // Drag to draw a straight line: press = start, drag = rubber-band preview,
+  // release = commit. One continuous gesture, like a pen.
   const onPointerDown = (evt: React.PointerEvent<HTMLCanvasElement>) => {
     evt.preventDefault()
     const p = toNormalized(evt)
-    if (!start) {
-      setStart(p)
-      setPreview(p)
-      return
-    }
-    const distSq = (start[0] - p[0]) ** 2 + (start[1] - p[1]) ** 2
-    if (distSq > MIN_LINE_DIST_SQ) {
-      setStrokes((prev) => [...prev, { type: 'line', color, points: [start, p] }])
-    }
-    setStart(null)
-    setPreview(null)
+    setStart(p)
+    setPreview(p)
+    try { canvasRef.current?.setPointerCapture(evt.pointerId) } catch { /* ignore */ }
   }
 
   const onPointerMove = (evt: React.PointerEvent<HTMLCanvasElement>) => {
@@ -283,12 +277,20 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     setPreview(toNormalized(evt))
   }
 
-  const undo = () => {
-    if (start) {
-      setStart(null)
-      setPreview(null)
-      return
+  const onPointerUp = (evt: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!start) return
+    evt.preventDefault()
+    try { canvasRef.current?.releasePointerCapture(evt.pointerId) } catch { /* ignore */ }
+    const p = toNormalized(evt)
+    const distSq = (start[0] - p[0]) ** 2 + (start[1] - p[1]) ** 2
+    if (distSq > MIN_LINE_DIST_SQ) {
+      setStrokes((prev) => [...prev, { type: 'line', color, points: [start, p] }])
     }
+    setStart(null)
+    setPreview(null)
+  }
+
+  const undo = () => {
     setStrokes((prev) => prev.slice(0, -1))
   }
 
@@ -337,6 +339,8 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
       className="absolute inset-0 w-full h-full touch-none cursor-crosshair z-10"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       aria-label={t('canvasAria')}
     />
   )
