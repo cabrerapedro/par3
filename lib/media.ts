@@ -1,21 +1,5 @@
 'use client'
 
-import fixWebmDuration from 'fix-webm-duration'
-
-// MediaRecorder webm blobs don't write the clip duration into the container
-// header. That breaks the native <video>/<audio> seek bar (it fills before the
-// media ends). Patch the real duration (ms) into the EBML header. No-op for
-// non-webm (Safari mp4 already carries a proper duration). Used for VIDEO,
-// where we can't cheaply re-encode.
-export async function patchWebmDuration(blob: Blob, mime: string, durationMs: number): Promise<Blob> {
-  if (!mime.includes('webm') || !(durationMs > 0)) return blob
-  try {
-    return await fixWebmDuration(blob, durationMs, { logger: false })
-  } catch {
-    return blob
-  }
-}
-
 // Re-encode a recorded audio blob to WAV using only native Web Audio APIs.
 // This is the most robust fix for the voice notes: the webm/opus a browser
 // records can stutter on playback and report a broken duration; decoding it to

@@ -24,7 +24,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { patchWebmDuration, reencodeAudioToWav } from '@/lib/media'
+import { reencodeAudioToWav } from '@/lib/media'
 import { pickAudioMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 
 // ---------- Public shape ----------
@@ -162,12 +162,11 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
         }
         const rawMime = resolveRecordedMime(recorder, audioChunksRef.current, mime, 'audio')
         const raw = new Blob(audioChunksRef.current, { type: rawMime })
-        const durationMs = Math.max(0, Date.now() - startedAtRef.current)
         // Re-encode the voice note to WAV (clean playback + exact duration).
-        // Fall back to a duration-patched webm if decoding isn't possible.
+        // Fall back to the raw recording if decoding isn't possible.
         void (async () => {
           const wav = await reencodeAudioToWav(raw)
-          const finalBlob = wav ?? (await patchWebmDuration(raw, rawMime, durationMs))
+          const finalBlob = wav ?? raw
           const finalMime = wav ? 'audio/wav' : rawMime
           setAudioBlob(finalBlob)
           setAudioMime(finalMime)

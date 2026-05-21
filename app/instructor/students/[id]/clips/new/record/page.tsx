@@ -17,8 +17,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { CameraAngle } from '@/lib/types'
-import { patchWebmDuration } from '@/lib/media'
-import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS, isIOS, readVideoDurationMs } from '@/lib/recorder'
+import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
 import { useClipFlow } from '../layout'
 
@@ -46,9 +45,6 @@ export default function ClipRecordPage() {
   // Keep the chosen angle in a ref so the recorder's onstop closure reads the
   // latest value (closures capture the value at start time otherwise).
   const angleRef = useRef<CameraAngle>('face_on')
-  // Native camera capture (iOS): the in-app MediaRecorder is unreliable on
-  // WebKit, so on iOS we shoot via the system camera and get a real mp4.
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [cameraReady, setCameraReady] = useState(false)
@@ -56,21 +52,9 @@ export default function ClipRecordPage() {
   const [elapsedMs, setElapsedMs] = useState(0)
   const [angle, setAngle] = useState<CameraAngle>('face_on')
   const [error, setError] = useState<string | null>(null)
-  // Resolved after mount to avoid an SSR/hydration mismatch.
-  const [ios, setIos] = useState(false)
 
-  useWakeLock(recording && !ios)
+  useWakeLock(recording)
   useEffect(() => { angleRef.current = angle }, [angle])
-
-  // Native-camera path (iOS): a selected video file becomes the recorded clip.
-  async function onNativeVideo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = '' // allow re-selecting the same file
-    if (!file) return
-    const durationMs = await readVideoDurationMs(file)
-    setRecorded({ blob: file, mime: file.type || 'video/mp4', durationMs, angle: angleRef.current })
-    router.push(`/instructor/students/${studentId}/clips/new/annotate`)
-  }
 
   // --- Camera lifecycle -------------------------------------------------
 
@@ -120,8 +104,6 @@ export default function ClipRecordPage() {
   }, [t])
 
   useEffect(() => {
-    // On iOS we use the native camera (no in-app getUserMedia/MediaRecorder).
-    if (isIOS()) { setIos(true); return }
     startCamera(facingMode)
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -183,13 +165,10 @@ export default function ClipRecordPage() {
           return
         }
 
-        // Patch the duration into the header (webm only) so the player bar is
-        // correct, then advance to the review step.
-        void (async () => {
-          const fixed = await patchWebmDuration(raw, rawMime, durationMs)
-          setRecorded({ blob: fixed, mime: rawMime, durationMs, angle: angleRef.current })
-          router.push(`/instructor/students/${studentId}/clips/new/annotate`)
-        })()
+        // Hand the recording straight to the review step — no post-processing
+        // of the blob (rewriting the container broke playback).
+        setRecorded({ blob: raw, mime: rawMime, durationMs, angle: angleRef.current })
+        router.push(`/instructor/students/${studentId}/clips/new/annotate`)
       }
       // Timeslice: iOS/WebKit needs periodic dataavailable to reliably
       // capture — without it, stop() can yield an empty recording.
@@ -265,16 +244,6 @@ export default function ClipRecordPage() {
           recording ? 'ring-4 ring-inset ring-bad' : ''
         }`}
       >
-        {ios ? (
-          <div className="flex flex-col items-center justify-center gap-4 text-white/80 px-6 text-center">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
-              <path d="M23 7l-7 5 7 5V7z" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </svg>
-            <p className="text-sm max-w-xs leading-snug">{t('iosCameraHint')}</p>
-          </div>
-        ) : (
-        <>
         <video
           ref={videoRef}
           autoPlay
@@ -336,8 +305,6 @@ export default function ClipRecordPage() {
             <span className="text-xs font-medium">{t('flipCameraShort')}</span>
           </button>
         )}
-        </>
-        )}
       </div>
 
       {/* Bottom panel */}
@@ -373,8 +340,8 @@ export default function ClipRecordPage() {
 
             <button
               type="button"
-              onClick={ios ? () => fileInputRef.current?.click() : startRecording}
-              disabled={!ios && !cameraReady}
+              onClick={startRecording}
+              disabled={!cameraReady}
               aria-label={t('recordStart')}
               className="size-20 rounded-full flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-bad/90 text-white hover:bg-bad active:scale-95 shadow-lg shadow-bad/20"
             >
@@ -424,16 +391,6 @@ export default function ClipRecordPage() {
           </>
         )}
       </div>
-
-      {/* Native camera (iOS) */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="video/*"
-        capture="environment"
-        className="hidden"
-        onChange={onNativeVideo}
-      />
     </div>
   )
 }

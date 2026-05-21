@@ -11,7 +11,7 @@ import {
   detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
-import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS, isIOS } from '@/lib/recorder'
+import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
 import { insertSessionFrames, type FrameRow } from '@/lib/frames'
 import type { Clip } from '@/lib/classes'
@@ -43,8 +43,6 @@ export default function StudentClipPractice() {
   const chunksRef = useRef<Blob[]>([])
   const mimeTypeRef = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  // Native camera capture (iOS): in-app MediaRecorder is unreliable on WebKit.
-  const captureInputRef = useRef<HTMLInputElement>(null)
 
   const [clip, setClip] = useState<Clip | null>(null)
   const [stage, setStage] = useState<Stage>('input')
@@ -557,7 +555,7 @@ export default function StudentClipPractice() {
           <h1 className="text-xl font-display font-semibold mb-4">{t('title')}</h1>
 
           <button
-            onClick={() => (isIOS() ? captureInputRef.current?.click() : startRecording('environment'))}
+            onClick={() => startRecording('environment')}
             className="bg-paper-2 border border-rule rounded-md p-6 text-left hover:bg-paper-3 transition-all block"
           >
             <div className="flex items-center gap-3 mb-2">
@@ -588,15 +586,6 @@ export default function StudentClipPractice() {
             ref={fileInputRef}
             type="file"
             accept="video/*"
-            onChange={handleUpload}
-            className="hidden"
-          />
-          {/* Native camera capture (iOS) */}
-          <input
-            ref={captureInputRef}
-            type="file"
-            accept="video/*"
-            capture="environment"
             onChange={handleUpload}
             className="hidden"
           />
