@@ -11,7 +11,6 @@
 // collects the AnnotationDraft state.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -23,7 +22,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AnnotationCanvas, type AnnotationDraft, type AnnotationCanvasHandle, type Stroke, type StrokeColor } from '@/components/AnnotationCanvas'
 import { useAuth } from '@/lib/auth'
@@ -102,13 +100,13 @@ export default function ClipAnnotatePage() {
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null)
 
   // ---- Clip metadata + annotations local state --------------------
-  const [name, setName] = useState('')
   // Pre-filled from the angle the instructor chose on the record screen.
   const [angle, setAngle] = useState<CameraAngle>(() => recorded?.angle ?? 'face_on')
   const [clipType, setClipType] = useState<ClipType>('position')
   const [annotations, setAnnotations] = useState<DraftAnnotation[]>([])
   const [error, setError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
+  const [backOpen, setBackOpen] = useState(false)
 
   // Keep <video>.playbackRate in sync.
   useEffect(() => {
@@ -330,7 +328,7 @@ export default function ClipAnnotatePage() {
     }
     const allAnnotations = pendingAnnotation ? [...annotations, pendingAnnotation] : annotations
 
-    const finalName = name.trim() || defaultName
+    const finalName = defaultName
     const selectedMetrics = METRICS_BY_ANGLE[angle] ?? []
 
     try {
@@ -478,6 +476,23 @@ export default function ClipAnnotatePage() {
     router.replace(`/instructor/students/${studentId}`)
   }
 
+  // Top-left "back / re-record". If there's unsaved work, ask first so Steve
+  // never loses a clip by reflexively tapping back; otherwise just go.
+  const hasUnsavedWork = annotations.length > 0 || canvasOpen
+  const goToRecord = () => router.push(`/instructor/students/${studentId}/clips/new/record`)
+  const handleBack = () => {
+    if (hasUnsavedWork) setBackOpen(true)
+    else goToRecord()
+  }
+  const handleBackRerecord = () => {
+    setBackOpen(false)
+    goToRecord()
+  }
+  const handleBackSave = () => {
+    setBackOpen(false)
+    void handleSave()
+  }
+
   // ---- Render ------------------------------------------------------
 
   if (!recorded || !videoUrl) {
@@ -502,15 +517,16 @@ export default function ClipAnnotatePage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <Link
-          href={`/instructor/students/${studentId}/clips/new/record`}
+        <button
+          type="button"
+          onClick={handleBack}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
           {t('back')}
-        </Link>
+        </button>
         <h1 className="text-sm font-semibold">{t('title')}</h1>
         <button
           type="button"
@@ -522,8 +538,8 @@ export default function ClipAnnotatePage() {
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 p-4 lg:p-6">
-        {/* Video stage — 60% on lg+ */}
-        <div className="lg:basis-3/5 flex flex-col gap-3">
+        {/* Video stage — wider on lg+; full width when stacked (portrait iPad) */}
+        <div className="lg:basis-2/3 flex flex-col gap-3">
           <div className="flex justify-center">
             {/* inline-block so the stage hugs the video exactly — the canvas
                 overlays at inset-0 and its normalized coords stay aligned. */}
@@ -531,7 +547,7 @@ export default function ClipAnnotatePage() {
               <video
                 ref={videoRef}
                 src={videoUrl}
-                className="block max-h-[60vh] max-w-full"
+                className="block max-h-[64vh] max-w-full"
                 onLoadedMetadata={onLoadedMetadata}
                 onTimeUpdate={onTimeUpdate}
                 onPlay={onPlay}
@@ -599,9 +615,9 @@ export default function ClipAnnotatePage() {
             <button
               type="button"
               onClick={openCanvas}
-              className="self-start inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ok/15 text-ok border border-ok/30 hover:bg-ok/20 transition-colors font-medium text-sm"
+              className="self-start inline-flex items-center gap-2.5 min-h-[48px] px-5 py-3 rounded-xl bg-ok/15 text-ok border border-ok/30 hover:bg-ok/20 transition-colors font-semibold text-base"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
               </svg>
@@ -623,23 +639,10 @@ export default function ClipAnnotatePage() {
           )}
         </div>
 
-        {/* Right panel — 40% on lg+ */}
-        <aside className="lg:basis-2/5 flex flex-col gap-4">
+        {/* Right panel — narrower on lg+; stacks below the video in portrait */}
+        <aside className="lg:basis-1/3 flex flex-col gap-4">
           {/* Metadata form */}
           <div className="bg-card border border-border rounded-md p-4 flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="clip-name" className="text-sm">
-                {t('nameLabel')} <span className="font-normal text-muted-foreground">{t('nameOptional')}</span>
-              </Label>
-              <Input
-                id="clip-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('namePlaceholderOptional', { default: defaultName })}
-                className="bg-secondary border-border"
-              />
-            </div>
-
             <div className="flex flex-col gap-1.5">
               <Label className="text-sm">{t('angleLabel')}</Label>
               <div className="flex gap-2">
@@ -711,11 +714,18 @@ export default function ClipAnnotatePage() {
             </div>
           )}
 
+          {/* While annotating, the single green CTA is "Guardar anotación" in
+              the canvas controls — so this drops to a muted style to avoid two
+              competing primaries. It still works (it rescues the open drawing). */}
           <button
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="h-12 rounded-xl bg-primary text-primary-foreground hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className={`h-12 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              canvasOpen
+                ? 'bg-secondary text-muted-foreground border border-border hover:bg-secondary/70'
+                : 'bg-primary text-primary-foreground hover:opacity-85'
+            }`}
           >
             {t('save')}
           </button>
@@ -743,6 +753,24 @@ export default function ClipAnnotatePage() {
           </div>
         </div>
       )}
+
+      {/* Back / re-record confirmation — only shown when there's unsaved work */}
+      <Dialog open={backOpen} onOpenChange={setBackOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>{t('backConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('backConfirmDescription')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button onClick={handleBackSave} className="w-full">
+              {t('backConfirmSave')}
+            </Button>
+            <Button variant="outline" onClick={handleBackRerecord} className="w-full border-border">
+              {t('backConfirmRerecord')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Discard confirmation */}
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
