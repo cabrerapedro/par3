@@ -285,7 +285,7 @@
       "namePlaceholder": "Student name",
       "emailLabel": "Email",
       "emailOptional": "(optional)",
-      "emailRequiredHint": "Optional. With an email, the student can sign in without the code. They can also add it themselves later.",
+      "emailOptionalHint": "Optional. With an email, the student can sign in without the code. They can also add it themselves later.",
       "emailPlaceholder": "student@email.com",
       "accessTitle": "Your access",
       "accessInstruction": "Go to parell.golf with this code",

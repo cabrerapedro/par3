@@ -285,7 +285,7 @@
       "namePlaceholder": "Nombre del alumno",
       "emailLabel": "Correo",
       "emailOptional": "(opcional)",
-      "emailRequiredHint": "Opcional. Con un correo, el alumno puede entrar sin el código. También puede añadirlo él mismo más tarde.",
+      "emailOptionalHint": "Opcional. Con un correo, el alumno puede entrar sin el código. También puede añadirlo él mismo más tarde.",
       "emailPlaceholder": "alumno@correo.com",
       "accessTitle": "Tu acceso",
       "accessInstruction": "Entra en parell.golf con este código",

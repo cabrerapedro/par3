@@ -94,7 +94,7 @@ export default function NewStudent() {
                   placeholder={t('emailPlaceholder')}
                   className="bg-secondary border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-primary/20 h-12 text-base"
                 />
-                <p className="text-muted-foreground/70 text-xs">{t('emailRequiredHint')}</p>
+                <p className="text-muted-foreground/70 text-xs">{t('emailOptionalHint')}</p>
               </div>
 
               {error && (
