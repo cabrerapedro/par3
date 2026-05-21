@@ -128,19 +128,20 @@ export default function ClipDetailPage() {
       if (!res.ok) throw new Error(`Couldn't fetch video (HTTP ${res.status})`)
       const blob = await res.blob()
 
-      // 2. Run MediaPipe over every frame. processClip's per-frame timeout
-      // cap (H5 fix) means a stuck WASM session will throw instead of
-      // looping for minutes.
+      // 2. Run MediaPipe over the frames (lite model, posture sampled lower for
+      // speed). processClip's per-frame timeout cap means a stuck WASM session
+      // throws instead of looping for minutes.
+      const fps = c.clip_type === 'swing' ? 10 : 5
       const frames = await processClip({
         videoBlob: blob,
         cameraAngle: c.camera_angle,
-        fps: 10,
+        fps,
         onProgress: (p) => setRetryPct(Math.round(p * 100)),
       })
 
       // 3. Detection-ratio sanity check (M4).
-      const durationSeconds = blob.size > 0 ? frames.length / 10 + 1 : 30
-      const detection = clipDetectionRatio(frames.length, durationSeconds, 10)
+      const durationSeconds = blob.size > 0 ? frames.length / fps + 1 : 30
+      const detection = clipDetectionRatio(frames.length, durationSeconds, fps)
       if (detection < 0.3) {
         setRetryError(t('lowDetection', { pct: Math.round(detection * 100) }))
         setRetrying(false)

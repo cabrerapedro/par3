@@ -66,9 +66,16 @@ export async function processClip(opts: ProcessClipOptions): Promise<ProcessedFr
   video.src = objectUrl
 
   let pendingResolver: ((landmarks: Landmark[] | null) => void) | null = null
-  const pose = await createPose((results: { poseLandmarks?: Landmark[] }) => {
-    pendingResolver?.(results.poseLandmarks ?? null)
-  })
+  // Lite model + no smoothing: this is batch analysis (frame-by-frame seeking),
+  // where smoothing across non-sequential seeks adds cost for no benefit, and
+  // the lighter model is far faster on an iPad. The full video is stored, so a
+  // higher-fidelity baseline can be recomputed later if needed.
+  const pose = await createPose(
+    (results: { poseLandmarks?: Landmark[] }) => {
+      pendingResolver?.(results.poseLandmarks ?? null)
+    },
+    { modelComplexity: 0, smoothLandmarks: false },
+  )
 
   try {
     // Don't hang forever if metadata never arrives — fall back to the hint.
