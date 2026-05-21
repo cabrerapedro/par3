@@ -11,7 +11,6 @@
 // collects the AnnotationDraft state.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -109,6 +108,7 @@ export default function ClipAnnotatePage() {
   const [annotations, setAnnotations] = useState<DraftAnnotation[]>([])
   const [error, setError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
+  const [backOpen, setBackOpen] = useState(false)
 
   // Keep <video>.playbackRate in sync.
   useEffect(() => {
@@ -478,6 +478,23 @@ export default function ClipAnnotatePage() {
     router.replace(`/instructor/students/${studentId}`)
   }
 
+  // Top-left "back / re-record". If there's unsaved work, ask first so Steve
+  // never loses a clip by reflexively tapping back; otherwise just go.
+  const hasUnsavedWork = annotations.length > 0 || canvasOpen
+  const goToRecord = () => router.push(`/instructor/students/${studentId}/clips/new/record`)
+  const handleBack = () => {
+    if (hasUnsavedWork) setBackOpen(true)
+    else goToRecord()
+  }
+  const handleBackRerecord = () => {
+    setBackOpen(false)
+    goToRecord()
+  }
+  const handleBackSave = () => {
+    setBackOpen(false)
+    void handleSave()
+  }
+
   // ---- Render ------------------------------------------------------
 
   if (!recorded || !videoUrl) {
@@ -502,15 +519,16 @@ export default function ClipAnnotatePage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <Link
-          href={`/instructor/students/${studentId}/clips/new/record`}
+        <button
+          type="button"
+          onClick={handleBack}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
           {t('back')}
-        </Link>
+        </button>
         <h1 className="text-sm font-semibold">{t('title')}</h1>
         <button
           type="button"
@@ -711,11 +729,18 @@ export default function ClipAnnotatePage() {
             </div>
           )}
 
+          {/* While annotating, the single green CTA is "Guardar anotación" in
+              the canvas controls — so this drops to a muted style to avoid two
+              competing primaries. It still works (it rescues the open drawing). */}
           <button
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="h-12 rounded-xl bg-primary text-primary-foreground hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className={`h-12 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              canvasOpen
+                ? 'bg-secondary text-muted-foreground border border-border hover:bg-secondary/70'
+                : 'bg-primary text-primary-foreground hover:opacity-85'
+            }`}
           >
             {t('save')}
           </button>
@@ -743,6 +768,24 @@ export default function ClipAnnotatePage() {
           </div>
         </div>
       )}
+
+      {/* Back / re-record confirmation — only shown when there's unsaved work */}
+      <Dialog open={backOpen} onOpenChange={setBackOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>{t('backConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('backConfirmDescription')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button onClick={handleBackSave} className="w-full">
+              {t('backConfirmSave')}
+            </Button>
+            <Button variant="outline" onClick={handleBackRerecord} className="w-full border-border">
+              {t('backConfirmRerecord')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Discard confirmation */}
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>

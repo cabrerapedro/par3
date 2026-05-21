@@ -448,6 +448,11 @@
         "discardConfirmDescription": "Vas a perder el video grabado y las anotaciones.",
         "discardConfirmCancel": "Seguir editando",
         "discardConfirmAction": "Descartar",
+        "backConfirmTitle": "¿Guardar este clip?",
+        "backConfirmDescription": "Tienes trabajo sin guardar. Puedes guardar el clip o volver a grabar y perder lo hecho.",
+        "backConfirmSave": "Guardar clip",
+        "backConfirmRerecord": "Volver a grabar",
+        "backConfirmCancel": "Seguir editando",
         "missingName": "Pon un nombre al clip antes de guardar.",
         "missingVideo": "No hay un video grabado. Vuelve a grabar.",
         "lowDetection": "Solo detectamos al alumno en el {pct}% del video. Vuelve a grabarlo con mejor encuadre."
