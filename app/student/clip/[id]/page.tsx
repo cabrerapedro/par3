@@ -249,7 +249,12 @@ export default function ClipDetail() {
                         <p className="text-muted-foreground text-sm leading-relaxed italic">&ldquo;{ann.audio_transcript}&rdquo;</p>
                       )}
                       {ann.audio_url && (
-                        <audio src={ann.audio_url} controls className="w-full h-9 mt-auto" style={{ accentColor: '#60a5fa' }} />
+                        <audio
+                          src={ann.audio_url}
+                          controls
+                          className="w-full h-9 mt-auto"
+                          style={{ accentColor: '#60a5fa' }}
+                        />
                       )}
                     </div>
                   </div>

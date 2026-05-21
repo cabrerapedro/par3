@@ -24,6 +24,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { patchWebmDuration, reencodeAudioToWav } from '@/lib/media'
 
 // ---------- Public shape ----------
 
@@ -153,7 +154,11 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
 
   const startMic = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        // Without these, recording on a laptop without headphones picks up the
+        // speakers and the voice note comes out echoey / doubled.
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      })
       streamRef.current = stream
       const mime = pickAudioMime()
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
@@ -172,13 +177,24 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           stopResolverRef.current = null
           return
         }
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || mime || 'audio/webm' })
-        setAudioBlob(blob)
-        setAudioMime(recorder.mimeType || mime)
-        stopResolverRef.current?.({ blob, mime: recorder.mimeType || mime })
-        stopResolverRef.current = null
+        const rawMime = recorder.mimeType || mime || 'audio/webm'
+        const raw = new Blob(audioChunksRef.current, { type: rawMime })
+        const durationMs = Math.max(0, Date.now() - startedAtRef.current)
+        // Re-encode the voice note to WAV (clean playback + exact duration).
+        // Fall back to a duration-patched webm if decoding isn't possible.
+        void (async () => {
+          const wav = await reencodeAudioToWav(raw)
+          const finalBlob = wav ?? (await patchWebmDuration(raw, rawMime, durationMs))
+          const finalMime = wav ? 'audio/wav' : rawMime
+          setAudioBlob(finalBlob)
+          setAudioMime(finalMime)
+          stopResolverRef.current?.({ blob: finalBlob, mime: finalMime })
+          stopResolverRef.current = null
+        })()
       }
-      recorder.start(250)
+      // No timeslice: a single dataavailable on stop yields one clean blob
+      // (chunked recording can produce glitchy/stuttery webm).
+      recorder.start()
       recorderRef.current = recorder
       startedAtRef.current = Date.now()
       setAudioBlob(null)

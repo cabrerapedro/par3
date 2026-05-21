@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { CameraAngle } from '@/lib/types'
+import { patchWebmDuration } from '@/lib/media'
 import { useClipFlow } from '../layout'
 
 const MAX_LENGTH_MS = 60_000 // hard cap; spec says clips run 15–30 s
@@ -156,7 +157,8 @@ export default function ClipRecordPage() {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mime || 'video/webm' })
+        const rawMime = recorder.mimeType || mime || 'video/webm'
+        const raw = new Blob(chunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startMsRef.current)
 
         if (durationMs < MIN_LENGTH_MS) {
@@ -167,10 +169,17 @@ export default function ClipRecordPage() {
           return
         }
 
-        setRecorded({ blob, mime: recorder.mimeType || mime || 'video/webm', durationMs, angle: angleRef.current })
-        router.push(`/instructor/students/${studentId}/clips/new/annotate`)
+        // Patch the webm duration into the header so the player bar is correct
+        // and playback doesn't stutter, then advance to the review step.
+        void (async () => {
+          const fixed = await patchWebmDuration(raw, rawMime, durationMs)
+          setRecorded({ blob: fixed, mime: rawMime, durationMs, angle: angleRef.current })
+          router.push(`/instructor/students/${studentId}/clips/new/annotate`)
+        })()
       }
-      recorder.start(1000)
+      // No timeslice: one clean blob on stop (chunked recording can produce a
+      // glitchy webm with broken timestamps).
+      recorder.start()
       recorderRef.current = recorder
       startMsRef.current = Date.now()
       setElapsedMs(0)

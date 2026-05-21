@@ -7,14 +7,13 @@
 // linked practice_sessions clip_id reference) thanks to the ON DELETE
 // CASCADE constraints in schema.sql.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import type { Clip } from '@/lib/classes'
-import { SVGAnnotationOverlay } from '@/components/SVGAnnotationOverlay'
 import type { Stroke } from '@/components/AnnotationCanvas'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
@@ -77,10 +76,6 @@ export default function ClipDetailPage() {
   const [retryError, setRetryError] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const stageRef = useRef<HTMLDivElement | null>(null)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [paused, setPaused] = useState(true)
-  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -113,28 +108,11 @@ export default function ClipDetailPage() {
     setLoading(false)
   }
 
-  // The closest annotation in time — when the video is paused on or near a
-  // marked moment, render its strokes over the frame as a preview.
-  const activeAnnotation = useMemo(() => {
-    if (!paused || annotations.length === 0) return null
-    return annotations.find(
-      (a) => Math.abs(a.frame_timestamp_ms - currentTime) < 250,
-    )
-  }, [annotations, currentTime, paused])
-
   function seekTo(ms: number) {
     const v = videoRef.current
     if (!v) return
     v.currentTime = ms / 1000
-    setCurrentTime(ms)
     if (!v.paused) v.pause()
-  }
-
-  function captureStageSize() {
-    const v = videoRef.current
-    if (!v) return
-    const rect = v.getBoundingClientRect()
-    setStageSize({ width: Math.round(rect.width), height: Math.round(rect.height) })
   }
 
   async function retryProcessing(target?: Clip) {
@@ -324,7 +302,7 @@ export default function ClipDetailPage() {
           </span>
           {clip.clip_type === 'swing' && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-muted-foreground border border-border">
-              swing
+              {t('typeSwing')}
             </span>
           )}
           {clip.status === 'calibrated' && baselineMetricKeys.length > 0 && (
@@ -377,35 +355,20 @@ export default function ClipDetailPage() {
           </div>
         )}
 
-        {/* Video stage with annotation marker timeline */}
-        <div ref={stageRef} className="relative bg-black rounded-md overflow-hidden">
+        {/* Video stage. The instructor's drawing is intentionally NOT overlaid
+            on the video — the per-annotation snapshots below carry the drawing. */}
+        <div className="relative bg-black rounded-md overflow-hidden">
           {clip.video_url ? (
             <video
               ref={videoRef}
               src={clip.video_url}
               controls
               className="w-full max-h-[60vh] object-contain"
-              onLoadedMetadata={captureStageSize}
-              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime * 1000)}
-              onPlay={() => setPaused(false)}
-              onPause={() => setPaused(true)}
-              onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime * 1000)}
               playsInline
             />
           ) : (
             <div className="aspect-video flex items-center justify-center text-muted-foreground text-sm">
               {t('videoUnavailable')}
-            </div>
-          )}
-
-          {/* Overlay strokes when paused near an annotation */}
-          {activeAnnotation && stageSize && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <SVGAnnotationOverlay
-                width={stageSize.width}
-                height={stageSize.height}
-                strokes={activeAnnotation.strokes}
-              />
             </div>
           )}
         </div>
@@ -468,7 +431,12 @@ export default function ClipDetailPage() {
                         <p className="text-sm text-foreground leading-relaxed">{a.text_note}</p>
                       )}
                       {a.audio_url && (
-                        <audio src={a.audio_url} controls className="w-full h-10 mt-auto" preload="metadata" />
+                        <audio
+                          src={a.audio_url}
+                          controls
+                          className="w-full h-10 mt-auto"
+                          preload="metadata"
+                        />
                       )}
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Wordmark } from '@/components/Wordmark'
 import { Stamp } from '@/components/Stamp'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export default function Home() {
   const { instructor, student, loading } = useAuth()
@@ -41,7 +42,11 @@ function Header() {
   return (
     <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-rule">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-4 flex items-center justify-between">
-        <Link href="/" aria-label="Parell — inicio">
+        <Link
+          href="/"
+          aria-label="Parell, inicio"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
           <Wordmark size="md" />
         </Link>
         <nav className="flex items-center gap-6 md:gap-8">
@@ -70,7 +75,7 @@ function Hero() {
             Tu alumno practica con tu referencia exacta,<br className="hidden md:inline" /> no con un estándar genérico.
           </h1>
           <p className="text-lg md:text-[19px] text-ink-soft leading-[1.55] mt-7 max-w-[560px]">
-            Calibras la técnica de tu alumno una vez. Él la practica toda la semana con esa referencia en su teléfono. La app te devuelve cada sesión — no un score genérico.
+            Calibras la técnica de tu alumno una vez. Él la practica toda la semana con esa referencia en su teléfono. La app te devuelve cada sesión real, no un score genérico.
           </p>
 
           <div className="flex flex-wrap gap-3 mt-9">
@@ -97,7 +102,7 @@ function Hero() {
           <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
             <Image
               src="/images/hero-address-light.png"
-              alt="Postura de dirección — vista de perfil, con anotaciones técnicas del instructor"
+              alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
               fill
               priority
               sizes="(min-width: 768px) 40vw, 100vw"
@@ -115,7 +120,7 @@ function Hero() {
             </div>
           </div>
           <div className="flex justify-between mt-3">
-            <span className="small-caps font-mono text-[10px] text-ink-mute">Lámina 03 — Postura de dirección</span>
+            <span className="small-caps font-mono text-[10px] text-ink-mute">Lámina 03 · Postura de dirección</span>
             <span className="small-caps font-mono text-[10px] text-ink-mute">De perfil · DTL</span>
           </div>
         </div>
@@ -134,13 +139,13 @@ function Manifesto() {
 
         <div className="max-w-[720px]">
           <p className="font-display font-medium text-2xl md:text-[30px] leading-[1.28]">
-            El instructor enseña una hora a la semana. El alumno practica seis. Entre la clase y la práctica suele caer la mitad de lo aprendido — no por falta de esfuerzo, sino porque la memoria es frágil y el cuerpo se acomoda a sus viejos hábitos en cuanto cierra la puerta de la academia.
+            El instructor enseña una hora a la semana. El alumno practica seis. Entre la clase y la práctica suele caer la mitad de lo aprendido, y no por falta de esfuerzo: la memoria es frágil y el cuerpo se acomoda a sus viejos hábitos en cuanto cierra la puerta de la academia.
           </p>
 
           <div className="border-t border-rule mt-12 pt-12">
             <p className="font-display font-semibold text-[28px] md:text-[34px] leading-[1.2] relative pl-9">
               <span aria-hidden className="absolute left-[-2px] top-[-12px] text-[80px] leading-none text-accent font-semibold">“</span>
-              No reemplazamos al instructor.<br />Lo extendemos.
+              No reemplazamos al instructor.<br />Lo extendemos.<span aria-hidden className="text-accent font-semibold text-[1.5em] leading-none align-middle ml-1">”</span>
             </p>
             <p className="small-caps font-mono text-[11px] text-ink-mute mt-4 ml-9">
               Principio irrenunciable
@@ -169,27 +174,27 @@ function ComoFunciona() {
           <Panel
             numeral="I"
             who="Durante la clase"
-            title="El instructor calibra."
-            body="Con el iPad en mano, graba 15 segundos del movimiento correcto del alumno. Pausa, dibuja con el dedo sobre el frame clave, habla. Lo guarda. La técnica queda como un manual técnico — exacto, suyo."
+            title="Grabas la técnica correcta."
+            body="Con el iPad, grabas 15 segundos del movimiento bien hecho de tu alumno. Pausas en el momento clave, lo marcas con el dedo y lo explicas con tu voz. Queda guardado como su referencia personal."
             imageBase="como-calibra"
             imageAlt="Instructor con iPad junto a alumno en posición de address"
           />
           <Panel
             numeral="II"
             who="Entre clases"
-            title="El alumno practica."
-            body="Abre el teléfono en el rango. Ve la referencia de su profesor, la escucha, la entiende. Activa el espejo. La app le dice qué corregir, una cosa a la vez, en lenguaje corporal — sin jerga, sin números."
+            title="Tu alumno practica con esa referencia."
+            body="En el range abre el teléfono y ve tu video, tu dibujo y tu voz. La cámara funciona como espejo y le indica qué corregir, una cosa a la vez y en lenguaje simple, sin grados ni jerga."
             imageBase="como-practica"
-            imageAlt="Alumno practicando solo en el rango con el teléfono en un trípode mostrando feedback"
+            imageAlt="Alumno practicando solo en el range con el teléfono en un trípode mostrando feedback"
             divider
           />
           <Panel
             numeral="III"
             who="El sábado siguiente"
-            title="La conversación se reanuda."
-            body="El instructor abre el perfil del alumno y ve la semana entera como un yardage book: qué practicó, qué le costó, qué mejoró. La clase del sábado deja de empezar de cero."
+            title="Ves su semana antes de la clase."
+            body="Abres su perfil y ves qué practicó, cuántas veces y qué intentó. Llegas a la clase sabiendo en qué estuvo trabajando, en vez de empezar de cero."
             imageBase="como-revisa"
-            imageAlt="Dos pares de manos revisando un iPad con el scorecard semanal del alumno"
+            imageAlt="Dos pares de manos revisando un iPad con el resumen semanal del alumno"
             divider
           />
         </div>
@@ -231,11 +236,11 @@ function TresPrincipios() {
     <section id="principios" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
-          {/* Image — contemporary photo of golfer with 33 cognac landmarks overlaid */}
+          {/* Image: contemporary photo of golfer with 33 cognac landmarks overlaid */}
           <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
             <Image
               src="/images/sistema-ia-photo-light.png"
-              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo — la app midiendo cada articulación en tiempo real"
+              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo, la app midiendo cada articulación en tiempo real"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover block dark:hidden"
@@ -255,14 +260,14 @@ function TresPrincipios() {
               Inteligencia artificial
             </p>
             <h2 className="font-display font-semibold text-3xl md:text-[44px] leading-[1.05] tracking-[-0.015em] mt-4">
-              Tu corrección, en cada ensayo del alumno.
+              Tu corrección, repetida en cada práctica.
             </h2>
             <p className="text-[17px] md:text-[18px] leading-[1.6] text-ink-soft mt-7 max-w-[520px]">
-              Una IA propia compara cada ensayo del alumno contra la calibración que hiciste para él y le devuelve una instrucción a la vez en lenguaje corporal: <em className="not-italic text-ink">"inclínate desde la cadera"</em>, no "−4° spine angle". Mientras él practica, tu mirada está en el rango.
+              Mientras tu alumno practica solo en el range, la app compara cada intento con la referencia que calibraste para él y le da una sola indicación a la vez, en lenguaje simple: <em className="not-italic text-ink">"inclínate un poco más desde la cadera"</em>, no "4° de más en la columna". Como si tu corrección estuviera ahí cada vez.
             </p>
             <div className="border-t border-rule mt-10 pt-6">
-              <p className="font-display italic text-[22px] md:text-[26px] text-accent leading-[1.35]">
-                La IA mide. Tú enseñas.
+              <p className="font-display font-semibold text-[26px] md:text-[32px] leading-[1.2] tracking-[-0.01em]">
+                <span className="text-ink-mute">La IA mide.</span> <span className="text-accent">Tú enseñas.</span>
               </p>
             </div>
           </div>
@@ -275,6 +280,26 @@ function TresPrincipios() {
 /* ─── Acceso ───────────────────────────────────────────────────────────── */
 
 function Acceso() {
+  const [noCodeOpen, setNoCodeOpen] = useState(false)
+  const [invited, setInvited] = useState(false)
+
+  async function inviteInstructor() {
+    const url = `${window.location.origin}/instructor/login?mode=signup`
+    const shareData = {
+      title: 'Parell',
+      text: 'Te invito a usar Parell para nuestras clases de golf. Crea tu cuenta gratis:',
+      url,
+    }
+    if (navigator.share) {
+      try { await navigator.share(shareData); return } catch { /* fall through to copy */ }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setInvited(true)
+      setTimeout(() => setInvited(false), 1800)
+    } catch { /* ignore */ }
+  }
+
   return (
     <section id="acceso" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
@@ -289,13 +314,13 @@ function Acceso() {
           <AccessBlock
             numeral="I"
             who="Para instructores"
-            title="Empieza con tres alumnos."
-            body="Prueba con tus primeros tres alumnos. Si funciona, escalas."
+            title="Empieza con diez alumnos."
+            body="Prueba con tus primeros diez alumnos. Si funciona, escalas."
             ctaText="Crear cuenta"
             ctaHref="/instructor/login?mode=signup"
             secondaryText="Ya tengo cuenta"
             secondaryHref="/instructor/login"
-            stamp="GRATIS HASTA 3 ALUMNOS"
+            stamp="GRATIS HASTA 10 ALUMNOS"
           />
           <AccessBlock
             numeral="II"
@@ -305,19 +330,45 @@ function Acceso() {
             ctaText="Entrar con código"
             ctaHref="/student/login"
             secondaryText="¿No tienes código?"
-            secondaryHref="#"
+            secondaryOnClick={() => setNoCodeOpen(true)}
             stamp="ACCESO LIBRE"
             divider
           />
         </div>
       </div>
+
+      <Dialog open={noCodeOpen} onOpenChange={setNoCodeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿No tienes código?</DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              Tu código de 6 caracteres lo crea tu instructor cuando te suma a Parell. Si tu profe todavía no lo usa, invítalo a crear su cuenta gratis.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={inviteInstructor}
+              className="inline-flex items-center justify-center h-10 px-5 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:opacity-85 transition-opacity"
+            >
+              {invited ? '✓ Enlace copiado' : 'Invitar a mi instructor'}
+            </button>
+            <Link
+              href="/instructor/login?mode=signup"
+              className="inline-flex items-center justify-center h-10 px-5 text-sm font-medium border border-ink text-ink rounded-md hover:opacity-75 transition-opacity"
+            >
+              Soy instructor
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }
 
-function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryText, secondaryHref, stamp, divider }: {
+function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryText, secondaryHref, secondaryOnClick, stamp, divider }: {
   numeral: string; who: string; title: string; body: string;
-  ctaText: string; ctaHref: string; secondaryText: string; secondaryHref: string;
+  ctaText: string; ctaHref: string; secondaryText: string; secondaryHref?: string; secondaryOnClick?: () => void;
   stamp: string; divider?: boolean
 }) {
   return (
@@ -340,12 +391,22 @@ function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryTex
         >
           {ctaText}
         </Link>
-        <Link
-          href={secondaryHref}
-          className="text-sm text-ink-soft underline underline-offset-4 decoration-rule hover:decoration-ink-soft transition-colors"
-        >
-          {secondaryText}
-        </Link>
+        {secondaryOnClick ? (
+          <button
+            type="button"
+            onClick={secondaryOnClick}
+            className="text-sm text-ink-soft underline underline-offset-4 decoration-rule hover:decoration-ink-soft transition-colors"
+          >
+            {secondaryText}
+          </button>
+        ) : (
+          <Link
+            href={secondaryHref ?? '#'}
+            className="text-sm text-ink-soft underline underline-offset-4 decoration-rule hover:decoration-ink-soft transition-colors"
+          >
+            {secondaryText}
+          </Link>
+        )}
       </div>
     </div>
   )
@@ -358,7 +419,7 @@ function Cierre() {
     <section className="border-b border-rule py-12 md:py-24">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 text-center">
         <p className="font-display italic font-medium text-[28px] md:text-[40px] leading-[1.2] text-ink max-w-[760px] mx-auto">
-          Tu método sigue vivo cuando no estás.
+          Lo que enseñas no se queda en la clase.
         </p>
       </div>
     </section>
@@ -378,7 +439,7 @@ function Footer() {
           <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Términos</a>
         </div>
         <span className="small-caps font-mono text-[10px] text-ink-mute inline-flex items-center gap-2">
-          <span>Hecho con tempo</span>
+          <span>Del tee al green</span>
           <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden className="shrink-0">
             <line x1="1.5" y1="11" x2="1.5" y2="1" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
             <polygon points="1.5,1 7.5,2.5 1.5,4.5" style={{ fill: 'var(--color-accent)' }} />

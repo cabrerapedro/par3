@@ -36,8 +36,6 @@ export interface Clip {
   created_at: string
 }
 
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
-
 /**
  * Get the student's class for "today", or create a new one if it's been
  * more than 24 hours since their last class.
@@ -57,9 +55,14 @@ export async function getOrCreateTodayClass(
   studentId: string,
   instructorId: string,
 ): Promise<Class> {
-  const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS).toISOString()
+  // Group clips by the *calendar day* (local), so a clip recorded the next
+  // morning starts a new class instead of folding into yesterday's. A lesson
+  // is a day, not a rolling 24h window.
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 
-  const { data: recent, error: queryError } = await supabase
+  const { data: existing, error: queryError } = await supabase
     .from('classes')
     .select('*')
     // Scope to the same (student, instructor) pair so a student switching
@@ -67,15 +70,14 @@ export async function getOrCreateTodayClass(
     // landing under the previous instructor's row.
     .eq('student_id', studentId)
     .eq('instructor_id', instructorId)
-    .gte('created_at', cutoff)
+    .eq('date', today)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (queryError) throw queryError
-  if (recent) return recent as Class
+  if (existing) return existing as Class
 
-  const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
   const { data: created, error: insertError } = await supabase
     .from('classes')
     .insert({
