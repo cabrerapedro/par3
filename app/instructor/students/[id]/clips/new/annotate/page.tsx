@@ -214,7 +214,8 @@ export default function ClipAnnotatePage() {
       let transcript: string | null = null
 
       if (draft.audio_blob) {
-        const ext = (draft.audio_mime ?? '').includes('mp4') ? 'm4a' : 'webm'
+        const m = draft.audio_mime ?? ''
+        const ext = m.includes('wav') ? 'wav' : m.includes('mp4') ? 'm4a' : 'webm'
         const path = `${clipId}/${crypto.randomUUID()}.${ext}`
         const { error: upErr } = await supabase.storage
           .from('clip-annotations-audio')
