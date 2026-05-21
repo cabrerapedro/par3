@@ -25,6 +25,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { patchWebmDuration, reencodeAudioToWav } from '@/lib/media'
+import { pickAudioMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 
 // ---------- Public shape ----------
 
@@ -80,24 +81,6 @@ const COLOR_HEX: Record<StrokeColor, string> = {
 const STROKE_WIDTH_PX = 4
 const ENDPOINT_RADIUS_PX = 6
 const MIN_LINE_DIST_SQ = 0.0006 // normalized; throws away accidental zero-length lines
-
-// Pick the best MIME type the browser supports for MediaRecorder. Order
-// matters: webm/opus first because that's what Chrome/Edge/Firefox use,
-// then mp4/aac for Safari.
-const PREFERRED_AUDIO_MIMES = [
-  'audio/webm;codecs=opus',
-  'audio/webm',
-  'audio/mp4;codecs=mp4a.40.2',
-  'audio/mp4',
-]
-
-function pickAudioMime(): string | undefined {
-  if (typeof MediaRecorder === 'undefined') return undefined
-  for (const mime of PREFERRED_AUDIO_MIMES) {
-    if (MediaRecorder.isTypeSupported(mime)) return mime
-  }
-  return undefined
-}
 
 function fmt(ms: number): string {
   const s = Math.floor(ms / 1000)
@@ -177,7 +160,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           stopResolverRef.current = null
           return
         }
-        const rawMime = recorder.mimeType || mime || 'audio/webm'
+        const rawMime = resolveRecordedMime(recorder, audioChunksRef.current, mime, 'audio')
         const raw = new Blob(audioChunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startedAtRef.current)
         // Re-encode the voice note to WAV (clean playback + exact duration).
@@ -192,9 +175,9 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           stopResolverRef.current = null
         })()
       }
-      // Timeslice (1s): iOS/WebKit needs periodic dataavailable to capture
+      // Timeslice: iOS/WebKit needs periodic dataavailable to capture
       // reliably. The WAV re-encode on stop handles any webm quirks anyway.
-      recorder.start(1000)
+      recorder.start(RECORDER_TIMESLICE_MS)
       recorderRef.current = recorder
       startedAtRef.current = Date.now()
       setAudioBlob(null)

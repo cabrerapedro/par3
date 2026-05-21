@@ -18,6 +18,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { CameraAngle } from '@/lib/types'
 import { patchWebmDuration } from '@/lib/media'
+import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
+import { useWakeLock } from '@/lib/wakeLock'
 import { useClipFlow } from '../layout'
 
 const MAX_LENGTH_MS = 60_000 // hard cap; spec says clips run 15–30 s
@@ -25,21 +27,6 @@ const MIN_LENGTH_MS = 3_000
 const REC_MIN_S = 15 // start of the recommended window
 const REC_MAX_S = 30 // end of the recommended window
 const HARD_CAP_S = MAX_LENGTH_MS / 1000
-
-const PREFERRED_VIDEO_MIMES = [
-  'video/webm;codecs=vp9',
-  'video/webm;codecs=vp8',
-  'video/webm',
-  'video/mp4',
-]
-
-function pickVideoMime(): string | undefined {
-  if (typeof MediaRecorder === 'undefined') return undefined
-  for (const mime of PREFERRED_VIDEO_MIMES) {
-    if (MediaRecorder.isTypeSupported(mime)) return mime
-  }
-  return undefined
-}
 
 export default function ClipRecordPage() {
   const t = useTranslations('instructor.clips.record')
@@ -67,6 +54,7 @@ export default function ClipRecordPage() {
   const [angle, setAngle] = useState<CameraAngle>('face_on')
   const [error, setError] = useState<string | null>(null)
 
+  useWakeLock(recording)
   useEffect(() => { angleRef.current = angle }, [angle])
 
   // --- Camera lifecycle -------------------------------------------------
@@ -157,12 +145,7 @@ export default function ClipRecordPage() {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
       recorder.onstop = () => {
-        // Detect the REAL container. iOS/WebKit records mp4 (it can't do webm)
-        // and often leaves recorder.mimeType empty, so never default to webm —
-        // that would mislabel mp4 data → unplayable on iPad and would also make
-        // the duration patch run on a non-webm file. Trust recorder.mimeType,
-        // then the recorded chunk's own type, then mp4.
-        const rawMime = recorder.mimeType || chunksRef.current[0]?.type || mime || 'video/mp4'
+        const rawMime = resolveRecordedMime(recorder, chunksRef.current, mime, 'video')
         const raw = new Blob(chunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startMsRef.current)
 
@@ -191,9 +174,9 @@ export default function ClipRecordPage() {
           router.push(`/instructor/students/${studentId}/clips/new/annotate`)
         })()
       }
-      // Timeslice (1s): iOS/WebKit needs periodic dataavailable to reliably
+      // Timeslice: iOS/WebKit needs periodic dataavailable to reliably
       // capture — without it, stop() can yield an empty recording.
-      recorder.start(1000)
+      recorder.start(RECORDER_TIMESLICE_MS)
       recorderRef.current = recorder
       startMsRef.current = Date.now()
       setElapsedMs(0)
