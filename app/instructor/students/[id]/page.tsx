@@ -211,15 +211,16 @@ export default function StudentProfile() {
             </svg>
           </div>
 
-          <div className="px-5 py-7 flex flex-col items-center text-center gap-2.5">
-            <p className="font-display text-xl text-ink-soft flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-ink-mute shrink-0">
+          <div className="px-5 py-7 flex flex-col items-center text-center gap-1.5">
+            <p className="text-sm text-ink-soft flex items-center gap-1.5">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-ink-mute shrink-0">
                 <circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              https://parell.golf
+              {t('accessStepWeb')}
             </p>
+            <p className="font-display font-semibold text-2xl text-ink mb-4">parell.golf</p>
+            <p className="text-sm text-ink-soft">{t('accessStepCode')}</p>
             <p className="font-mono font-semibold text-4xl md:text-5xl tracking-[0.18em] text-ink">{student.access_code}</p>
-            <p className="text-xs text-ink-mute mt-1">{t('accessInstruction')}</p>
           </div>
 
           <div className="px-5 py-3 flex items-center gap-2 border-t border-rule">
