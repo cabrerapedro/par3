@@ -36,7 +36,7 @@ function useTimeAgo() {
 }
 
 export default function StudentJourney() {
-  const { student, logout, loading } = useAuth()
+  const { student, logout, loading, updateStudent } = useAuth()
   const router = useRouter()
   const t = useTranslations('student.journey')
   const timeAgo = useTimeAgo()
@@ -46,6 +46,26 @@ export default function StudentJourney() {
   const [sessions, setSessions] = useState<SessionLike[]>([])
   const [fetching, setFetching] = useState(true)
   const [previousOpen, setPreviousOpen] = useState(false)
+
+  // Optional email capture: a non-blocking nudge shown while the student has no
+  // email on file, so they can later sign in by email instead of the code.
+  const [emailInput, setEmailInput] = useState('')
+  const [emailSaving, setEmailSaving] = useState(false)
+  const [emailDone, setEmailDone] = useState(false)
+  const [emailDismissed, setEmailDismissed] = useState(false)
+  const [emailErr, setEmailErr] = useState(false)
+
+  async function saveEmail(e: React.FormEvent) {
+    e.preventDefault()
+    const clean = emailInput.trim().toLowerCase()
+    if (!clean.includes('@')) return
+    setEmailSaving(true)
+    setEmailErr(false)
+    const { error } = await updateStudent({ email: clean })
+    setEmailSaving(false)
+    if (error) { setEmailErr(true); return }
+    setEmailDone(true)
+  }
 
   useEffect(() => {
     if (loading) return
@@ -138,6 +158,52 @@ export default function StudentJourney() {
           <p className="small-caps font-mono text-[11px] text-accent mb-2">{t('greeting', { name: student.name.split(' ')[0] })}</p>
           <h1 className="font-display font-semibold text-2xl md:text-[40px] leading-tight">{t('title')}</h1>
         </div>
+
+        {/* Optional email — save your access so you can sign in without the code */}
+        {((!student.email && !emailDismissed) || emailDone) && (
+          <div className="mb-8 border border-rule bg-paper-2/40 p-4 md:p-5">
+            {emailDone ? (
+              <p className="text-sm text-ok flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                {t('emailPromptSaved')}
+              </p>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="small-caps font-mono text-[10px] text-accent mb-1">{t('emailPromptTitle')}</p>
+                    <p className="text-sm text-ink-soft leading-snug">{t('emailPromptBody')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEmailDismissed(true)}
+                    className="text-xs text-ink-mute hover:text-ink transition-colors shrink-0"
+                  >
+                    {t('emailPromptDismiss')}
+                  </button>
+                </div>
+                <form onSubmit={saveEmail} className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    inputMode="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder={t('emailPromptPlaceholder')}
+                    className="flex-1 h-11 px-3 bg-paper border border-rule text-ink placeholder:text-ink-mute/60 focus:outline-none focus:border-accent text-base"
+                  />
+                  <button
+                    type="submit"
+                    disabled={emailSaving || !emailInput.includes('@')}
+                    className="h-11 px-5 bg-primary text-primary-foreground font-semibold rounded-md hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {t('emailPromptSave')}
+                  </button>
+                </form>
+                {emailErr && <p className="text-xs text-bad mt-2">{t('emailPromptError')}</p>}
+              </>
+            )}
+          </div>
+        )}
 
         {fetching ? (
           <div className="flex justify-center py-20">
