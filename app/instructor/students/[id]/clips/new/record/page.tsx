@@ -157,7 +157,12 @@ export default function ClipRecordPage() {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
       recorder.onstop = () => {
-        const rawMime = recorder.mimeType || mime || 'video/webm'
+        // Detect the REAL container. iOS/WebKit records mp4 (it can't do webm)
+        // and often leaves recorder.mimeType empty, so never default to webm —
+        // that would mislabel mp4 data → unplayable on iPad and would also make
+        // the duration patch run on a non-webm file. Trust recorder.mimeType,
+        // then the recorded chunk's own type, then mp4.
+        const rawMime = recorder.mimeType || chunksRef.current[0]?.type || mime || 'video/mp4'
         const raw = new Blob(chunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startMsRef.current)
 
@@ -169,8 +174,8 @@ export default function ClipRecordPage() {
           return
         }
 
-        // Patch the webm duration into the header so the player bar is correct
-        // and playback doesn't stutter, then advance to the review step.
+        // Patch the duration into the header (webm only) so the player bar is
+        // correct, then advance to the review step.
         void (async () => {
           const fixed = await patchWebmDuration(raw, rawMime, durationMs)
           setRecorded({ blob: fixed, mime: rawMime, durationMs, angle: angleRef.current })
