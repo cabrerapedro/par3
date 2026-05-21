@@ -92,7 +92,9 @@ export default function StudentClipMirror() {
   async function startCamera(facing: 'user' | 'environment') {
     try {
       await loadMediaPipe()
-      const pose = await createPose(onResults)
+      // Lite model: smooth real-time on a phone. Smoothing on to reduce jitter
+      // in the live overlay.
+      const pose = await createPose(onResults, { modelComplexity: 0, smoothLandmarks: true })
       poseRef.current = pose
 
       if (videoRef.current) {

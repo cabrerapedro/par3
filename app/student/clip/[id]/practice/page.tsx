@@ -11,6 +11,8 @@ import {
   detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
+import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
+import { useWakeLock } from '@/lib/wakeLock'
 import { insertSessionFrames, type FrameRow } from '@/lib/frames'
 import type { Clip } from '@/lib/classes'
 import type { Baseline, Landmark, SwingBaseline } from '@/lib/types'
@@ -64,6 +66,8 @@ export default function StudentClipPractice() {
   const recordingSecondsRef = useRef(0)
   const poseCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const clipRef = useRef<Clip | null>(null)
+
+  useWakeLock(stage === 'recording')
 
   // Callback ref: auto-attach pending stream when the video element mounts
   const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
@@ -129,16 +133,18 @@ export default function StudentClipPractice() {
 
       // Setup MediaRecorder (doesn't need the video element)
       chunksRef.current = []
-      const mimeType = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4']
-        .find(t => MediaRecorder.isTypeSupported(t)) ?? ''
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-      mimeTypeRef.current = recorder.mimeType || mimeType || 'video/webm'
+      const picked = pickVideoMime()
+      const recorder = new MediaRecorder(stream, picked ? { mimeType: picked } : undefined)
+      // Store the requested mime; the REAL container is resolved at stop time
+      // (iOS leaves recorder.mimeType empty and produces mp4, not webm).
+      mimeTypeRef.current = picked ?? ''
       recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       // Wire onstop up-front so a fast stop() can't fire before the handler
       // is assigned. We don't know yet whether the user will stop normally or
       // via cleanup; processVideo guards against an empty chunks array.
       recorder.onstop = () => processVideo()
-      recorder.start(100)
+      // Timeslice: iOS needs periodic dataavailable to capture reliably.
+      recorder.start(RECORDER_TIMESLICE_MS)
       recorderRef.current = recorder
 
       // Show recording UI — the callback ref will attach the stream to the video element
@@ -189,7 +195,8 @@ export default function StudentClipPractice() {
     if (!c) return
     try {
       await loadMediaPipe()
-      const pose = await createPose(() => {})
+      // Lite model: fast enough to run live on an iPhone while also recording.
+      const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
       pose.onResults((results: any) => {
         if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
         const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle)
@@ -237,7 +244,10 @@ export default function StudentClipPractice() {
 
   async function processVideo() {
     if (!chunksRef.current.length) { setError(t('noVideoCaptured')); return }
-    const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'video/webm' })
+    const mime = recorderRef.current
+      ? resolveRecordedMime(recorderRef.current, chunksRef.current, mimeTypeRef.current || undefined, 'video')
+      : (chunksRef.current[0]?.type || 'video/mp4')
+    const blob = new Blob(chunksRef.current, { type: mime })
     await analyzeVideoBlob(blob)
   }
 
@@ -293,12 +303,15 @@ export default function StudentClipPractice() {
     const duration = await resolveVideoDuration(video)
     if (duration <= 0) { setError(t('couldntReadVideo')); URL.revokeObjectURL(url); return }
 
-    const fps = 10
+    // Posture is static so a low sample rate is plenty and much faster on a
+    // phone; a swing needs more temporal resolution to find its phases.
+    const fps = isSwingMode ? 10 : 5
     const step = 1 / fps
     const totalFrames = Math.min(Math.floor(duration * fps), 600)
 
     await loadMediaPipe()
-    const pose = await createPose(() => {})
+    // Lite model: the medium model is far too slow on an iPhone.
+    const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
 
     const results: FrameResult[] = []
     const allLandmarks: Landmark[][] = []
@@ -541,20 +554,9 @@ export default function StudentClipPractice() {
         <div className="max-w-md mx-auto px-5 py-8 flex flex-col gap-4">
           <h1 className="text-xl font-display font-semibold mb-4">{t('title')}</h1>
 
-          {/* Phone restriction for recording */}
-          <div className="flex md:hidden flex-col items-center text-center gap-3 py-4">
-            <div className="w-14 h-14 rounded-md bg-paper-2 border border-rule flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-              </svg>
-            </div>
-            <p className="text-foreground font-semibold text-sm">{t('useTabletTitle')}</p>
-            <p className="text-muted-foreground text-xs max-w-xs">{t('useTabletDesc')}</p>
-          </div>
-
           <button
             onClick={() => startRecording('environment')}
-            className="bg-paper-2 border border-rule rounded-md p-6 text-left hover:bg-paper-3 transition-all hidden md:block"
+            className="bg-paper-2 border border-rule rounded-md p-6 text-left hover:bg-paper-3 transition-all block"
           >
             <div className="flex items-center gap-3 mb-2">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
