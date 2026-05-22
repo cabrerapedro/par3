@@ -6,12 +6,9 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Clip } from '@/lib/classes'
-import type { Baseline } from '@/lib/types'
 import type { Stroke } from '@/components/AnnotationCanvas'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { isSwingBaseline } from '@/lib/baseline'
-import { BaselineBody, SwingPhaseFigures } from '@/components/BaselineBody'
 import Link from 'next/link'
 
 interface ClipAnnotation {
@@ -36,8 +33,6 @@ export default function ClipDetail() {
   const [clip, setClip] = useState<Clip | null>(null)
   const [annotations, setAnnotations] = useState<ClipAnnotation[]>([])
   const [loading, setLoading] = useState(true)
-  const [summary, setSummary] = useState<string | null>(null)
-  const [summaryLoading, setSummaryLoading] = useState(false)
 
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
@@ -55,30 +50,6 @@ export default function ClipDetail() {
     // clipId comes from params and changes on route navigation; make it
     // explicit so the effect re-runs if Next ever re-uses the page instance.
   }, [student, clipId, router])
-
-  // Generate baseline summary on-the-fly if missing (not persisted for clips yet)
-  useEffect(() => {
-    if (!clip?.baseline || clip.baseline_summary) return
-    setSummaryLoading(true)
-    fetch('/api/baseline-summary', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        baseline: clip.baseline,
-        cameraAngle: clip.camera_angle,
-        checkpointName: clip.name,
-        instructorNote: null,
-        selectedMetrics: clip.selected_metrics,
-        marksCount: annotations.length,
-        checkpointType: clip.clip_type,
-        // No checkpointId — clips persist baseline_summary via a different path
-      }),
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.summary) setSummary(d.summary) })
-      .catch(() => {})
-      .finally(() => setSummaryLoading(false))
-  }, [clip?.id])
 
   if (loading) return <LoadingScreen />
   if (!clip) return (
@@ -264,48 +235,6 @@ export default function ClipDetail() {
           )}
         </div>
 
-        {/* Baseline summary — full width at bottom */}
-        {hasBaseline && (
-          <div className="bg-card border border-border rounded-xl px-5 py-5">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">{t('personalReferenceTitle')}</p>
-
-            {/* Summary — shown for both position and swing */}
-            {(clip.baseline_summary || summary || summaryLoading) && (
-              <div className="mb-5 pb-5 border-b border-border">
-                {summaryLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <div className="w-4 h-4 rounded-full border-2 border-ok/40 border-t-ok animate-spin shrink-0" />
-                    <span className="text-sm">{t('summaryLoading')}</span>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-foreground text-base leading-relaxed">{clip.baseline_summary || summary}</p>
-                    <div className="flex items-center gap-1.5 mt-3 text-muted-foreground/50">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                      </svg>
-                      <span className="text-xs">{t('summaryDisclaimer')}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {isSwingBaseline(clip.baseline) ? (
-              <SwingPhaseFigures
-                baseline={clip.baseline}
-                cameraAngle={clip.camera_angle}
-                selectedMetrics={clip.selected_metrics}
-              />
-            ) : (
-              <BaselineBody
-                baseline={clip.baseline as Record<string, { mean: number; std?: number }>}
-                cameraAngle={clip.camera_angle}
-                selectedMetrics={clip.selected_metrics}
-              />
-            )}
-          </div>
-        )}
       </div>
     </div>
   )
