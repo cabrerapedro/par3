@@ -54,15 +54,21 @@ in `e69eb04`.
 
 ### Two transitive postcss vulnerabilities via Next.js
 
-- `npm audit` reports two moderate `postcss<8.5.10` findings.
-- The fix path `npm audit fix --force` proposes downgrading Next to
-  `9.3.3`, which is not an option — it would un-ship the entire app.
-- **Practical risk: very low.** The vulnerability is "XSS via
-  unescaped `</style>` in CSS stringify output" — we never feed
-  user-supplied CSS through postcss; only our own Tailwind build
-  output runs through it.
-- **Resolution:** wait for Next.js to ship a release that bumps its
-  bundled postcss. Re-run `npm audit fix` then.
+- `npm audit` reports two moderate `postcss` findings, pulled in
+  transitively by Next.js (postcss is bundled inside `next`).
+- **Re-checked 2026-05-22 (Next 16.2.6):** there is no patched Next in
+  the current `^16` range — `npm update next` is a no-op and the
+  vulnerable postcss ships across every 16.x. The only `npm audit fix
+  --force` path is a breaking Next jump, so it stays deferred.
+- **Practical risk: very low.** postcss runs **only at build time, on
+  our own Tailwind/CSS** — never on untrusted/user-supplied CSS — so
+  the advisory (CSS stringify XSS) isn't reachable here. It does not
+  affect users or runtime.
+- **Resolution (when convenient, ~5 min):** periodically run
+  `npm update next` then `npm audit`. Once Next ships a release with a
+  patched postcss, the safe in-range update closes it — no `--force`
+  needed. Only use `npm audit fix --force` with a full build + test
+  pass on a branch if you ever need the audit at zero sooner.
 
 ---
 
@@ -71,6 +77,11 @@ in `e69eb04`.
 These three need product input rather than code changes:
 
 ### L3 — Prioritization formula mixes day-units and score-fraction-units
+
+> **Resolved 2026-05-22 by removal.** `lib/prioritization.ts` was deleted —
+> the student home is now a transparent, chronological clip list with no
+> algorithmic priority (a real "journey" will be co-designed with instructors
+> later). The formula below no longer ships; kept for historical context.
 
 `lib/prioritization.ts`:
 ```ts
