@@ -206,6 +206,8 @@ export default function StudentJourney() {
             <p className="font-display font-semibold text-xl mt-2 max-w-sm">{t('emptyDescription')}</p>
           </div>
         ) : (
+          <>
+          <p className="text-ink-soft text-base md:text-lg leading-snug mb-8 max-w-[46ch]">{t('homeIntro')}</p>
           <ul className="flex flex-col gap-9">
             {classesWithClips.map((cls) => (
               <li key={cls.id}>
@@ -220,6 +222,7 @@ export default function StudentJourney() {
               </li>
             ))}
           </ul>
+          </>
         )}
       </div>
     </div>
