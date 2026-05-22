@@ -4,6 +4,10 @@
 > siendo `CLAUDE.md` (describe lo que **está** construido). Esto es hacia dónde
 > vamos con la comparación profe ↔ alumno y por qué.
 >
+> Hermano de [`docs/GUIDED-PRACTICE-PLAN.md`](./GUIDED-PRACTICE-PLAN.md) — aquel
+> es la capa del *loop humano* (estructurar la práctica con el contenido del
+> profe); este es la capa de *medición confiable*.
+>
 > Estados: ✅ hecho · 🔜 próximo · ❌ no construido · ❓ decisión abierta.
 > Última actualización: 2026-05-22.
 
