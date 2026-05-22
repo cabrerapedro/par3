@@ -470,6 +470,7 @@
       "brandLink": "Parell",
       "greeting": "Hi, {name}",
       "title": "My Exercises",
+      "homeIntro": "Choose an exercise to watch and practice.",
       "subtitle": "Techniques calibrated by your coach",
       "calibratedExercises": "Calibrated exercises",
       "instructorPreparing": "Your coach is preparing your techniques",
