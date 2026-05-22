@@ -511,6 +511,19 @@
       "emailPromptSaved": "Listo. Ya puedes entrar con tu correo.",
       "emailPromptError": "No pudimos guardar tu correo. Inténtalo de nuevo."
     },
+    "warmup": {
+      "title": "Calentamiento",
+      "duration": "5 min",
+      "intro": "Antes de pegar en serio, prepara el cuerpo y el ritmo.",
+      "steps": [
+        "Movilidad: unos swings suaves para soltar hombros y caderas.",
+        "Empieza corto: wedges, medios swings y algunos chips y pitches.",
+        "Sube poco a poco hasta el swing completo y el driver.",
+        "Practica con intención: un foco por vez y tu rutina antes de cada tiro.",
+        "Calidad antes que cantidad: mejor pocos tiros buenos que muchos apurados.",
+        "Cuando estés suelto, ya estás listo para lo de tu profe."
+      ]
+    },
     "profile": {
       "backLink": "Mis ejercicios",
       "changePhoto": "Cambiar foto",

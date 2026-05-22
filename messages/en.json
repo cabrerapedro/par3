@@ -511,6 +511,19 @@
       "emailPromptSaved": "Done. You can now sign in with your email.",
       "emailPromptError": "We couldn't save your email. Try again."
     },
+    "warmup": {
+      "title": "Warm-up",
+      "duration": "5 min",
+      "intro": "Before hitting for real, get your body and rhythm ready.",
+      "steps": [
+        "Mobility: a few smooth swings to loosen your shoulders and hips.",
+        "Start short: wedges, half swings, and some chips and pitches.",
+        "Build up gradually to full swings and the driver.",
+        "Practice with intention: one focus at a time, your routine before each shot.",
+        "Quality over quantity: a few good shots beat many rushed ones.",
+        "Once you're loose, you're ready for your coach's exercises."
+      ]
+    },
     "profile": {
       "backLink": "My exercises",
       "changePhoto": "Change photo",
