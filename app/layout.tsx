@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth'
 import { ThemeProvider } from '@/lib/theme'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister'
+import { siteUrl } from '@/lib/siteUrl'
 import './globals.css'
 
 const inter = Inter({
@@ -31,12 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: 'es', namespace: 'meta' })
   const title = `${t('appName')} — ${t('tagline')}`
   const description = t('description')
-  // Point OG/canonical URLs at the real production domain. On Vercel this is the
-  // custom domain once configured (parell.golf), otherwise the project's
-  // *.vercel.app — so og:image actually resolves instead of pointing at a domain
-  // that may not be live yet. Falls back to parell.golf for local dev.
-  const prodDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  const url = prodDomain ? `https://${prodDomain}` : 'https://parell.golf'
+  const url = siteUrl()
 
   return {
     metadataBase: new URL(url),
@@ -44,6 +40,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     manifest: '/manifest.json',
+    alternates: { canonical: '/' },
+    keywords: ['golf', 'práctica de golf', 'instructor de golf', 'clases de golf', 'análisis de swing', 'app de golf'],
     openGraph: {
       type: 'website',
       siteName: t('appName'),
@@ -66,6 +64,44 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale()
   const messages = await getMessages()
 
+  // Structured data (schema.org). Helps Google rich results and helps AI search
+  // (ChatGPT/Perplexity) understand what Parell is, who it's for, and that it's
+  // free for students. Pinned Spanish, same as the rest of the marketing meta.
+  const meta = await getTranslations({ locale: 'es', namespace: 'meta' })
+  const base = siteUrl()
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${base}/#organization`,
+        name: meta('appName'),
+        url: base,
+        logo: `${base}/icon.png`,
+        description: meta('tagline'),
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${base}/#website`,
+        url: base,
+        name: meta('appName'),
+        inLanguage: 'es',
+        publisher: { '@id': `${base}/#organization` },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        name: meta('appName'),
+        url: base,
+        applicationCategory: 'SportsApplication',
+        operatingSystem: 'Web, iOS, Android',
+        inLanguage: ['es', 'en'],
+        description: meta('description'),
+        image: `${base}/og.png`,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+      },
+    ],
+  }
+
   return (
     <html
       lang={locale}
@@ -78,6 +114,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body>
         <ServiceWorkerRegister />
