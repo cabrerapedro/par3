@@ -100,10 +100,10 @@ function Hero() {
         </div>
 
         <div className="relative">
-          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
+          <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
             <Image
               src="/images/sistema-ia-photo-light.png"
-              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo, la app midiendo cada articulación en tiempo real"
+              alt="Golfista de frente en pleno swing con líneas de análisis de IA superpuestas midiendo sus ángulos"
               fill
               priority
               sizes="(min-width: 768px) 40vw, 100vw"
@@ -116,13 +116,10 @@ function Hero() {
               sizes="(min-width: 768px) 40vw, 100vw"
               className="object-cover hidden dark:block"
             />
-            <div className="absolute top-6 right-6 z-10">
-              <Stamp>PAR</Stamp>
-            </div>
           </div>
           <div className="flex justify-between mt-3">
-            <span className="small-caps font-mono text-[10px] text-ink-mute">Lámina 03 · Postura de dirección</span>
-            <span className="small-caps font-mono text-[10px] text-ink-mute">De perfil · DTL</span>
+            <span className="small-caps font-mono text-[10px] text-ink-mute">Análisis en tiempo real</span>
+            <span className="small-caps font-mono text-[10px] text-ink-mute">De frente · Face-on</span>
           </div>
         </div>
       </div>
@@ -260,7 +257,7 @@ function TresPrincipios() {
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
           {/* Image: instructor's line-drawing plate with technical annotations */}
-          <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
+          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
             <Image
               src="/images/hero-address-light.png"
               alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
@@ -275,6 +272,9 @@ function TresPrincipios() {
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover hidden dark:block"
             />
+            <div className="absolute top-6 right-6 z-10">
+              <Stamp>PAR</Stamp>
+            </div>
           </div>
 
           {/* Text */}
