@@ -127,7 +127,10 @@ export default function ClipPracticeHistory() {
         {/* Session list */}
         {sessions.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-md text-muted-foreground">
-            <div className="text-4xl mb-3">📋</div>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-muted-foreground/40">
+              <path d="M12 8v4l3 3" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
             <p className="text-muted-foreground mb-1">{t('emptyTitle')}</p>
             <p className="text-sm">{t('emptyDesc')}</p>
             <Link
