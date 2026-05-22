@@ -27,6 +27,7 @@ export default function Home() {
       <Header />
       <Hero />
       <Manifesto />
+      <Testimonial />
       <ComoFunciona />
       <TresPrincipios />
       <Acceso />
@@ -152,6 +153,28 @@ function Manifesto() {
             </p>
           </div>
         </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─── Testimonio ────────────────────────────────────────────────────────── */
+
+function Testimonial() {
+  return (
+    <section className="border-b border-rule py-14 md:py-28">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8">
+        <figure className="mx-auto max-w-[720px] bg-paper-2 border border-rule px-8 py-10 md:px-14 md:py-14 text-center">
+          {/* Foto circular — agregar más adelante:
+          <div className="mx-auto mb-6 size-16 rounded-full bg-paper border border-rule overflow-hidden" aria-hidden /> */}
+          <blockquote className="italic text-base md:text-lg leading-[1.6] text-ink">
+            {'“Lo que me convenció es que la app aprende mi forma de enseñar, no al revés. Mis alumnos entrenan solos entre clases, pero siguiendo mis indicaciones. Como si yo estuviera ahí.”'}
+          </blockquote>
+          <figcaption className="mt-7">
+            <p className="font-semibold text-ink">Steve</p>
+            <p className="small-caps font-mono text-[11px] text-accent mt-1.5">PGA Professional · La Roca Golf, Barcelona</p>
+          </figcaption>
+        </figure>
       </div>
     </section>
   )
