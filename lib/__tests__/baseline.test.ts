@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   calculateBaseline,
+  buildClipBaseline,
+  clipDetectionRatio,
   compareToBaseline,
   baselineOverallStatus,
   isSwingBaseline,
@@ -48,6 +50,49 @@ describe('calculateBaseline', () => {
     const b = calculateBaseline(marks, ['spine_angle'])
     expect(b).toHaveProperty('spine_angle')
     expect(b).not.toHaveProperty('knee_flex')
+  })
+})
+
+describe('buildClipBaseline', () => {
+  it('returns null for no frames', () => {
+    expect(buildClipBaseline([], 'position', 'dtl', ['spine_angle'])).toBeNull()
+  })
+
+  it('builds a position baseline from the frames’ metrics', () => {
+    const frames = [
+      mark(0, { spine_angle: 30 }),
+      mark(100, { spine_angle: 32 }),
+      mark(200, { spine_angle: 28 }),
+    ]
+    const b = buildClipBaseline(frames, 'position', 'dtl', ['spine_angle']) as Baseline
+    expect(b.spine_angle.mean).toBeCloseTo(30)
+    expect(b.spine_angle.min).toBe(28)
+    expect(b.spine_angle.max).toBe(32)
+  })
+
+  it('honours selectedMetrics for a position clip', () => {
+    const frames = [mark(0, { spine_angle: 30, knee_flex: 160 })]
+    const b = buildClipBaseline(frames, 'position', 'dtl', ['spine_angle']) as Baseline
+    expect(b).toHaveProperty('spine_angle')
+    expect(b).not.toHaveProperty('knee_flex')
+  })
+})
+
+describe('clipDetectionRatio', () => {
+  it('is 1 when every expected frame was detected', () => {
+    expect(clipDetectionRatio(50, 10, 5)).toBe(1)
+  })
+
+  it('is low when most frames were lost', () => {
+    expect(clipDetectionRatio(5, 10, 5)).toBeCloseTo(0.1)
+  })
+
+  it('is 0 with no frames', () => {
+    expect(clipDetectionRatio(0, 10)).toBe(0)
+  })
+
+  it('clamps to 1 when more frames than expected', () => {
+    expect(clipDetectionRatio(100, 10, 5)).toBe(1)
   })
 })
 

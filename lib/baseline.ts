@@ -227,18 +227,6 @@ export function baselineOverallStatus(checks: BaselineCheck[]): 'ok' | 'warn' | 
   return 'ok'
 }
 
-// Average multiple landmark frames into one set
-export function averageLandmarks(frames: LM[][]): LM[] {
-  if (!frames.length) return []
-  const n = frames.length
-  return frames[0].map((_, i) => ({
-    x: frames.reduce((s, f) => s + (f[i]?.x ?? 0), 0) / n,
-    y: frames.reduce((s, f) => s + (f[i]?.y ?? 0), 0) / n,
-    z: frames.reduce((s, f) => s + (f[i]?.z ?? 0), 0) / n,
-    visibility: frames.reduce((s, f) => s + (f[i]?.visibility ?? 0), 0) / n,
-  }))
-}
-
 // Translator function shape — same as next-intl's `useTranslations` return.
 // Accepting it as a parameter keeps these helpers as pure functions while
 // staying locale-aware. Callers get the translator via useTranslations()
