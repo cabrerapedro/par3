@@ -500,6 +500,8 @@
       "chipDeclining": "Bajó",
       "chipNew": "Nuevo",
       "chipNoSessions": "Sin practicar",
+      "chipPracticed": "Practicado",
+      "chipPreparing": "Preparándose",
       "emailPromptTitle": "Guarda tu acceso",
       "emailPromptBody": "Añade tu correo y la próxima vez entras sin el código.",
       "emailPromptPlaceholder": "tu@correo.com",

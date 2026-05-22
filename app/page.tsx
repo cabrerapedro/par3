@@ -27,6 +27,7 @@ export default function Home() {
       <Header />
       <Hero />
       <Manifesto />
+      <Testimonial />
       <ComoFunciona />
       <TresPrincipios />
       <Acceso />
@@ -66,7 +67,7 @@ function Header() {
 function Hero() {
   return (
     <section className="border-b border-rule">
-      <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-12 md:py-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8 pt-6 md:pt-12 pb-12 md:pb-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
         <div>
           <p className="small-caps font-mono text-[11px] text-accent">
             Una app para instructores de golf
@@ -99,29 +100,26 @@ function Hero() {
         </div>
 
         <div className="relative">
-          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
+          <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
             <Image
-              src="/images/hero-address-light.png"
-              alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
+              src="/images/sistema-ia-photo-light.png"
+              alt="Golfista de frente en pleno swing con líneas de análisis de IA superpuestas midiendo sus ángulos"
               fill
               priority
               sizes="(min-width: 768px) 40vw, 100vw"
               className="object-cover block dark:hidden"
             />
             <Image
-              src="/images/hero-address-dark.png"
+              src="/images/sistema-ia-photo-dark.png"
               alt=""
               fill
               sizes="(min-width: 768px) 40vw, 100vw"
               className="object-cover hidden dark:block"
             />
-            <div className="absolute top-6 right-6 z-10">
-              <Stamp>PAR</Stamp>
-            </div>
           </div>
           <div className="flex justify-between mt-3">
-            <span className="small-caps font-mono text-[10px] text-ink-mute">Lámina 03 · Postura de dirección</span>
-            <span className="small-caps font-mono text-[10px] text-ink-mute">De perfil · DTL</span>
+            <span className="small-caps font-mono text-[10px] text-ink-mute">Análisis en tiempo real</span>
+            <span className="small-caps font-mono text-[10px] text-ink-mute">De frente · Face-on</span>
           </div>
         </div>
       </div>
@@ -152,6 +150,28 @@ function Manifesto() {
             </p>
           </div>
         </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─── Testimonio ────────────────────────────────────────────────────────── */
+
+function Testimonial() {
+  return (
+    <section className="border-b border-rule py-14 md:py-28">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8">
+        <figure className="mx-auto max-w-[720px] bg-paper-2 border border-rule px-8 py-10 md:px-14 md:py-14 text-center">
+          {/* Foto circular — agregar más adelante:
+          <div className="mx-auto mb-6 size-16 rounded-full bg-paper border border-rule overflow-hidden" aria-hidden /> */}
+          <blockquote className="italic text-base md:text-lg leading-[1.6] text-ink">
+            {'“Lo que me convenció es que la app aprende mi forma de enseñar, no al revés. Mis alumnos entrenan solos entre clases, pero siguiendo mis indicaciones. Como si yo estuviera ahí.”'}
+          </blockquote>
+          <figcaption className="mt-7">
+            <p className="font-semibold text-ink">Steve</p>
+            <p className="small-caps font-mono text-[11px] text-accent mt-1.5">PGA Professional · La Roca Golf, Barcelona</p>
+          </figcaption>
+        </figure>
       </div>
     </section>
   )
@@ -236,22 +256,25 @@ function TresPrincipios() {
     <section id="principios" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
-          {/* Image: contemporary photo of golfer with 33 cognac landmarks overlaid */}
-          <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
+          {/* Image: instructor's line-drawing plate with technical annotations */}
+          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
             <Image
-              src="/images/sistema-ia-photo-light.png"
-              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo, la app midiendo cada articulación en tiempo real"
+              src="/images/hero-address-light.png"
+              alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover block dark:hidden"
             />
             <Image
-              src="/images/sistema-ia-photo-dark.png"
+              src="/images/hero-address-dark.png"
               alt=""
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover hidden dark:block"
             />
+            <div className="absolute top-6 right-6 z-10">
+              <Stamp>PAR</Stamp>
+            </div>
           </div>
 
           {/* Text */}
