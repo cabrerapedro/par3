@@ -19,7 +19,6 @@ import { useTranslations } from 'next-intl'
 import type { CameraAngle } from '@/lib/types'
 import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
-import { rlog, debugEnabled, logRecorderSupport, getDebugLog, clearDebugLog, jsInstanceId } from '@/lib/recordDebug'
 import { useClipFlow } from '../layout'
 
 const MAX_LENGTH_MS = 60_000 // hard cap; spec says clips run 15–30 s
@@ -53,11 +52,9 @@ export default function ClipRecordPage() {
   const [elapsedMs, setElapsedMs] = useState(0)
   const [angle, setAngle] = useState<CameraAngle>('face_on')
   const [error, setError] = useState<string | null>(null)
-  const [showDebug, setShowDebug] = useState(false)
 
   useWakeLock(recording)
   useEffect(() => { angleRef.current = angle }, [angle])
-  useEffect(() => { setShowDebug(debugEnabled()) }, [])
 
   // --- Camera lifecycle -------------------------------------------------
 
@@ -107,8 +104,6 @@ export default function ClipRecordPage() {
   }, [t])
 
   useEffect(() => {
-    rlog(`--- record page mounted --- jsInstance=${jsInstanceId()}`)
-    logRecorderSupport()
     startCamera(facingMode)
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -143,27 +138,19 @@ export default function ClipRecordPage() {
     }
     const mime = pickVideoMime()
     chunksRef.current = []
-    rlog(`startRecording: pickVideoMime() = ${mime ?? '(none → default ctor)'}`)
     try {
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
-      rlog(`recorder created. recorder.mimeType = "${recorder.mimeType}" state=${recorder.state}`)
-      recorder.onstart = () => rlog(`onstart fired. state=${recorder.state}`)
-      recorder.onerror = (e) => rlog(`onerror: ${(e as unknown as { error?: { name?: string; message?: string } }).error?.name ?? ''} ${(e as unknown as { error?: { message?: string } }).error?.message ?? String(e)}`)
       recorder.ondataavailable = (e) => {
-        rlog(`ondataavailable: size=${e.data?.size ?? 0} type="${e.data?.type ?? ''}"`)
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
       recorder.onstop = async () => {
         const rawMime = resolveRecordedMime(recorder, chunksRef.current, mime, 'video')
         const raw = new Blob(chunksRef.current, { type: rawMime })
         const durationMs = Math.max(0, Date.now() - startMsRef.current)
-        const totalBytes = chunksRef.current.reduce((n, c) => n + c.size, 0)
-        rlog(`onstop fired. chunks=${chunksRef.current.length} totalBytes=${totalBytes} raw.size=${raw.size} rawMime="${rawMime}" durationMs=${durationMs}`)
 
         // No data captured (can happen on iOS if the recorder didn't flush) —
         // surface it instead of advancing with an empty, unplayable clip.
         if (raw.size === 0) {
-          rlog('BRANCH: raw.size === 0 → recordingFailed, staying on record')
           setError(t('recordingFailed'))
           setRecording(false)
           setElapsedMs(0)
@@ -172,7 +159,6 @@ export default function ClipRecordPage() {
 
         if (durationMs < MIN_LENGTH_MS) {
           // Don't keep the clip, surface the error, let them try again.
-          rlog(`BRANCH: durationMs ${durationMs} < ${MIN_LENGTH_MS} → tooShort, staying on record`)
           setError(t('tooShort'))
           setRecording(false)
           setElapsedMs(0)
@@ -182,15 +168,12 @@ export default function ClipRecordPage() {
         // Persist to IndexedDB BEFORE navigating: the layout context is lost
         // when the layout re-mounts across this navigation on iPadOS, so
         // annotate rehydrates the blob from storage instead of memory.
-        rlog('BRANCH: ok → commitRecorded(IDB) + router.push(annotate)')
         await commitRecorded({ blob: raw, mime: rawMime, durationMs, angle: angleRef.current })
-        rlog('committed to IDB, pushing annotate')
         router.push(`/instructor/students/${studentId}/clips/new/annotate`)
       }
       // Timeslice: iOS/WebKit needs periodic dataavailable to reliably
       // capture — without it, stop() can yield an empty recording.
       recorder.start(RECORDER_TIMESLICE_MS)
-      rlog(`recorder.start(${RECORDER_TIMESLICE_MS}) called. state=${recorder.state}`)
       recorderRef.current = recorder
       startMsRef.current = Date.now()
       setElapsedMs(0)
@@ -216,11 +199,10 @@ export default function ClipRecordPage() {
       stopTimerRef.current = null
     }
     const recorder = recorderRef.current
-    rlog(`stopRecording tapped. recorder.state=${recorder?.state ?? 'null'}`)
     if (recorder && recorder.state !== 'inactive') {
       // requestData() forces WebKit to flush a final chunk synchronously before
       // stop(); without it some iOS builds emit onstop with no dataavailable.
-      try { recorder.requestData() } catch (e) { rlog(`requestData threw: ${String(e)}`) }
+      try { recorder.requestData() } catch {}
       recorder.stop()
     }
     setRecording(false)
@@ -415,42 +397,6 @@ export default function ClipRecordPage() {
           </>
         )}
       </div>
-
-      {showDebug && <RecordDebugPanel />}
-    </div>
-  )
-}
-
-// --- Debug overlay (only when ?debug=1) -------------------------------------
-
-function RecordDebugPanel() {
-  const [log, setLog] = useState('')
-  useEffect(() => {
-    const id = setInterval(() => setLog(getDebugLog()), 400)
-    return () => clearInterval(id)
-  }, [])
-  return (
-    <div className="fixed inset-x-0 top-0 z-50 max-h-[38vh] flex flex-col bg-black/90 text-green-300 font-mono text-[10px] leading-tight border-b-2 border-green-500">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-green-700 text-green-200">
-        <span className="font-semibold">REC DEBUG</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => { void navigator.clipboard?.writeText(getDebugLog()).catch(() => {}) }}
-            className="px-2 py-0.5 rounded bg-green-700/40 active:bg-green-700"
-          >
-            copy
-          </button>
-          <button
-            type="button"
-            onClick={() => { clearDebugLog(); setLog('') }}
-            className="px-2 py-0.5 rounded bg-red-700/40 active:bg-red-700"
-          >
-            clear
-          </button>
-        </div>
-      </div>
-      <pre className="flex-1 overflow-auto px-3 py-2 whitespace-pre-wrap">{log || '(no events yet — record + stop)'}</pre>
     </div>
   )
 }
