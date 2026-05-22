@@ -8,9 +8,12 @@
 
 parell.golf empieza como una herramienta para el instructor individual. Escala hacia una plataforma que conecta academias, alumnos y eventualmente produce su propio modelo de análisis de movimiento entrenado con datos reales de instructores expertos.
 
-> **Medición y "aha moment":** el plan de cómo llegamos a una comparación
-> profe ↔ alumno confiable (estado actual + fases + decisiones abiertas) vive en
-> [`docs/MEASUREMENT-PLAN.md`](./MEASUREMENT-PLAN.md). Es dirección, no spec.
+> **Camino al "aha moment"** (docs de dirección, no spec):
+> - [`docs/GUIDED-PRACTICE-PLAN.md`](./GUIDED-PRACTICE-PLAN.md) — práctica guiada
+>   del alumno a partir del contenido del profe (loop humano: calentamiento
+>   estándar + clips del profe + conclusión opcional).
+> - [`docs/MEASUREMENT-PLAN.md`](./MEASUREMENT-PLAN.md) — cómo llegamos a una
+>   comparación profe ↔ alumno *confiable* (medición).
 
 ---
 
