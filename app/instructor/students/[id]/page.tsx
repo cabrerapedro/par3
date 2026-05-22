@@ -10,6 +10,7 @@ import type { Class, Clip } from '@/lib/classes'
 import { weeklyStats, clipScoreSummary, type SessionLike } from '@/lib/trends'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ClassConclusionRecorder } from '@/components/ClassConclusionRecorder'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -253,6 +254,17 @@ export default function StudentProfile() {
             {t('weekSessions', { count: week.sessionsCount })}
           </p>
         </div>
+
+        {/* Class conclusion (guided practice Layer 3) — optional, most recent class */}
+        {classes[0] && (
+          <div className="border-t border-rule mt-10 pt-8">
+            <ClassConclusionRecorder
+              classId={classes[0].id}
+              audioUrl={classes[0].conclusion_audio_url}
+              transcript={classes[0].conclusion_transcript}
+            />
+          </div>
+        )}
 
         {/* Classes + clips */}
         <div className="border-t border-rule mt-10 pt-8">

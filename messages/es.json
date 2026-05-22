@@ -263,6 +263,17 @@
       "shareTitle": "Parell — Acceso de práctica",
       "shareText": "{name}, usa este enlace para acceder a tus ejercicios de práctica en Parell"
     },
+    "conclusion": {
+      "title": "Conclusión de la clase",
+      "optional": "(opcional)",
+      "hint": "Una nota corta de cierre para tu alumno: en qué enfocarse esta semana.",
+      "record": "Grabar conclusión",
+      "stop": "Detener",
+      "saving": "Guardando…",
+      "rerecord": "Volver a grabar",
+      "micError": "No pudimos usar el micrófono. Revisa los permisos.",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo."
+    },
     "profile": {
       "backToDashboard": "Dashboard",
       "activeStudents": "Alumnos activos",
@@ -509,7 +520,8 @@
       "emailPromptSave": "Guardar",
       "emailPromptDismiss": "Ahora no",
       "emailPromptSaved": "Listo. Ya puedes entrar con tu correo.",
-      "emailPromptError": "No pudimos guardar tu correo. Inténtalo de nuevo."
+      "emailPromptError": "No pudimos guardar tu correo. Inténtalo de nuevo.",
+      "conclusionTitle": "Esta semana, de tu profe"
     },
     "warmup": {
       "title": "Calentamiento",

@@ -208,6 +208,18 @@ export default function StudentJourney() {
           </div>
         ) : (
           <>
+          {/* Class conclusion (Layer 3): the coach's "this week" note, if any. */}
+          {classes[0] && (classes[0].conclusion_transcript || classes[0].conclusion_audio_url) && (
+            <div className="mb-6 border border-rule bg-paper-2/40 p-4 md:p-5">
+              <p className="small-caps font-mono text-[10px] text-accent mb-2">{t('conclusionTitle')}</p>
+              {classes[0].conclusion_transcript && (
+                <p className="text-base text-ink leading-relaxed mb-2">&ldquo;{classes[0].conclusion_transcript}&rdquo;</p>
+              )}
+              {classes[0].conclusion_audio_url && (
+                <audio src={classes[0].conclusion_audio_url} controls className="w-full h-9" />
+              )}
+            </div>
+          )}
           <WarmupCard />
           <p className="text-ink-soft text-base md:text-lg leading-snug mb-8 max-w-[46ch]">{t('homeIntro')}</p>
           <ul className="flex flex-col gap-9">

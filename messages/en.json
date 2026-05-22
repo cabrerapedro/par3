@@ -263,6 +263,17 @@
       "shareTitle": "Parell — Practice access",
       "shareText": "{name}, use this link to access your practice exercises on Parell"
     },
+    "conclusion": {
+      "title": "Class wrap-up",
+      "optional": "(optional)",
+      "hint": "A short closing note for your student: what to focus on this week.",
+      "record": "Record wrap-up",
+      "stop": "Stop",
+      "saving": "Saving…",
+      "rerecord": "Re-record",
+      "micError": "We couldn't use the microphone. Check your permissions.",
+      "saveError": "Couldn't save. Try again."
+    },
     "profile": {
       "backToDashboard": "Dashboard",
       "activeStudents": "Active students",
@@ -509,7 +520,8 @@
       "emailPromptSave": "Save",
       "emailPromptDismiss": "Not now",
       "emailPromptSaved": "Done. You can now sign in with your email.",
-      "emailPromptError": "We couldn't save your email. Try again."
+      "emailPromptError": "We couldn't save your email. Try again.",
+      "conclusionTitle": "This week, from your coach"
     },
     "warmup": {
       "title": "Warm-up",
