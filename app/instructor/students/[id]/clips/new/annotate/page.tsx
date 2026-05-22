@@ -30,7 +30,6 @@ import { getOrCreateTodayClass } from '@/lib/classes'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
 import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
-import { rlog, jsInstanceId } from '@/lib/recordDebug'
 import { useClipFlow } from '../layout'
 
 type CameraAngle = 'face_on' | 'dtl'
@@ -79,9 +78,7 @@ export default function ClipAnnotatePage() {
   // Wait for `hydrated` so we don't bounce while the layout is still reading
   // the clip back from IndexedDB after a re-mount.
   useEffect(() => {
-    rlog(`annotate guard. jsInstance=${jsInstanceId()} hydrated=${hydrated} recorded=${recorded ? `present (blob.size=${recorded.blob.size}, mime="${recorded.mime}", durationMs=${recorded.durationMs})` : 'NULL'} leaving=${leavingRef.current}`)
     if (hydrated && !recorded && !leavingRef.current) {
-      rlog('annotate: hydrated & recorded NULL → router.replace(record) [THIS IS THE BOUNCE]')
       router.replace(`/instructor/students/${studentId}/clips/new/record`)
     }
   }, [hydrated, recorded, router, studentId])
