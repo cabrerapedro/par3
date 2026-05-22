@@ -1,6 +1,4 @@
 export type CameraAngle = 'face_on' | 'dtl'
-export type CheckpointStatus = 'calibrated' | 'pending' | 'archived'
-export type CheckpointType = 'position' | 'swing'
 export type MetricStatus = 'ok' | 'warn' | 'bad'
 export type SwingPhaseName = 'address' | 'top' | 'impact' | 'finish'
 
@@ -67,25 +65,6 @@ export interface Student {
   home_course?: string
   bio?: string
   preferred_locale?: Locale
-  created_at: string
-}
-
-export interface Checkpoint {
-  id: string
-  student_id: string
-  name: string
-  camera_angle: CameraAngle
-  checkpoint_type?: CheckpointType
-  display_order: number
-  instructor_note?: string
-  instructor_audio_url?: string
-  calibration_video_url?: string
-  calibration_skeleton_url?: string
-  calibration_marks: CalibrationMark[]
-  baseline: Baseline | SwingBaseline | null
-  baseline_summary?: string
-  selected_metrics: string[]
-  status: CheckpointStatus
   created_at: string
 }
 

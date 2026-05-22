@@ -1,8 +1,6 @@
 import { supabase } from './supabase'
 
-// Types for the new Class + Clip data model (May 2026). Lives here while the
-// sub-agent's i18n migration finishes touching lib/types.ts; once that lands,
-// move these into types.ts alongside Checkpoint/Student/etc.
+// Types + queries for the Class + Clip data model.
 
 export interface Class {
   id: string
@@ -92,36 +90,4 @@ export async function getOrCreateTodayClass(
   if (!created) throw new Error('Failed to create class')
 
   return created as Class
-}
-
-/**
- * List every class for a student, newest first. Used by the instructor
- * student profile (Section 5) and the student journey (Section 6).
- */
-export async function listClassesForStudent(studentId: string): Promise<Class[]> {
-  const { data, error } = await supabase
-    .from('classes')
-    .select('*')
-    .eq('student_id', studentId)
-    .order('date', { ascending: false })
-
-  if (error) throw error
-  return (data ?? []) as Class[]
-}
-
-/**
- * Fetch all clips for a class, ordered by display_order then created_at so
- * the instructor's intended order is preserved but new unordered clips
- * still show up at the bottom.
- */
-export async function listClipsForClass(classId: string): Promise<Clip[]> {
-  const { data, error } = await supabase
-    .from('clips')
-    .select('*')
-    .eq('class_id', classId)
-    .order('display_order', { ascending: true })
-    .order('created_at', { ascending: true })
-
-  if (error) throw error
-  return (data ?? []) as Clip[]
 }
