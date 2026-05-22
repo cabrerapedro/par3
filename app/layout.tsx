@@ -25,11 +25,35 @@ const jbMono = JetBrains_Mono({
 })
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta')
+  // The public/marketing surface (landing + shared link previews) is Spanish-
+  // first, so pin the tab title + Open Graph metadata to Spanish regardless of
+  // the visitor's browser language. The in-app UI stays bilingual elsewhere.
+  const t = await getTranslations({ locale: 'es', namespace: 'meta' })
+  const title = `${t('appName')} — ${t('tagline')}`
+  const description = t('description')
+  const url = 'https://parell.golf'
+
   return {
-    title: `${t('appName')} — ${t('tagline')}`,
-    description: t('description'),
+    metadataBase: new URL(url),
+    applicationName: t('appName'),
+    title,
+    description,
     manifest: '/manifest.json',
+    openGraph: {
+      type: 'website',
+      siteName: t('appName'),
+      locale: 'es_ES',
+      url,
+      title,
+      description,
+      images: [{ url: '/og.png', width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ['/og.png'],
+    },
   }
 }
 
