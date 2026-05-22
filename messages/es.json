@@ -627,6 +627,8 @@
     },
     "clip": {
       "backToJourney": "Mis ejercicios",
+      "focusLabel": "Foco",
+      "listenCoach": "Escucha a tu profe",
       "notFound": "Ejercicio no encontrado.",
       "archivedTitle": "Este ejercicio fue archivado",
       "archivedDesc": "Tu instructor archivó este ejercicio. Consulta con tu instructor si necesitas acceso.",

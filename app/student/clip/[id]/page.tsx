@@ -10,6 +10,13 @@ import type { Stroke } from '@/components/AnnotationCanvas'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 
+// AI "practice card": the coach's voice/note distilled into a focus + checklist
+// (see /api/practice-card). Always grounded in what the coach said.
+interface PracticeCard {
+  focus: string
+  checklist: string[]
+}
+
 interface ClipAnnotation {
   id: string
   clip_id: string
@@ -19,6 +26,7 @@ interface ClipAnnotation {
   audio_transcript: string | null
   text_note: string | null
   snapshot_url: string | null
+  practice_card?: PracticeCard | null
   created_at: string
 }
 
@@ -32,6 +40,9 @@ export default function ClipDetail() {
   const [clip, setClip] = useState<Clip | null>(null)
   const [annotations, setAnnotations] = useState<ClipAnnotation[]>([])
   const [loading, setLoading] = useState(true)
+  // Practice cards generated on demand (focus + checklist), keyed by annotation
+  // id, for annotations that don't have one persisted yet.
+  const [cards, setCards] = useState<Record<string, PracticeCard | null>>({})
 
   useEffect(() => {
     if (!student) { router.replace('/student/login'); return }
@@ -49,6 +60,36 @@ export default function ClipDetail() {
     // clipId comes from params and changes on route navigation; make it
     // explicit so the effect re-runs if Next ever re-uses the page instance.
   }, [student, clipId, router])
+
+  // Generate a practice card (focus + checklist) for each annotation that has
+  // coach content (transcript/note) but no card yet. The API persists it, so
+  // this is a one-time cost. Falls back silently — never invents.
+  useEffect(() => {
+    if (!clip || annotations.length === 0) return
+    let cancelled = false
+    annotations.forEach((ann) => {
+      if (ann.practice_card || cards[ann.id] !== undefined) return
+      if (!ann.audio_transcript && !ann.text_note) return
+      fetch('/api/practice-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: ann.audio_transcript,
+          textNote: ann.text_note,
+          clipName: clip.name,
+          cameraAngle: clip.camera_angle,
+          clipType: clip.clip_type,
+          annotationId: ann.id,
+        }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (!cancelled) setCards((prev) => ({ ...prev, [ann.id]: d?.card ?? null })) })
+        .catch(() => { if (!cancelled) setCards((prev) => ({ ...prev, [ann.id]: null })) })
+    })
+    return () => { cancelled = true }
+    // `cards` intentionally omitted — we guard per-id with cards[ann.id].
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotations, clip?.id])
 
   if (loading) return <LoadingScreen />
   if (!clip) return (
@@ -185,7 +226,9 @@ export default function ClipDetail() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {annotations.map((ann, i) => (
+              {annotations.map((ann, i) => {
+                const card = ann.practice_card ?? cards[ann.id] ?? null
+                return (
                 <div key={ann.id} className="bg-card border border-border rounded-xl p-3">
                   <div className="flex flex-col sm:flex-row gap-4">
                     {ann.snapshot_url && (
@@ -211,24 +254,52 @@ export default function ClipDetail() {
                           </span>
                         )}
                       </div>
-                      {ann.text_note && (
-                        <p className="text-foreground text-sm leading-relaxed">{ann.text_note}</p>
+
+                      {/* Focus + checklist distilled from the coach (Layer 2).
+                          No card → fall back to the coach's raw note/transcript.
+                          Never invents — the card only exists if the coach spoke. */}
+                      {card ? (
+                        <div className="rounded-lg bg-ok/5 border border-ok/15 px-3 py-2.5">
+                          <p className="small-caps font-mono text-[10px] text-ok mb-1">{t('focusLabel')}</p>
+                          <p className="text-foreground text-base font-medium leading-snug">{card.focus}</p>
+                          {card.checklist.length > 0 && (
+                            <ul className="mt-2 flex flex-col gap-1">
+                              {card.checklist.map((item, j) => (
+                                <li key={j} className="text-sm text-muted-foreground flex gap-2 leading-snug">
+                                  <span className="text-ok/60 shrink-0">·</span>
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {ann.text_note && (
+                            <p className="text-foreground text-sm leading-relaxed">{ann.text_note}</p>
+                          )}
+                          {ann.audio_transcript && (
+                            <p className="text-muted-foreground text-sm leading-relaxed italic">&ldquo;{ann.audio_transcript}&rdquo;</p>
+                          )}
+                        </>
                       )}
-                      {ann.audio_transcript && (
-                        <p className="text-muted-foreground text-sm leading-relaxed italic">&ldquo;{ann.audio_transcript}&rdquo;</p>
-                      )}
+
                       {ann.audio_url && (
-                        <audio
-                          src={ann.audio_url}
-                          controls
-                          className="w-full h-9 mt-auto"
-                          style={{ accentColor: '#60a5fa' }}
-                        />
+                        <div className="mt-auto">
+                          <p className="small-caps font-mono text-[10px] text-muted-foreground mb-1">{t('listenCoach')}</p>
+                          <audio
+                            src={ann.audio_url}
+                            controls
+                            className="w-full h-9"
+                            style={{ accentColor: '#60a5fa' }}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

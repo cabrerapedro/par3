@@ -627,6 +627,8 @@
     },
     "clip": {
       "backToJourney": "My exercises",
+      "focusLabel": "Focus",
+      "listenCoach": "Listen to your coach",
       "notFound": "Exercise not found.",
       "archivedTitle": "This exercise was archived",
       "archivedDesc": "Your coach archived this exercise. Talk to your coach if you need access.",

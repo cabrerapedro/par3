@@ -338,11 +338,15 @@ create table if not exists clip_annotations (
   text_note          text,
   -- composited still (video frame + drawing) captured at annotation time
   snapshot_url       text,
+  -- AI "practice card" distilled from the coach's voice/note: { focus, checklist[] }
+  practice_card      jsonb,
   created_at         timestamptz default now()
 );
 
 -- Idempotent add for databases created before snapshot_url existed.
 alter table clip_annotations add column if not exists snapshot_url text;
+-- AI practice card (focus + checklist), distilled from the coach's annotation.
+alter table clip_annotations add column if not exists practice_card jsonb;
 
 create index if not exists idx_clip_annotations_clip on clip_annotations(clip_id, frame_timestamp_ms);
 
