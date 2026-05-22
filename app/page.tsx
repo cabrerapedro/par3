@@ -67,7 +67,7 @@ function Header() {
 function Hero() {
   return (
     <section className="border-b border-rule">
-      <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-12 md:py-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8 pt-6 md:pt-12 pb-12 md:pb-24 grid md:grid-cols-[1.4fr_1fr] gap-12 md:gap-16 items-center">
         <div>
           <p className="small-caps font-mono text-[11px] text-accent">
             Una app para instructores de golf
