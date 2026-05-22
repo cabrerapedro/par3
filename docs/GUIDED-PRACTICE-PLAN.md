@@ -80,6 +80,29 @@ bisagra de cadera y tempo; esta semana sentí la bisagra; vas mejorando").
 
 ---
 
+## Síntesis y render
+
+**Cuándo:** la fusión se hace **una vez, al guardar** (clip / cierre de clase) y
+se **persiste** — como ya hacemos con `baseline_summary`. El alumno solo
+**renderiza** algo ya listo (rápido, barato, offline).
+
+**Qué genera la IA (extraer → ficha mínima, redactando al profe):**
+- Por clip: un **foco de 1 línea** + **2-3 puntos de "qué sentir / chequear"**,
+  desde la transcripción (Whisper) + la nota. Los artefactos crudos (dibujo,
+  audio, video) **no se resumen** — quedan como **fuente**.
+- Por clase: una línea de **"foco de la semana"** desde la conclusión (Capa 3).
+
+**Cómo se consume — revelado progresivo (no mostrar todo junto):**
+1. **Vistazo:** la sesión es una lista corta de *focos*, uno por ejercicio.
+2. **Hacer:** tocar un ejercicio → dibujo del profe + foco + checklist + botón
+   *Practicar*.
+3. **Fuente (a un toque, nunca encima):** *"Escuchar a tu profe"* (audio crudo)
+   + *"Ver el clip"*.
+
+Ejercicios como **tarjetas discretas**, no prosa mezclada; la línea de la semana
+arriba da el hilo. Fallbacks: transcripción mala → *"mirá el video y el dibujo"*;
+sin contenido del profe → solo video/dibujo. **Nunca inventar.**
+
 ## Estado / fases
 
 - 🔜 **Capa 1** — calentamiento estándar (uno genérico).
@@ -94,6 +117,24 @@ bisagra de cadera y tempo; esta semana sentí la bisagra; vas mejorando").
 - ❓ ¿El profe puede personalizar / override el calentamiento estándar?
 - ❓ La conclusión **por grupo** probablemente necesite un modelo de "grupo" en
   los datos (hoy la relación es profe → alumno individual).
+
+## Infraestructura
+
+**Todo corre en Vercel — no hace falta AWS** (ni para este plan ni para el MVP):
+- Pose / MediaPipe → **en el dispositivo** (cliente), no en el server.
+- Transcripción (Whisper) y redacción (Claude) → **APIs externas** llamadas desde
+  funciones serverless de Vercel (ya existen `/api/transcribe` y
+  `/api/baseline-summary`). ~1 llamada por clip al guardar, dentro de los límites
+  de Vercel (`maxDuration`).
+- Datos + storage → Supabase.
+- Síntesis al guardar: inline alcanza para el MVP (como `baseline_summary`); si se
+  quiere async, Vercel tiene `after()` o una cola (p. ej. QStash / Inngest) —
+  sigue sin AWS.
+
+**Única excepción futura:** el **modelo propio de ML (Fase 3 del roadmap)** —
+entrenar / servir un modelo de movimiento es trabajo de GPU, fuera de Vercel; se
+resolvería con un servicio de GPU gestionado (no necesariamente AWS) y recién
+cuando haya volumen de datos. No es ahora.
 
 ## Lo que NO hace (todavía)
 
