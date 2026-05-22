@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { UserMenu } from '@/components/UserMenu'
 import { Wordmark } from '@/components/Wordmark'
+import { WarmupCard } from '@/components/WarmupCard'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -207,6 +208,7 @@ export default function StudentJourney() {
           </div>
         ) : (
           <>
+          <WarmupCard />
           <p className="text-ink-soft text-base md:text-lg leading-snug mb-8 max-w-[46ch]">{t('homeIntro')}</p>
           <ul className="flex flex-col gap-9">
             {classesWithClips.map((cls) => (
