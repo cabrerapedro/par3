@@ -102,15 +102,15 @@ function Hero() {
         <div className="relative">
           <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
             <Image
-              src="/images/hero-address-light.png"
-              alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
+              src="/images/sistema-ia-photo-light.png"
+              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo, la app midiendo cada articulación en tiempo real"
               fill
               priority
               sizes="(min-width: 768px) 40vw, 100vw"
               className="object-cover block dark:hidden"
             />
             <Image
-              src="/images/hero-address-dark.png"
+              src="/images/sistema-ia-photo-dark.png"
               alt=""
               fill
               sizes="(min-width: 768px) 40vw, 100vw"
@@ -259,17 +259,17 @@ function TresPrincipios() {
     <section id="principios" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
-          {/* Image: contemporary photo of golfer with 33 cognac landmarks overlaid */}
+          {/* Image: instructor's line-drawing plate with technical annotations */}
           <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
             <Image
-              src="/images/sistema-ia-photo-light.png"
-              alt="Golfista con los 33 landmarks de IA marcados en cognac sobre su cuerpo, la app midiendo cada articulación en tiempo real"
+              src="/images/hero-address-light.png"
+              alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
               className="object-cover block dark:hidden"
             />
             <Image
-              src="/images/sistema-ia-photo-dark.png"
+              src="/images/hero-address-dark.png"
               alt=""
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
