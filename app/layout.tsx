@@ -31,7 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: 'es', namespace: 'meta' })
   const title = `${t('appName')} — ${t('tagline')}`
   const description = t('description')
-  const url = 'https://parell.golf'
+  // Point OG/canonical URLs at the real production domain. On Vercel this is the
+  // custom domain once configured (parell.golf), otherwise the project's
+  // *.vercel.app — so og:image actually resolves instead of pointing at a domain
+  // that may not be live yet. Falls back to parell.golf for local dev.
+  const prodDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  const url = prodDomain ? `https://${prodDomain}` : 'https://parell.golf'
 
   return {
     metadataBase: new URL(url),
