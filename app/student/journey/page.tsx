@@ -72,15 +72,6 @@ export default function StudentJourney() {
     setEmailDone(true)
   }
 
-  useEffect(() => {
-    if (loading) return
-    if (!student) {
-      router.replace('/student/login')
-      return
-    }
-    void load(student.id)
-  }, [student, loading, router])
-
   async function load(studentId: string) {
     setFetching(true)
     const [{ data: cls }, { data: cl }, { data: ps }] = await Promise.all([
@@ -106,6 +97,19 @@ export default function StudentJourney() {
     setSessions((ps as SessionLike[]) ?? [])
     setFetching(false)
   }
+
+  useEffect(() => {
+    if (loading) return
+    if (!student) {
+      router.replace('/student/login')
+      return
+    }
+    // Fetch-on-mount: load() flips the `fetching` flag while it pulls the
+    // student's classes/clips/sessions. That synchronous setState is the
+    // intended loading state, not a cascading-render bug.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load(student.id)
+  }, [student, loading, router])
 
   // Group clips by class so we can render newest class first, all visible.
   const clipsByClass = useMemo(() => {
