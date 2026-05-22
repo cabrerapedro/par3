@@ -12,9 +12,9 @@
     "focusOn": "Focus on improving {metric} in {phase}."
   },
   "meta": {
-    "appName": "Parell",
+    "appName": "Parell Golf",
     "tagline": "Golf practice with your coach",
-    "description": "Your coach calibrates your technique once. You practice it all week with that reference on your phone — the notebook that extends your coach between lessons."
+    "description": "Your coach records and marks your correct technique. You practice on your phone with that reference, and the app corrects you in real time, one cue at a time."
   },
   "common": {
     "cancel": "Cancel",

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "appName": "Parell",
+    "appName": "Parell Golf",
     "tagline": "Práctica de golf con tu instructor",
-    "description": "Tu instructor calibra tu técnica una vez. La practicas toda la semana con esa referencia en el teléfono — el cuaderno que lo extiende entre clases."
+    "description": "Tu instructor graba y marca tu técnica correcta. La practicas en el teléfono con esa referencia y la app te corrige en tiempo real, una indicación a la vez."
   },
   "baselineSummary": {
     "allInRange": "Todas las métricas dentro de tu rango personal. Excelente consistencia.",
