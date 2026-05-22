@@ -7,6 +7,10 @@ export interface Class {
   student_id: string
   instructor_id: string
   date: string // ISO date 'YYYY-MM-DD'
+  // Optional class conclusion (guided practice Layer 3): a short coach audio
+  // recorded at the end of the lesson, reinforcing the per-clip points.
+  conclusion_audio_url?: string | null
+  conclusion_transcript?: string | null
   created_at: string
 }
 

@@ -280,10 +280,17 @@ create table if not exists classes (
   student_id    uuid not null references students(id) on delete cascade,
   instructor_id uuid not null references instructors(id) on delete cascade,
   date          date not null,
+  -- Optional "lesson conclusion" the coach records at the end of class
+  -- (guided practice Layer 3). Reinforces the per-clip points for the week.
+  conclusion_audio_url  text,
+  conclusion_transcript text,
   created_at    timestamptz default now()
 );
 
 create index if not exists idx_classes_student_date on classes(student_id, date desc);
+-- Idempotent adds for the class conclusion (Layer 3).
+alter table classes add column if not exists conclusion_audio_url  text;
+alter table classes add column if not exists conclusion_transcript text;
 
 create table if not exists clips (
   id               uuid primary key default gen_random_uuid(),
@@ -685,17 +692,23 @@ create policy "clip_videos_instructor_upload"
     )
   );
 
--- clip-annotations-audio uploads: first path segment is a clip owned by
--- this instructor.
---   Path convention: ${clipId}/${uuid}.${ext}
+-- clip-annotations-audio uploads: first path segment is a clip OR a class
+-- owned by this instructor.
+--   Per-clip annotation audio:  ${clipId}/${uuid}.${ext}
+--   Class conclusion audio:     ${classId}/conclusion-${uuid}.${ext}
 drop policy if exists "clip_annotations_audio_upload" on storage.objects;
 create policy "clip_annotations_audio_upload"
   on storage.objects for insert
   to authenticated
   with check (
     bucket_id = 'clip-annotations-audio'
-    and (storage.foldername(name))[1]::uuid in (
-      select id from public.clips where instructor_id = auth.uid()
+    and (
+      (storage.foldername(name))[1]::uuid in (
+        select id from public.clips where instructor_id = auth.uid()
+      )
+      or (storage.foldername(name))[1]::uuid in (
+        select id from public.classes where instructor_id = auth.uid()
+      )
     )
   );
 
