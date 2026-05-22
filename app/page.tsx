@@ -20,8 +20,9 @@ export default function Home() {
     else if (student) router.replace('/student/journey')
   }, [instructor, student, loading, router])
 
-  if (loading) return <LoadingScreen />
-
+  // Render the landing immediately (server-side) so crawlers and AI bots see the
+  // full marketing content + FAQ, not a spinner. Logged-in users are redirected
+  // by the effect above once auth resolves.
   return (
     <div className="min-h-screen bg-paper text-ink">
       <Header />
@@ -31,11 +32,73 @@ export default function Home() {
         <Testimonial />
         <ComoFunciona />
         <TresPrincipios />
+        <Faq />
         <Acceso />
         <Cierre />
       </main>
       <Footer />
     </div>
+  )
+}
+
+/* ─── Preguntas frecuentes (FAQ) ────────────────────────────────────────── */
+
+const FAQS: { q: string; a: string }[] = [
+  {
+    q: '¿Qué es Parell Golf?',
+    a: 'Es un copiloto de práctica para instructores de golf y sus alumnos. El instructor graba y anota la técnica correcta del alumno; el alumno la practica solo entre clases con esa referencia en el teléfono y recibe feedback en tiempo real.',
+  },
+  {
+    q: '¿Parell reemplaza al instructor?',
+    a: 'No. El instructor es siempre la autoridad: la app guarda su calibración, sus dibujos y su voz, y guía al alumno con esa referencia. Parell lo extiende entre clases, no lo reemplaza.',
+  },
+  {
+    q: '¿Necesito sensores o equipo especial?',
+    a: 'No. Solo un iPad o un teléfono. El análisis de la técnica corre en el propio dispositivo con la cámara; no hace falta ningún sensor.',
+  },
+  {
+    q: '¿El alumno paga?',
+    a: 'No. El alumno entra gratis con un código que le da su instructor. El instructor tiene una suscripción según la cantidad de alumnos activos.',
+  },
+  {
+    q: '¿En qué dispositivos funciona?',
+    a: 'En el navegador y como app instalable (PWA) en iPad y iPhone. El instructor suele usar el iPad en clase; el alumno, su teléfono en el rango.',
+  },
+  {
+    q: '¿Cómo practica el alumno entre clases?',
+    a: 'Abre el clip que grabó su instructor, ve el dibujo y escucha la explicación, y practica con la cámara en modo espejo. La app le marca una sola corrección a la vez, en lenguaje simple, sin grados ni jerga.',
+  },
+  {
+    q: '¿Qué pasa con mis videos?',
+    a: 'El análisis de la técnica se hace en tu dispositivo. Los clips y tus prácticas se guardan de forma privada en tu cuenta, para repasarlos con tu instructor.',
+  },
+]
+
+function Faq() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQS.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  }
+  return (
+    <section id="faq" className="border-b border-rule py-14 md:py-28">
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8 grid md:grid-cols-[180px_1fr] gap-12 md:gap-16">
+        <p className="small-caps font-mono text-[11px] text-accent">Preguntas frecuentes</p>
+        <ul className="max-w-[720px] border-t border-rule divide-y divide-rule">
+          {FAQS.map((f) => (
+            <li key={f.q} className="py-6">
+              <h3 className="font-display font-semibold text-xl md:text-[22px] leading-snug">{f.q}</h3>
+              <p className="text-ink-soft text-base md:text-[17px] leading-[1.6] mt-2">{f.a}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    </section>
   )
 }
 
@@ -56,6 +119,7 @@ function Header() {
           <a href="#metodo" className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors">El método</a>
           <a href="#como-funciona" className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors">Cómo funciona</a>
           <a href="#principios" className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors">Tecnología</a>
+          <a href="#faq" className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors">Preguntas</a>
           <a href="#acceso" className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors">Ingresar</a>
           <ThemeToggle />
         </nav>
@@ -288,7 +352,7 @@ function TresPrincipios() {
               Tu corrección, repetida en cada práctica.
             </h2>
             <p className="text-[17px] md:text-[18px] leading-[1.6] text-ink-soft mt-7 max-w-[520px]">
-              Mientras tu alumno practica solo en el range, la app compara cada intento con la referencia que calibraste para él y le da una sola indicación a la vez, en lenguaje simple: <em className="not-italic text-ink">"inclínate un poco más desde la cadera"</em>, no "4° de más en la columna". Como si tu corrección estuviera ahí cada vez.
+              Mientras tu alumno practica solo en el range, la app compara cada intento con la referencia que calibraste para él y le da una sola indicación a la vez, en lenguaje simple: <em className="not-italic text-ink">{'“inclínate un poco más desde la cadera”'}</em>, no {'“4° de más en la columna”'}. Como si tu corrección estuviera ahí cada vez.
             </p>
             <div className="border-t border-rule mt-10 pt-6">
               <p className="font-display font-semibold text-[26px] md:text-[32px] leading-[1.2] tracking-[-0.01em]">
@@ -473,15 +537,5 @@ function Footer() {
         </span>
       </div>
     </footer>
-  )
-}
-
-/* ─── Loading ───────────────────────────────────────────────────────────── */
-
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen bg-paper flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-    </div>
   )
 }
