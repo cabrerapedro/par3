@@ -61,7 +61,7 @@ export default function StudentClipMirror() {
   const [poseDetected, setPoseDetected] = useState(false)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [kiosk, setKiosk] = useState(false)
 
@@ -85,7 +85,9 @@ export default function StudentClipMirror() {
     if (!data.baseline || Object.keys(data.baseline).length === 0) { setError(t('errorNoBaseline')); return }
     setClip(data as Clip)
     clipRef.current = data as Clip
-    await startCamera('environment')
+    // Front camera so the student sees themselves — it's a mirror, not the
+    // rear-facing view.
+    await startCamera('user')
     setReady(true)
   }
 
@@ -109,16 +111,16 @@ export default function StudentClipMirror() {
           await cam.start()
           setFacingMode(facing)
         } catch {
-          if (facing === 'environment') {
-            setFacingMode('user')
-            const fallback = createCamera(videoRef.current, async () => {
-              if (poseRef.current && videoRef.current) {
-                try { await poseRef.current.send({ image: videoRef.current }) } catch {}
-              }
-            }, 'user')
-            cameraRef.current = fallback
-            await fallback.start()
-          } else throw new Error('No camera')
+          // Fall back to the other camera if the requested one isn't available.
+          const alt = facing === 'user' ? 'environment' : 'user'
+          const fallback = createCamera(videoRef.current, async () => {
+            if (poseRef.current && videoRef.current) {
+              try { await poseRef.current.send({ image: videoRef.current }) } catch {}
+            }
+          }, alt)
+          cameraRef.current = fallback
+          await fallback.start()
+          setFacingMode(alt)
         }
       }
     } catch {

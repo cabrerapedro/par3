@@ -82,33 +82,37 @@ export default function ClipDetail() {
       <div className="max-w-6xl mx-auto px-4 lg:px-6 py-10">
         {/* Title + badges + action buttons */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
-              {t('statusCalibrated')}
-            </Badge>
-            <Badge variant="outline" className="text-muted-foreground border-border text-xs">
-              {clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
-            </Badge>
-            {isSwing && (
-              <Badge variant="outline" className="text-ink-soft border-rule bg-paper-2 text-xs">
-                {t('swingBadge')}
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-2xl md:text-3xl font-display font-semibold">{clip.name}</h1>
-          {hasBaseline && (
-            <p className="text-muted-foreground text-sm mt-1">
-              {isSwing ? t('swingsCalibratedSummary', { count: annotations.length }) : t('positionsCalibratedSummary', { count: annotations.length })}
-            </p>
-          )}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-3">
+                <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
+                  {t('statusCalibrated')}
+                </Badge>
+                <Badge variant="outline" className="text-muted-foreground border-border text-xs">
+                  {clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
+                </Badge>
+                {isSwing && (
+                  <Badge variant="outline" className="text-ink-soft border-rule bg-paper-2 text-xs">
+                    {t('swingBadge')}
+                  </Badge>
+                )}
+              </div>
+              <h1 className="text-2xl md:text-3xl font-display font-semibold">{clip.name}</h1>
+              {hasBaseline && (
+                <p className="text-muted-foreground text-sm mt-1">
+                  {isSwing ? t('swingsCalibratedSummary', { count: annotations.length }) : t('positionsCalibratedSummary', { count: annotations.length })}
+                </p>
+              )}
+            </div>
 
-          {/* Actions — touch-sized (>=48px) for iPad/iPhone; "Practicar" is the primary CTA */}
-          {hasBaseline && (
-            <div className="flex flex-wrap items-center gap-2.5 mt-5">
-              <Link
-                href={`/student/clip/${clipId}/practice`}
-                className="inline-flex items-center justify-center gap-2 h-12 px-6 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:opacity-85 transition-all"
-              >
+            {/* Actions — touch-sized (>=48px); right-aligned on tablet/desktop so
+                they don't crowd the title. "Practicar" is the primary CTA. */}
+            {hasBaseline && (
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0 sm:justify-end">
+                <Link
+                  href={`/student/clip/${clipId}/practice`}
+                  className="inline-flex items-center justify-center gap-2 h-12 px-6 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:opacity-85 transition-all"
+                >
                 {isSwing ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
@@ -144,8 +148,9 @@ export default function ClipDetail() {
                 </svg>
                 {t('historyAction')}
               </Link>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Reference video — full width */}
