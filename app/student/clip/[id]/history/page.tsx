@@ -44,7 +44,7 @@ export default function ClipPracticeHistory() {
         .eq('student_id', student!.id)
         .order('date', { ascending: true }),
     ])
-    if (c) setClip(c as any)
+    if (c) setClip(c as Pick<Clip, 'name' | 'camera_angle' | 'selected_metrics' | 'clip_type'>)
     setSessions(ss ?? [])
     setLoading(false)
   }
@@ -223,9 +223,9 @@ export default function ClipPracticeHistory() {
                               <span
                                 key={key}
                                 className={`text-xs px-2 py-0.5 rounded-full border ${
-                                  (val as any).status === 'ok'
+                                  val.status === 'ok'
                                     ? 'text-ok bg-ok/10 border-ok/20'
-                                    : (val as any).status === 'warn'
+                                    : val.status === 'warn'
                                       ? 'text-warn bg-warn/10 border-warn/20'
                                       : 'text-bad bg-bad/10 border-bad/20'
                                 }`}

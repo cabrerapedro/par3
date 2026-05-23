@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { calculateMetrics, compareToBaseline, baselineOverallStatus, METRICS_BY_ANGLE } from '@/lib/baseline'
-import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
+import { loadMediaPipe, createPose, createCamera, getDrawingUtils } from '@/lib/mediapipe'
+import type { PoseInstance, CameraInstance, PoseResults } from '@/lib/mediapipe'
 import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
 import type { Clip } from '@/lib/classes'
 import type { Baseline } from '@/lib/types'
@@ -46,8 +47,8 @@ export default function StudentClipMirror() {
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const poseRef = useRef<any>(null)
-  const cameraRef = useRef<any>(null)
+  const poseRef = useRef<PoseInstance | null>(null)
+  const cameraRef = useRef<CameraInstance | null>(null)
   const clipRef = useRef<Clip | null>(null)
   // Smoothing buffer for baseline checks
   const smoothRef = useRef<Array<Array<{ id: string; status: string; direction: string }>>>([])
@@ -141,7 +142,7 @@ export default function StudentClipMirror() {
     await startCamera(newFacing)
   }
 
-  const onResults = useCallback((results: any) => {
+  const onResults = useCallback((results: PoseResults) => {
     const canvas = canvasRef.current
     const video = videoRef.current
     const c = clipRef.current
@@ -197,10 +198,8 @@ export default function StudentClipMirror() {
     const filteredLm = filterLandmarks(filterStateRef.current, lm, frameTimeRef.current)
 
     // Draw skeleton with status colors
-    const drawConnectors = (window as any).drawConnectors
-    const drawLandmarks = (window as any).drawLandmarks
-    const POSE_CONNECTIONS = (window as any).POSE_CONNECTIONS
-    if (drawConnectors && POSE_CONNECTIONS) {
+    const { drawConnectors, drawLandmarks, POSE_CONNECTIONS } = getDrawingUtils()
+    if (drawConnectors && drawLandmarks && POSE_CONNECTIONS) {
       const overall = baselineOverallStatus(smoothed)
       const color = STATUS_COLORS[overall] ?? '#34d178'
       const isTablet = canvas.width >= 768

@@ -38,6 +38,8 @@ export default function InstructorProfile() {
   useEffect(() => {
     if (loading) return
     if (!instructor) { router.replace('/instructor/login'); return }
+    // Seed the form from the loaded instructor — intentional mount-time state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setName(instructor.name)
     supabase
       .from('students')

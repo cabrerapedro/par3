@@ -54,6 +54,8 @@ function StudentLogin() {
     const urlCode = searchParams.get('code')
     if (!urlCode || tried.current) return
     tried.current = true
+    // Auto-login from a shared ?code= link — intentional mount-time state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAutoLogging(true)
     studentLogin(urlCode).then(result => {
       if (result.error) {

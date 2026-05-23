@@ -11,6 +11,7 @@ import {
   detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
+import type { PoseResults } from '@/lib/mediapipe'
 import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
 import { insertSessionFrames, type FrameRow } from '@/lib/frames'
@@ -202,7 +203,7 @@ export default function StudentClipPractice() {
       await loadMediaPipe()
       // Lite model: fast enough to run live on an iPhone while also recording.
       const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
-      pose.onResults((results: any) => {
+      pose.onResults((results: PoseResults) => {
         if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
         const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle)
         const expected = c.selected_metrics?.length
@@ -331,12 +332,12 @@ export default function StudentClipPractice() {
     let frameChecks: BaselineCheck[] = []
     let frameLandmarks: Landmark[] | null = null
     let frameMetrics: Record<string, number> | undefined = undefined
-    pose.onResults((r: any) => {
+    pose.onResults((r: PoseResults) => {
       frameChecks = []
       frameLandmarks = null
       frameMetrics = undefined
       if (r.poseLandmarks) {
-        const lms: Landmark[] = r.poseLandmarks.map((lm: any) => ({
+        const lms: Landmark[] = r.poseLandmarks.map((lm) => ({
           x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
         }))
         frameLandmarks = lms
@@ -518,12 +519,14 @@ export default function StudentClipPractice() {
     const keys = frames[0].checks.map(c => c.id)
 
     return keys.map(key => {
-      let ok = 0, warn = 0, bad = 0
+      let ok = 0, bad = 0
       frames.forEach(f => {
-        const c = f.checks.find(c => c.id === key)
-        if (c?.status === 'ok') ok++
-        else if (c?.status === 'warn') warn++
-        else bad++
+        const status = f.checks.find(c => c.id === key)?.status
+        // Only 'ok' and 'bad' feed the score. A 'warn' frame (and a missing
+        // one) is neither — but a missing frame still counts as 'bad', matching
+        // the original behavior.
+        if (status === 'ok') ok++
+        else if (status !== 'warn') bad++
       })
       const badPct = bad / total
       const status = badPct > 0.4 ? 'bad' : ok / total > 0.6 ? 'ok' : 'warn'

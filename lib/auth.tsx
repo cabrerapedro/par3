@@ -101,7 +101,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const { data } = await supabase.from('instructors').select('*').eq('id', userId).single()
             if (data && mounted) {
+              // Both are stable function declarations below (hoisted, never
+              // reassigned); calling them from the auth listener is intentional.
+              // eslint-disable-next-line react-hooks/immutability
               cacheInstructor(data)
+              // eslint-disable-next-line react-hooks/immutability
               syncLocaleFromDb(data.preferred_locale)
             }
           } catch {}

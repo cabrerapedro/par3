@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { METRIC_INFO, PHASE_LABELS } from '@/lib/baseline'
-import type { SwingPhaseName } from '@/lib/types'
+import type { SwingPhaseName, BaselineMetric } from '@/lib/types'
 
 const anthropic = new Anthropic()
 
@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 )
 
-function formatMetricLine(key: string, val: any): string {
+function formatMetricLine(key: string, val: BaselineMetric): string {
   const info = METRIC_INFO[key]
   const label = info?.label ?? key
   const unit = info?.unit === 'grados' ? '°' : ''
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     // Build metric description
     let metricLines: string
     if (isSwing) {
-      metricLines = Object.entries(baseline.phases as Record<string, Record<string, any>>)
+      metricLines = Object.entries(baseline.phases as Record<string, Record<string, BaselineMetric>>)
         .map(([phase, metrics]) => {
           const phaseLabel = PHASE_LABELS[phase as SwingPhaseName] ?? phase
           const lines = Object.entries(metrics)
@@ -45,9 +45,9 @@ export async function POST(req: Request) {
         })
         .join('\n\n')
     } else {
-      metricLines = Object.entries(baseline)
+      metricLines = Object.entries(baseline as Record<string, BaselineMetric>)
         .filter(([key]) => !selectedMetrics?.length || selectedMetrics.includes(key))
-        .map(([key, val]: [string, any]) => formatMetricLine(key, val))
+        .map(([key, val]) => formatMetricLine(key, val))
         .join('\n')
     }
 
@@ -98,8 +98,9 @@ Reglas:
     }
 
     return NextResponse.json({ summary })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Baseline summary error:', err)
-    return NextResponse.json({ error: err.message ?? 'Failed to generate summary' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Failed to generate summary'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

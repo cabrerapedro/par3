@@ -22,6 +22,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('sweep_theme')
       }
     }
+    // `apply` is a stable function declaration within this provider; calling it
+    // during the one-time mount migration is safe (hoisted, never reassigned).
+    // eslint-disable-next-line react-hooks/immutability
     apply(saved ?? 'light')
   }, [])
 
