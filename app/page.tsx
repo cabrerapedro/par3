@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { Wordmark } from '@/components/Wordmark'
 import { Stamp } from '@/components/Stamp'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
 export default function Home() {
   const { instructor, student, loading } = useAuth()
@@ -32,6 +33,7 @@ export default function Home() {
         <Testimonial />
         <ComoFunciona />
         <TresPrincipios />
+        <About />
         <Faq />
         <Acceso />
         <Cierre />
@@ -41,36 +43,73 @@ export default function Home() {
   )
 }
 
+/* ─── Sobre parell.golf ─────────────────────────────────────────────────── */
+
+// Dense, plain-prose description above the FAQ. Visible (not hidden) so search
+// engines and LLMs can read what parell.golf is in natural language.
+function About() {
+  return (
+    <section className="border-b border-rule py-14 md:py-24">
+      <div className="mx-auto max-w-2xl px-6 md:px-8 text-center">
+        <p className="text-ink-soft text-base leading-relaxed">
+          <span className="text-accent font-medium">parell.golf</span> es una app de
+          práctica de golf para instructores profesionales y sus alumnos. El instructor
+          graba y anota la técnica correcta del alumno durante la clase; el alumno la
+          practica solo entre clases con esa referencia en su dispositivo y recibe
+          feedback de postura en tiempo real con inteligencia artificial. Funciona en
+          cualquier dispositivo moderno con cámara — sin sensores ni equipo especial.
+          Disponible en español e inglés. El instructor paga una suscripción mensual;
+          el alumno accede gratis.
+        </p>
+      </div>
+    </section>
+  )
+}
+
 /* ─── Preguntas frecuentes (FAQ) ────────────────────────────────────────── */
 
+// Answers may contain <strong> for emphasis — rendered with dangerouslySetInnerHTML
+// since these are static strings we control. The FAQPage JSON-LD strips the tags.
 const FAQS: { q: string; a: string }[] = [
   {
-    q: '¿Qué es Parell Golf?',
-    a: 'Es un copiloto de práctica para instructores de golf y sus alumnos. El instructor graba y anota la técnica correcta del alumno; el alumno la practica solo entre clases con esa referencia en el teléfono y recibe feedback en tiempo real.',
+    q: '¿Qué es parell.golf?',
+    a: '<strong>parell.golf</strong> es una app de entrenamiento de golf para instructores profesionales y sus alumnos. El instructor graba y anota la técnica correcta del alumno durante la clase. El alumno practica solo en el campo entre clases con esa referencia en su dispositivo y recibe feedback en tiempo real mediante análisis de postura con inteligencia artificial.',
+  },
+  {
+    q: '¿Qué problema resuelve?',
+    a: 'Los alumnos de golf olvidan lo que el instructor enseñó. Practican sin guía entre clases y refuerzan malos hábitos sin saberlo. El instructor repite las mismas correcciones semana tras semana sin poder saber qué practicó el alumno ni cómo. parell.golf cierra ese ciclo: el sábado el instructor y el alumno hablan sobre <strong>una semana real de práctica</strong>, no empiezan desde cero.',
+  },
+  {
+    q: '¿Para quién es parell.golf?',
+    a: '<strong>Para instructores profesionales de golf</strong> que enseñan en academias o clubs y quieren que su método tenga continuidad entre clases. El instructor es quien paga y quien decide usarlo. <strong>Para sus alumnos</strong> — principiantes e intermedios — que practican en el campo y quieren saber exactamente qué trabajar y si lo están haciendo bien. El alumno accede gratis.',
   },
   {
     q: '¿Parell reemplaza al instructor?',
-    a: 'No. El instructor es siempre la autoridad: la app guarda su calibración, sus dibujos y su voz, y guía al alumno con esa referencia. Parell lo extiende entre clases, no lo reemplaza.',
+    a: 'No. El instructor es siempre la autoridad. parell.golf guarda su calibración, sus dibujos y su voz, y guía al alumno con esa referencia personalizada. La app <strong>extiende el impacto del instructor entre clases</strong>; no lo reemplaza ni contradice su criterio.',
   },
   {
-    q: '¿Necesito sensores o equipo especial?',
-    a: 'No. Solo un iPad o un teléfono. El análisis de la técnica corre en el propio dispositivo con la cámara; no hace falta ningún sensor.',
-  },
-  {
-    q: '¿El alumno paga?',
-    a: 'No. El alumno entra gratis con un código que le da su instructor. El instructor tiene una suscripción según la cantidad de alumnos activos.',
-  },
-  {
-    q: '¿En qué dispositivos funciona?',
-    a: 'En el navegador y como app instalable (PWA) en iPad y iPhone. El instructor suele usar el iPad en clase; el alumno, su teléfono en el rango.',
+    q: '¿Cómo graba y anota el instructor?',
+    a: 'Durante la clase, el instructor graba clips cortos (15–30 segundos) del movimiento correcto del alumno. Pausa en el fotograma clave, dibuja con el dedo —flechas, líneas, círculos— y habla explicando lo que marca. El audio y el dibujo se graban a la vez. Sin formularios, sin pasos extra.',
   },
   {
     q: '¿Cómo practica el alumno entre clases?',
-    a: 'Abre el clip que grabó su instructor, ve el dibujo y escucha la explicación, y practica con la cámara en modo espejo. La app le marca una sola corrección a la vez, en lenguaje simple, sin grados ni jerga.',
+    a: 'El alumno abre la app en su dispositivo, ve el clip que grabó su instructor con los dibujos superpuestos y escucha la explicación. Luego practica con la cámara en modo espejo: la app compara su postura en tiempo real contra la referencia del instructor y le indica <strong>una sola corrección a la vez</strong>, en lenguaje simple y sin jerga técnica.',
+  },
+  {
+    q: '¿Necesita sensores o equipo especial?',
+    a: 'No. Solo un dispositivo con cámara. El análisis de postura corre directamente en el dispositivo con la cámara, usando inteligencia artificial. No hace falta ningún sensor ni equipo adicional.',
+  },
+  {
+    q: '¿El alumno paga?',
+    a: 'No. El alumno accede gratis con un código que le da su instructor. El instructor tiene una suscripción mensual que varía según el número de alumnos activos.',
   },
   {
     q: '¿Qué pasa con mis videos?',
-    a: 'El análisis de la técnica se hace en tu dispositivo. Los clips y tus prácticas se guardan de forma privada en tu cuenta, para repasarlos con tu instructor.',
+    a: 'El análisis de postura se ejecuta en tu dispositivo: el video <strong>no sale del dispositivo</strong> durante el análisis. Los clips y las prácticas se guardan de forma privada en tu cuenta para que puedas repasarlos con tu instructor.',
+  },
+  {
+    q: '¿En qué dispositivos funciona?',
+    a: 'En cualquier dispositivo moderno con cámara y navegador — móvil, tablet, u ordenador. El instructor suele usar una tablet durante la clase; el alumno, su teléfono en el campo. parell.golf está disponible en español e inglés.',
   },
 ]
 
@@ -81,21 +120,33 @@ function Faq() {
     mainEntity: FAQS.map((f) => ({
       '@type': 'Question',
       name: f.q,
-      acceptedAnswer: { '@type': 'Answer', text: f.a },
+      // Plain text for the schema — strip the inline <strong> we use for display.
+      acceptedAnswer: { '@type': 'Answer', text: f.a.replace(/<[^>]+>/g, '') },
     })),
   }
   return (
     <section id="faq" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 grid md:grid-cols-[180px_1fr] gap-12 md:gap-16">
         <p className="small-caps font-mono text-[11px] text-accent">Preguntas frecuentes</p>
-        <ul className="max-w-[720px] border-t border-rule divide-y divide-rule">
+        <Accordion type="single" collapsible className="w-full max-w-[720px]">
           {FAQS.map((f) => (
-            <li key={f.q} className="py-6">
-              <h3 className="font-display font-semibold text-xl md:text-[22px] leading-snug">{f.q}</h3>
-              <p className="text-ink-soft text-base md:text-[17px] leading-[1.6] mt-2">{f.a}</p>
-            </li>
+            <AccordionItem
+              key={f.q}
+              value={f.q}
+              className="mb-2 overflow-hidden rounded-xl border border-rule bg-paper-2/40 last:border-b"
+            >
+              <AccordionTrigger className="px-5 py-4 font-display text-lg font-semibold text-ink hover:no-underline md:text-xl">
+                {f.q}
+              </AccordionTrigger>
+              <AccordionContent className="px-5 pb-5 pt-0">
+                <p
+                  className="text-base leading-relaxed text-ink-soft [&_strong]:font-medium [&_strong]:text-ink"
+                  dangerouslySetInnerHTML={{ __html: f.a }}
+                />
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </ul>
+        </Accordion>
       </div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </section>
