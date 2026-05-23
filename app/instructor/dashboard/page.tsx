@@ -101,7 +101,7 @@ export default function InstructorDashboard() {
     <div className="min-h-screen bg-paper text-ink">
       <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-rule">
         <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
-          <Link href="/" aria-label="Parell — inicio">
+          <Link href="/instructor/dashboard" aria-label="Parell — inicio">
             <Wordmark size="md" />
           </Link>
           <div className="flex items-center gap-2">
