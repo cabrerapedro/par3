@@ -12,7 +12,7 @@ import type { Clip } from '@/lib/classes'
 import Link from 'next/link'
 
 export default function ClipPracticeHistory() {
-  const { student } = useAuth()
+  const { student, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const clipId = params.id as string
@@ -27,9 +27,13 @@ export default function ClipPracticeHistory() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Wait for auth to hydrate before redirecting (avoids bouncing a
+    // logged-in student to login on a hard load / PWA cold start).
+    if (authLoading) return
     if (!student) { router.replace('/student/login'); return }
     loadData()
-  }, [student])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student, authLoading])
 
   async function loadData() {
     const [{ data: c }, { data: ss }] = await Promise.all([
