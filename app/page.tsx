@@ -33,36 +33,12 @@ export default function Home() {
         <Testimonial />
         <ComoFunciona />
         <TresPrincipios />
-        <About />
         <Faq />
         <Acceso />
         <Cierre />
       </main>
       <Footer />
     </div>
-  )
-}
-
-/* ─── Sobre parell.golf ─────────────────────────────────────────────────── */
-
-// Dense, plain-prose description above the FAQ. Visible (not hidden) so search
-// engines and LLMs can read what parell.golf is in natural language.
-function About() {
-  return (
-    <section className="border-b border-rule py-14 md:py-24">
-      <div className="mx-auto max-w-2xl px-6 md:px-8 text-center">
-        <p className="text-ink-soft text-base leading-relaxed">
-          <span className="text-accent font-medium">parell.golf</span> es una app de
-          práctica de golf para instructores profesionales y sus alumnos. El instructor
-          graba y anota la técnica correcta del alumno durante la clase; el alumno la
-          practica solo entre clases con esa referencia en su dispositivo y recibe
-          feedback de postura en tiempo real con inteligencia artificial. Funciona en
-          cualquier dispositivo moderno con cámara — sin sensores ni equipo especial.
-          Disponible en español e inglés. El instructor paga una suscripción mensual;
-          el alumno accede gratis.
-        </p>
-      </div>
-    </section>
   )
 }
 
@@ -128,19 +104,19 @@ function Faq() {
     <section id="faq" className="border-b border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 grid md:grid-cols-[180px_1fr] gap-12 md:gap-16">
         <p className="small-caps font-mono text-[11px] text-accent">Preguntas frecuentes</p>
-        <Accordion type="single" collapsible className="w-full max-w-[720px]">
+        <Accordion type="single" collapsible className="w-full max-w-[720px] border-t border-rule">
           {FAQS.map((f) => (
             <AccordionItem
               key={f.q}
               value={f.q}
-              className="mb-2 overflow-hidden rounded-xl border border-rule bg-paper-2/40 last:border-b"
+              className="border-b border-rule"
             >
-              <AccordionTrigger className="px-5 py-4 font-display text-lg font-semibold text-ink hover:no-underline md:text-xl">
+              <AccordionTrigger className="gap-6 py-5 font-display text-lg font-semibold text-ink transition-colors hover:text-accent hover:no-underline data-[state=open]:text-accent md:text-xl">
                 {f.q}
               </AccordionTrigger>
-              <AccordionContent className="px-5 pb-5 pt-0">
+              <AccordionContent className="pb-6 pr-8 pt-0">
                 <p
-                  className="text-base leading-relaxed text-ink-soft [&_strong]:font-medium [&_strong]:text-ink"
+                  className="text-base md:text-[17px] leading-[1.65] text-ink-soft [&_strong]:font-medium [&_strong]:text-ink"
                   dangerouslySetInnerHTML={{ __html: f.a }}
                 />
               </AccordionContent>
