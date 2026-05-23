@@ -29,6 +29,8 @@ export default function InstructorDashboard() {
   useEffect(() => {
     if (loading) return
     if (!instructor) { router.replace('/instructor/login'); return }
+    // loadStudents is a stable function declaration (hoisted, never reassigned).
+    // eslint-disable-next-line react-hooks/immutability
     loadStudents()
   }, [instructor, loading])
 

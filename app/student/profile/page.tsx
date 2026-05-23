@@ -52,12 +52,15 @@ export default function StudentProfile() {
   useEffect(() => {
     if (loading) return
     if (!student) { router.replace('/student/login'); return }
+    // Seed the form from the loaded student — intentional mount-time state.
+    /* eslint-disable react-hooks/set-state-in-effect */
     setName(student.name)
     setHandicap(student.handicap ?? '')
     setDominantHand(student.dominant_hand ?? '')
     setYearsPlaying(student.years_playing?.toString() ?? '')
     setHomeCourse(student.home_course ?? '')
     setBio(student.bio ?? '')
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [student, loading])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
