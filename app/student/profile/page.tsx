@@ -61,7 +61,7 @@ export default function StudentProfile() {
     setHomeCourse(student.home_course ?? '')
     setBio(student.bio ?? '')
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [student, loading])
+  }, [student, loading, router])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

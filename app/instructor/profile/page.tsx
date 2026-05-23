@@ -46,7 +46,7 @@ export default function InstructorProfile() {
       .select('id', { count: 'exact', head: true })
       .eq('instructor_id', instructor.id)
       .then(({ count }) => setStudentCount(count ?? 0))
-  }, [instructor, loading])
+  }, [instructor, loading, router])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()

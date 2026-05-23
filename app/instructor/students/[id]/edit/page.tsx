@@ -37,6 +37,8 @@ export default function EditStudent() {
         }
         setLoading(false)
       })
+    // Load once when auth resolves; instructor/router/studentId aren't deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading])
 
   async function handleSubmit(e: React.FormEvent) {

@@ -54,8 +54,6 @@ function StudentLogin() {
     const urlCode = searchParams.get('code')
     if (!urlCode || tried.current) return
     tried.current = true
-    // Auto-login from a shared ?code= link — intentional mount-time state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAutoLogging(true)
     studentLogin(urlCode).then(result => {
       if (result.error) {
@@ -65,6 +63,10 @@ function StudentLogin() {
         router.replace('/student/journey')
       }
     })
+    // Auto-login runs once per URL (guarded by tried.current). Opt out of the
+    // React Compiler's effect lint: the setAutoLogging flag is intentional and
+    // studentLogin/t/router aren't needed deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   useEffect(() => {

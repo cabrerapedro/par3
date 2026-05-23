@@ -101,11 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const { data } = await supabase.from('instructors').select('*').eq('id', userId).single()
             if (data && mounted) {
-              // Both are stable function declarations below (hoisted, never
-              // reassigned); calling them from the auth listener is intentional.
-              // eslint-disable-next-line react-hooks/immutability
               cacheInstructor(data)
-              // eslint-disable-next-line react-hooks/immutability
               syncLocaleFromDb(data.preferred_locale)
             }
           } catch {}
@@ -114,6 +110,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return () => { mounted = false; subscription.unsubscribe() }
+    // Mount-once: hydrate from localStorage and subscribe to auth changes.
+    // syncLocaleFromDb is intentionally not a dep (would re-subscribe per render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function cacheInstructor(data: Instructor) {

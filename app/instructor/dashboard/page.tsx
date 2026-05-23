@@ -29,9 +29,10 @@ export default function InstructorDashboard() {
   useEffect(() => {
     if (loading) return
     if (!instructor) { router.replace('/instructor/login'); return }
-    // loadStudents is a stable function declaration (hoisted, never reassigned).
-    // eslint-disable-next-line react-hooks/immutability
     loadStudents()
+    // Intentional mount/auth-gated load. Opt out of the React Compiler's effect
+    // lint: loadStudents is a stable hoisted fn and router isn't a needed dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instructor, loading])
 
   async function loadStudents() {
