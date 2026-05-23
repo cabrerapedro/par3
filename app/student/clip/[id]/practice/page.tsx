@@ -26,7 +26,7 @@ interface FrameResult {
 }
 
 export default function StudentClipPractice() {
-  const { student } = useAuth()
+  const { student, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const clipId = params.id as string
@@ -81,6 +81,11 @@ export default function StudentClipPractice() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth to hydrate before redirecting. On a hard load this effect
+    // runs before AuthProvider populates `student`; gating on authLoading
+    // avoids bouncing a logged-in student to login. authLoading flips exactly
+    // once (true→false), so the setup below still runs only once.
+    if (authLoading) return
     if (!student) { router.replace('/student/login'); return }
     loadClip()
     navigator.mediaDevices?.enumerateDevices().then(devices => {
@@ -92,7 +97,7 @@ export default function StudentClipPractice() {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [authLoading])
 
   async function loadClip() {
     const { data } = await supabase.from('clips').select('*').eq('id', clipId).single()

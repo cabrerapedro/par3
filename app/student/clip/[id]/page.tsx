@@ -31,7 +31,7 @@ interface ClipAnnotation {
 }
 
 export default function ClipDetail() {
-  const { student } = useAuth()
+  const { student, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const clipId = params.id as string
@@ -45,6 +45,11 @@ export default function ClipDetail() {
   const [cards, setCards] = useState<Record<string, PracticeCard | null>>({})
 
   useEffect(() => {
+    // Wait for auth to hydrate from localStorage before deciding. On a hard
+    // load (refresh, direct URL, PWA cold start) this effect runs before the
+    // AuthProvider populates `student`; without the gate we'd bounce a
+    // logged-in student to /student/login.
+    if (authLoading) return
     if (!student) { router.replace('/student/login'); return }
     let cancelled = false
     Promise.all([
@@ -59,7 +64,7 @@ export default function ClipDetail() {
     return () => { cancelled = true }
     // clipId comes from params and changes on route navigation; make it
     // explicit so the effect re-runs if Next ever re-uses the page instance.
-  }, [student, clipId, router])
+  }, [student, authLoading, clipId, router])
 
   // Generate a practice card (focus + checklist) for each annotation that has
   // coach content (transcript/note) but no card yet. The API persists it, so

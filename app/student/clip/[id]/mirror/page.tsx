@@ -37,7 +37,7 @@ function buildActionHints(t: (key: string) => string): Record<string, { high: st
 }
 
 export default function StudentClipMirror() {
-  const { student } = useAuth()
+  const { student, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const clipId = params.id as string
@@ -66,13 +66,19 @@ export default function StudentClipMirror() {
   const [kiosk, setKiosk] = useState(false)
 
   useEffect(() => {
+    // Wait for auth to hydrate before redirecting. On a hard load this effect
+    // runs before AuthProvider populates `student`; gating on authLoading
+    // avoids bouncing a logged-in student to login. authLoading flips exactly
+    // once (true→false), so the camera init still runs only once.
+    if (authLoading) return
     if (!student) { router.replace('/student/login'); return }
     navigator.mediaDevices?.enumerateDevices().then(devices => {
       setHasMultipleCameras(devices.filter(d => d.kind === 'videoinput').length > 1)
     }).catch(() => {})
     init()
     return () => { cameraRef.current?.stop() }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading])
 
   async function init() {
     const { data } = await supabase.from('clips').select('*').eq('id', clipId).single()
