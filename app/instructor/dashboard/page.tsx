@@ -171,7 +171,7 @@ export default function InstructorDashboard() {
               key={key}
               onClick={() => setStage(key)}
               className={cn(
-                'small-caps font-mono text-[10px] px-3 h-8 border transition-colors',
+                'small-caps font-mono text-[11px] px-3 h-8 border transition-colors',
                 stage === key
                   ? 'border-ink bg-ink text-paper'
                   : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
@@ -216,10 +216,10 @@ export default function InstructorDashboard() {
         <>
           <div className="border-t border-rule">
             <div className="hidden md:grid grid-cols-[1fr_120px_130px_120px_60px] gap-6 py-3 border-b border-rule">
-              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colName')}</span>
-              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colCode')}</span>
-              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colStatus')}</span>
-              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colExercises')}</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colName')}</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colCode')}</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colStatus')}</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colExercises')}</span>
               <span />
             </div>
 
@@ -245,7 +245,7 @@ export default function InstructorDashboard() {
                           </Tooltip>
                         )}
                         {/* Mobile-only inline stage tag; desktop uses the Estado column */}
-                        <span className={cn('md:hidden small-caps font-mono text-[9px] px-1.5 py-0.5 border shrink-0', badge.className)}>
+                        <span className={cn('md:hidden small-caps font-mono text-[11px] px-1.5 py-0.5 border shrink-0', badge.className)}>
                           {badge.label}
                         </span>
                       </div>
@@ -291,7 +291,7 @@ export default function InstructorDashboard() {
                     </div>
 
                     <div className="hidden md:flex items-center">
-                      <span className={cn('inline-flex items-center gap-1.5 small-caps font-mono text-[10px] px-2 py-1 border', badge.className)}>
+                      <span className={cn('inline-flex items-center gap-1.5 small-caps font-mono text-[11px] px-2 py-1 border', badge.className)}>
                         <span className={cn('size-1.5 rounded-full', badge.dot)} />
                         {badge.label}
                       </span>
@@ -312,7 +312,7 @@ export default function InstructorDashboard() {
           </div>
 
           <div className="flex items-center justify-between gap-4 mt-6">
-            <p className="small-caps font-mono text-[10px] text-ink-mute">
+            <p className="small-caps font-mono text-[11px] text-ink-mute">
               {t('showingCount', { shown: students.length, total: count })}
             </p>
             {students.length < count && (

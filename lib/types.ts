@@ -88,10 +88,27 @@ export interface Student {
 
 export type JourneyStatus = 'todo' | 'doing' | 'done'
 
+export type JourneyPlanStatus = 'active' | 'archived'
+
+// A student's learning plan ("plan de aprendizaje"). A student can have several;
+// one is the current focus. Steps (JourneyItem) belong to a plan via journey_id.
+export interface Journey {
+  id: string
+  student_id: string
+  instructor_id: string
+  name: string
+  source_template_id?: string | null
+  is_focus: boolean
+  position: number
+  status: JourneyPlanStatus
+  created_at: string
+}
+
 export interface JourneyItem {
   id: string
   student_id: string
   instructor_id: string
+  journey_id?: string | null
   title: string
   note?: string | null
   images?: string[]

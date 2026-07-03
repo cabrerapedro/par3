@@ -20,6 +20,8 @@ export type ClipStatus = 'pending' | 'calibrated' | 'archived'
 export interface Clip {
   id: string
   class_id: string | null
+  /** The learning-plan step this clip is the reference for (Fase 3). */
+  journey_item_id?: string | null
   student_id: string
   instructor_id: string
   name: string

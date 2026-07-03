@@ -372,11 +372,11 @@ function Hero() {
             <ViewfinderMarks />
           </div>
           <div className="flex justify-between mt-3">
-            <span className="small-caps font-mono text-[10px] text-live inline-flex items-center gap-1.5">
+            <span className="small-caps font-mono text-[11px] text-live inline-flex items-center gap-1.5">
               <span aria-hidden className="pulse-live inline-block size-1.5 rounded-full bg-live" />
               Análisis on-device
             </span>
-            <span className="small-caps font-mono text-[10px] text-ink-mute">Face-on · 33 puntos</span>
+            <span className="small-caps font-mono text-[11px] text-ink-mute">Face-on · 33 puntos</span>
           </div>
         </div>
       </div>
@@ -508,7 +508,7 @@ function Panel({ numeral, who, title, body, imageBase, imageAlt, divider }: { nu
           className="object-cover hidden dark:block"
         />
       </div>
-      <p className="small-caps font-mono text-[10px] text-accent">{numeral} · {who}</p>
+      <p className="small-caps font-mono text-[11px] text-accent">{numeral} · {who}</p>
       <h3 className="font-display font-semibold text-[22px] leading-[1.2] mt-2">{title}</h3>
       <p className="text-sm leading-[1.6] text-ink-soft mt-3">{body}</p>
     </div>
@@ -657,7 +657,7 @@ function AccessBlock({ numeral, who, title, body, ctaText, ctaHref, secondaryTex
       <div className="mb-6 md:mb-0 md:absolute md:top-8 md:right-8">
         <Stamp>{stamp}</Stamp>
       </div>
-      <p className="small-caps font-mono text-[10px] text-accent">{numeral} · {who}</p>
+      <p className="small-caps font-mono text-[11px] text-accent">{numeral} · {who}</p>
       <h3 className="font-display font-semibold text-2xl md:text-[28px] leading-[1.15] mt-2 max-w-[380px]">
         {title}
       </h3>
@@ -718,7 +718,7 @@ function Footer() {
           <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Privacidad</a>
           <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Términos</a>
         </div>
-        <span className="small-caps font-mono text-[10px] text-ink-mute inline-flex items-center gap-2">
+        <span className="small-caps font-mono text-[11px] text-ink-mute inline-flex items-center gap-2">
           <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden className="shrink-0">
             <line x1="1.5" y1="11" x2="1.5" y2="1" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
             <polygon points="1.5,1 7.5,2.5 1.5,4.5" style={{ fill: 'var(--color-accent)' }} />

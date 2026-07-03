@@ -102,10 +102,10 @@ export default function MessageThread() {
           </Link>
           <div className="min-w-0">
             <p className="font-display font-semibold text-lg truncate">{student?.name}</p>
-            {windowOpen && <span className="small-caps font-mono text-[9px] text-ok">{t('windowOpen')}</span>}
+            {windowOpen && <span className="small-caps font-mono text-[11px] text-ok">{t('windowOpen')}</span>}
           </div>
         </div>
-        <Link href={`/instructor/students/${studentId}`} className="small-caps font-mono text-[10px] text-ink-mute hover:text-ink transition-colors shrink-0">
+        <Link href={`/instructor/students/${studentId}`} className="small-caps font-mono text-[11px] text-ink-mute hover:text-ink transition-colors shrink-0">
           {t('viewProfile')}
         </Link>
       </div>

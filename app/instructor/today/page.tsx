@@ -170,7 +170,7 @@ export default function TodayAgenda() {
     : new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(viewDate)
 
   return (
-    <div className="max-w-6xl mx-auto px-3 md:px-6 py-6 md:py-8 flex flex-col" style={{ height: 'calc(100dvh - 3.5rem)' }}>
+    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 flex flex-col" style={{ height: 'calc(100dvh - 3.5rem)' }}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2">
@@ -178,7 +178,7 @@ export default function TodayAgenda() {
             <button aria-label={t('prevDay')} onClick={() => setViewDate(d => addDays(d, view === 'week' ? -7 : -1))} className="size-9 flex items-center justify-center border border-rule rounded-md text-ink-soft hover:text-ink hover:border-ink-soft transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
-            <button onClick={() => setViewDate(startOfDay(new Date()))} className="h-9 px-3 border border-rule rounded-md small-caps font-mono text-[10px] text-ink-soft hover:text-ink hover:border-ink-soft transition-colors">{t('todayBtn')}</button>
+            <button onClick={() => setViewDate(startOfDay(new Date()))} className="h-9 px-3 border border-rule rounded-md small-caps font-mono text-[11px] text-ink-soft hover:text-ink hover:border-ink-soft transition-colors">{t('todayBtn')}</button>
             <button aria-label={t('nextDay')} onClick={() => setViewDate(d => addDays(d, view === 'week' ? 7 : 1))} className="size-9 flex items-center justify-center border border-rule rounded-md text-ink-soft hover:text-ink hover:border-ink-soft transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
@@ -188,7 +188,7 @@ export default function TodayAgenda() {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             {(['day', 'week'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)} className={cn('small-caps font-mono text-[10px] px-3 h-9 border transition-colors', view === v ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:text-ink hover:border-ink-soft')}>
+              <button key={v} onClick={() => setView(v)} className={cn('small-caps font-mono text-[11px] px-3 h-9 border transition-colors', view === v ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:text-ink hover:border-ink-soft')}>
                 {v === 'day' ? t('viewDay') : t('viewWeek')}
               </button>
             ))}
@@ -206,7 +206,7 @@ export default function TodayAgenda() {
           const today = sameDay(d, new Date())
           return (
             <button key={d.toISOString()} onClick={() => { setViewDate(d); setView('day') }} className={cn('flex-1 py-1.5 text-center border-l border-rule first:border-l-0', today && 'bg-accent/[0.04]')}>
-              <span className="small-caps font-mono text-[10px] text-ink-mute block capitalize">{new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(d)}</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute block capitalize">{new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(d)}</span>
               <span className={cn('font-display font-semibold text-base tabular-nums', today ? 'text-accent' : 'text-ink')}>{d.getDate()}</span>
             </button>
           )
@@ -222,7 +222,7 @@ export default function TodayAgenda() {
             {/* Hour gutter */}
             <div className="w-11 shrink-0 relative">
               {Array.from({ length: endHour - startHour }, (_, i) => startHour + i).map(h => (
-                <div key={h} className="absolute right-1.5 -translate-y-1/2 small-caps font-mono text-[9px] text-ink-mute" style={{ top: topFor(h * 60) }}>
+                <div key={h} className="absolute right-1.5 -translate-y-1/2 small-caps font-mono text-[11px] text-ink-mute" style={{ top: topFor(h * 60) }}>
                   {String(h).padStart(2, '0')}:00
                 </div>
               ))}
@@ -259,7 +259,7 @@ export default function TodayAgenda() {
                         className={cn('absolute rounded-md border px-1.5 py-1 text-left overflow-hidden transition-shadow hover:shadow-md z-10', STATUS_STYLE[l.status])}
                         style={{ top, height, left: `${(col / cols) * 100}%`, width: `calc(${100 / cols}% - 2px)` }}
                       >
-                        <p className="font-mono text-[9px] tabular-nums leading-none opacity-70">{fmtTime(l.starts_at)}</p>
+                        <p className="font-mono text-[10px] tabular-nums leading-none opacity-70">{fmtTime(l.starts_at)}</p>
                         <p className="text-[11px] font-medium leading-tight truncate mt-0.5">{l.student?.name ?? '—'}</p>
                       </button>
                     )
@@ -336,7 +336,7 @@ function LessonDialog({ lesson, onClose, onMark, onDelete, onSaved, t }: {
             <input type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} className="h-11 px-3 bg-paper-2/40 border border-rule rounded-md text-sm focus:outline-none focus:border-ink-soft" />
             <div className="flex items-center gap-1">
               {([['min30', 30], ['min60', 60], ['min90', 90]] as const).map(([key, m]) => (
-                <button key={m} type="button" onClick={() => setDurationMin(m)} className={cn('flex-1 h-9 border rounded-md small-caps font-mono text-[10px] transition-colors', durationMin === m ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink')}>{t(key)}</button>
+                <button key={m} type="button" onClick={() => setDurationMin(m)} className={cn('flex-1 h-9 border rounded-md small-caps font-mono text-[11px] transition-colors', durationMin === m ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink')}>{t(key)}</button>
               ))}
             </div>
             <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('notePlaceholder')} className="h-11 px-3 bg-paper-2/40 border border-rule rounded-md text-sm focus:outline-none focus:border-ink-soft" />
@@ -351,16 +351,16 @@ function LessonDialog({ lesson, onClose, onMark, onDelete, onSaved, t }: {
             <p className="text-sm text-ink-soft capitalize -mt-1">{whenLabel}</p>
             {lesson.note && <p className="text-sm text-ink-soft border-l-2 border-rule pl-2">{lesson.note}</p>}
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <button onClick={() => onMark(lesson, 'attended')} className={cn('h-10 border rounded-md small-caps font-mono text-[10px] transition-colors', lesson.status === 'attended' ? 'border-ok bg-ok/10 text-ok' : 'border-ok/50 text-ok hover:bg-ok/10')}>{t('markAttended')}</button>
-              <button onClick={() => onMark(lesson, 'no_show')} className={cn('h-10 border rounded-md small-caps font-mono text-[10px] transition-colors', lesson.status === 'no_show' ? 'border-warn bg-warn/10 text-warn' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink')}>{t('markNoShow')}</button>
+              <button onClick={() => onMark(lesson, 'attended')} className={cn('h-10 border rounded-md small-caps font-mono text-[11px] transition-colors', lesson.status === 'attended' ? 'border-ok bg-ok/10 text-ok' : 'border-ok/50 text-ok hover:bg-ok/10')}>{t('markAttended')}</button>
+              <button onClick={() => onMark(lesson, 'no_show')} className={cn('h-10 border rounded-md small-caps font-mono text-[11px] transition-colors', lesson.status === 'no_show' ? 'border-warn bg-warn/10 text-warn' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink')}>{t('markNoShow')}</button>
             </div>
             <Link href={`/instructor/students/${lesson.student_id}/clips/new/record`} className="h-11 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold rounded-md hover:opacity-85 transition-opacity">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3.5" /><path d="M19 6h-2.5L15 4h-6L7.5 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" /></svg>
               {t('recordCta')}
             </Link>
             <div className="flex items-center justify-between pt-1">
-              <Link href={`/instructor/students/${lesson.student_id}`} className="small-caps font-mono text-[10px] text-ink-mute hover:text-ink transition-colors">{t('viewProfile')}</Link>
-              <button onClick={() => onDelete(lesson)} className="small-caps font-mono text-[10px] text-ink-mute hover:text-bad transition-colors">{t('deleteLesson')}</button>
+              <Link href={`/instructor/students/${lesson.student_id}`} className="small-caps font-mono text-[11px] text-ink-mute hover:text-ink transition-colors">{t('viewProfile')}</Link>
+              <button onClick={() => onDelete(lesson)} className="small-caps font-mono text-[11px] text-ink-mute hover:text-bad transition-colors">{t('deleteLesson')}</button>
             </div>
           </>
         )}
@@ -437,7 +437,7 @@ function SchedulerDialog({ open, onClose, instructorId, initial, onSaved, t }: {
         <div className="flex flex-col gap-4">
           {/* Student picker with inline create */}
           <div className="flex flex-col gap-1.5">
-            <label className="small-caps font-mono text-[10px] text-ink-mute">{t('studentLabel')}</label>
+            <label className="small-caps font-mono text-[11px] text-ink-mute">{t('studentLabel')}</label>
             {picked ? (
               <div className="flex items-center justify-between h-11 px-3 border border-ink rounded-md">
                 <span className="font-medium">{picked.name}</span>
@@ -469,16 +469,16 @@ function SchedulerDialog({ open, onClose, instructorId, initial, onSaved, t }: {
 
           {/* When */}
           <div className="flex flex-col gap-1.5">
-            <label className="small-caps font-mono text-[10px] text-ink-mute">{t('whenLabel')}</label>
+            <label className="small-caps font-mono text-[11px] text-ink-mute">{t('whenLabel')}</label>
             <input type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} className="h-11 px-3 bg-paper-2/40 border border-rule rounded-md text-sm focus:outline-none focus:border-ink-soft" />
           </div>
 
           {/* Duration */}
           <div className="flex flex-col gap-1.5">
-            <label className="small-caps font-mono text-[10px] text-ink-mute">{t('durationLabel')}</label>
+            <label className="small-caps font-mono text-[11px] text-ink-mute">{t('durationLabel')}</label>
             <div className="flex items-center gap-1">
               {([['min30', 30], ['min60', 60], ['min90', 90]] as const).map(([key, m]) => (
-                <button key={m} type="button" onClick={() => setDurationMin(m)} className={cn('flex-1 h-9 border rounded-md small-caps font-mono text-[10px] transition-colors', durationMin === m ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink')}>
+                <button key={m} type="button" onClick={() => setDurationMin(m)} className={cn('flex-1 h-9 border rounded-md small-caps font-mono text-[11px] transition-colors', durationMin === m ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink')}>
                   {t(key)}
                 </button>
               ))}

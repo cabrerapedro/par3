@@ -12,12 +12,12 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Class, Clip } from '@/lib/classes'
-import type { JourneyItem, Recommendation } from '@/lib/types'
+import type { Journey, JourneyItem, Recommendation } from '@/lib/types'
 import { clipScoreSummary, type SessionLike } from '@/lib/trends'
 import { Badge } from '@/components/ui/badge'
 import { UserMenu } from '@/components/UserMenu'
 import { Wordmark } from '@/components/Wordmark'
-import { WarmupCard } from '@/components/WarmupCard'
+import { Lightbox } from '@/components/Lightbox'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -45,11 +45,16 @@ export default function StudentJourney() {
   const { student, logout, loading, updateStudent } = useAuth()
   const router = useRouter()
   const t = useTranslations('student.journey')
+  const tc = useTranslations('common')
+  const [zoom, setZoom] = useState<string | null>(null)
+  const [tab, setTab] = useState<'plan' | 'clips'>('plan')
+  const [showRecs, setShowRecs] = useState(false)
   const timeAgo = useTimeAgo()
 
   const [classes, setClasses] = useState<Class[]>([])
   const [clips, setClips] = useState<Clip[]>([])
   const [sessions, setSessions] = useState<SessionLike[]>([])
+  const [journeys, setJourneys] = useState<Journey[]>([])
   const [journey, setJourney] = useState<JourneyItem[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [fetching, setFetching] = useState(true)
@@ -76,7 +81,7 @@ export default function StudentJourney() {
 
   async function load(studentId: string) {
     setFetching(true)
-    const [{ data: cls }, { data: cl }, { data: ps }, { data: jr }, { data: rec }] = await Promise.all([
+    const [{ data: cls }, { data: cl }, { data: ps }, { data: jr }, { data: rec }, { data: js }] = await Promise.all([
       supabase
         .from('classes')
         .select('*')
@@ -103,12 +108,19 @@ export default function StudentJourney() {
         .from('recommendations')
         .select('*')
         .order('position', { ascending: true }),
+      // Learning plans. Steps come from journey_items above.
+      supabase
+        .from('journeys')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: true }),
     ])
     setClasses(cls ?? [])
     setClips(cl ?? [])
     setSessions((ps as SessionLike[]) ?? [])
     setJourney((jr as JourneyItem[]) ?? [])
     setRecommendations((rec as Recommendation[]) ?? [])
+    setJourneys((js as Journey[]) ?? [])
     setFetching(false)
   }
 
@@ -180,7 +192,7 @@ export default function StudentJourney() {
               <>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="small-caps font-mono text-[10px] text-accent mb-1">{t('emailPromptTitle')}</p>
+                    <p className="small-caps font-mono text-[11px] text-accent mb-1">{t('emailPromptTitle')}</p>
                     <p className="text-sm text-ink-soft leading-snug">{t('emailPromptBody')}</p>
                   </div>
                   <button
@@ -214,109 +226,157 @@ export default function StudentJourney() {
           </div>
         )}
 
-        {/* Your plan — the coach's curated, ordered list of focuses (read-only). */}
-        {!fetching && journey.length > 0 && (
-          <div className="mb-8 border border-rule bg-paper-2/40 p-4 md:p-5">
-            <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('planTitle')}</p>
-            <ul className="flex flex-col gap-3.5">
-              {journey.map((item, i) => (
-                <li key={item.id}>
-                  <div className="flex items-center gap-3">
-                    <span className={cn(
-                      'size-5 rounded-full border flex items-center justify-center shrink-0',
-                      item.status === 'done' ? 'border-ok bg-ok/10 text-ok'
-                      : item.status === 'doing' ? 'border-accent text-accent'
-                      : 'border-rule text-ink-mute'
-                    )}>
-                      {item.status === 'done'
-                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                        : <span className="font-mono text-[10px] tabular-nums">{i + 1}</span>}
-                    </span>
-                    <span className={cn('flex-1 text-base', item.status === 'done' ? 'text-ink-mute line-through' : 'text-ink')}>{item.title}</span>
-                    {item.status === 'doing' && (
-                      <span className="small-caps font-mono text-[9px] text-accent border border-accent/40 px-1.5 py-0.5 shrink-0">{t('planDoing')}</span>
-                    )}
-                  </div>
-                  {item.note && <p className="text-sm text-ink-soft mt-1 ml-8">{item.note}</p>}
-                  {item.images && item.images.length > 0 && (
-                    <div className="flex gap-2 mt-2 ml-8">
-                      {item.images.map(url => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={url} src={url} alt="" className="w-24 h-24 object-cover rounded-md border border-rule" />
-                      ))}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Universal recommendations from the coach (warm-up, routine…). */}
-        {!fetching && recommendations.length > 0 && (
-          <div className="mb-8 border border-rule bg-paper-2/40 p-4 md:p-5">
-            <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('recommendationsTitle')}</p>
-            <ul className="flex flex-col gap-4">
-              {recommendations.map(rec => (
-                <li key={rec.id}>
-                  <p className="text-base font-medium text-ink">{rec.title}</p>
-                  {rec.note && <p className="text-sm text-ink-soft mt-0.5">{rec.note}</p>}
-                  {rec.images && rec.images.length > 0 && (
-                    <div className="flex gap-2 mt-2">
-                      {rec.images.map(url => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={url} src={url} alt="" className="w-24 h-24 object-cover rounded-md border border-rule" />
-                      ))}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {fetching ? (
           <div className="flex justify-center py-20">
             <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-        ) : classesWithClips.length === 0 ? (
+        ) : journeys.length === 0 && classesWithClips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 border-t border-b border-rule text-center">
             <p className="small-caps font-mono text-[11px] text-ink-mute">{t('emptyTitle')}</p>
             <p className="font-display font-semibold text-xl mt-2 max-w-sm">{t('emptyDescription')}</p>
           </div>
         ) : (
           <>
-          {/* Class conclusion (Layer 3): the coach's "this week" note, if any. */}
-          {classes[0] && (classes[0].conclusion_transcript || classes[0].conclusion_audio_url) && (
-            <div className="mb-6 border border-rule bg-paper-2/40 p-4 md:p-5">
-              <p className="small-caps font-mono text-[10px] text-accent mb-2">{t('conclusionTitle')}</p>
-              {classes[0].conclusion_transcript && (
-                <p className="text-base text-ink leading-relaxed mb-2">&ldquo;{classes[0].conclusion_transcript}&rdquo;</p>
-              )}
-              {classes[0].conclusion_audio_url && (
-                <audio src={classes[0].conclusion_audio_url} controls className="w-full h-9" />
-              )}
+            {/* Tabs: your plan (what to practice) vs recordings (history by date) */}
+            <div className="flex items-center gap-1 mb-6">
+              {(['plan', 'clips'] as const).map(key => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className={cn('small-caps font-mono text-[11px] px-3 h-9 border transition-colors', tab === key ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:text-ink hover:border-ink-soft')}
+                >
+                  {key === 'plan' ? t('tabPlan') : t('tabClips')}
+                </button>
+              ))}
             </div>
-          )}
-          <WarmupCard />
-          <p className="text-ink-soft text-base md:text-lg leading-snug mb-8 max-w-[46ch]">{t('homeIntro')}</p>
-          <ul className="flex flex-col gap-9">
-            {classesWithClips.map((cls) => (
-              <li key={cls.id}>
-                <h2 className="font-display font-semibold text-xl border-t border-rule pt-4 mb-4">
-                  {t('lastClassDate', { date: formatClassDate(cls.date) })}
-                </h2>
-                <ul className="flex flex-col gap-3">
-                  {(clipsByClass[cls.id] ?? []).map((clip) => (
-                    <ClipRow key={clip.id} clip={clip} sessions={sessions} timeAgo={timeAgo} t={t} />
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
+
+            {tab === 'plan' ? (
+              <>
+                {journeys.length > 0 && journey.length === 0 && (
+                  <p className="text-sm text-ink-soft text-center py-12 border-t border-b border-rule">{t('planEmpty')}</p>
+                )}
+                {journeys.length > 0 && journey.length > 0 && (
+          <div className="flex flex-col gap-6">
+            {journeys.map(jn => {
+              const steps = journey.filter(it => it.journey_id === jn.id)
+              if (steps.length === 0) return null
+              return (
+                <div key={jn.id} className="border border-rule bg-paper-2/40 p-4 md:p-5">
+                  <p className="small-caps font-mono text-[11px] text-accent mb-3">{jn.name}</p>
+                  <ul className="flex flex-col gap-3.5">
+                    {steps.map((item, i) => (
+                      <li key={item.id}>
+                        <div className="flex items-center gap-3">
+                          <span className="size-5 rounded-full border border-rule text-ink-mute flex items-center justify-center shrink-0 font-mono text-[10px] tabular-nums">{i + 1}</span>
+                          <span className="flex-1 text-base text-ink">{item.title}</span>
+                        </div>
+                        {item.note && <p className="text-sm text-ink-soft mt-1 ml-8">{item.note}</p>}
+                        {item.images && item.images.length > 0 && (
+                          <div className="flex gap-2 mt-2 ml-8 flex-wrap">
+                            {item.images.map(url => (
+                              <button key={url} type="button" onClick={() => setZoom(url)} title={tc('enlarge')} className="cursor-zoom-in">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt="" className="w-24 h-24 object-cover rounded-md border border-rule" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Reference clips the coach recorded for this step: open to
+                            watch it, or practice / use the mirror right here. */}
+                        {clips.some(c => c.journey_item_id === item.id) && (
+                          <div className="mt-2 ml-8 flex flex-col gap-2">
+                            {clips.filter(c => c.journey_item_id === item.id).map(c => (
+                              <div key={c.id} className="border border-rule rounded-md bg-paper p-2.5">
+                                <Link href={`/student/clip/${c.id}`} className="flex items-center gap-2 text-sm font-medium text-ink hover:text-accent transition-colors">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                                  <span className="truncate">{c.name}</span>
+                                </Link>
+                                {c.status === 'calibrated' && (
+                                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                    <Link href={`/student/clip/${c.id}/practice`} className="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-primary-foreground text-sm font-semibold rounded-md hover:opacity-85 transition-opacity">
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
+                                      {t('practiceCta')}
+                                    </Link>
+                                    {c.clip_type !== 'swing' && (
+                                      <Link href={`/student/clip/${c.id}/mirror`} className="inline-flex items-center gap-1.5 h-9 px-4 border border-rule text-ink-soft text-sm font-medium rounded-md hover:border-ink-soft hover:text-ink transition-colors">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
+                                        {t('mirrorCta')}
+                                      </Link>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+                {/* The coach's universal tips — collapsed so the plan stays the focus */}
+                {recommendations.length > 0 && (
+                  <div className="mt-8 border border-rule bg-paper-2/40">
+                    <button onClick={() => setShowRecs(v => !v)} className="w-full px-4 py-3.5 md:px-5 flex items-center justify-between gap-3 text-left hover:bg-paper-2/60 transition-colors">
+                      <p className="small-caps font-mono text-[11px] text-accent">{t('recommendationsTitle')}</p>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('text-ink-mute shrink-0 transition-transform', showRecs && 'rotate-180')}>
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    {showRecs && (
+                      <ul className="flex flex-col gap-4 px-4 pb-4 md:px-5 md:pb-5 border-t border-rule/60 pt-4">
+                        {recommendations.map(rec => (
+                          <li key={rec.id}>
+                            <p className="text-base font-medium text-ink">{rec.title}</p>
+                            {rec.note && <p className="text-sm text-ink-soft mt-0.5">{rec.note}</p>}
+                            {rec.images && rec.images.length > 0 && (
+                              <div className="flex gap-2 mt-2 flex-wrap">
+                                {rec.images.map(url => (
+                                  <button key={url} type="button" onClick={() => setZoom(url)} title={tc('enlarge')} className="cursor-zoom-in">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={url} alt="" className="w-24 h-24 object-cover rounded-md border border-rule" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {classesWithClips.length === 0 ? (
+                  <p className="text-sm text-ink-soft text-center py-16 border-t border-b border-rule">{t('lastClassEmpty')}</p>
+                ) : (
+                  <ul className="flex flex-col gap-9">
+                    {classesWithClips.map((cls) => (
+                      <li key={cls.id}>
+                        <h2 className="font-display font-semibold text-xl border-t border-rule pt-4 mb-4">
+                          {t('lastClassDate', { date: formatClassDate(cls.date) })}
+                        </h2>
+                        <ul className="flex flex-col gap-3">
+                          {(clipsByClass[cls.id] ?? []).map((clip) => (
+                            <ClipRow key={clip.id} clip={clip} sessions={sessions} timeAgo={timeAgo} t={t} />
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
           </>
         )}
       </div>
+
+      <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </div>
   )
 }

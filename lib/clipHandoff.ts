@@ -23,6 +23,9 @@ export interface HandoffClip {
   mime: string
   durationMs: number
   angle: CameraAngle
+  // The learning-plan step this recording belongs to, if it was started from a
+  // step ("abre el paso y graba"). Null when recorded ad-hoc.
+  journeyItemId?: string | null
 }
 
 function openDb(): Promise<IDBDatabase> {

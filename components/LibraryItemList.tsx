@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { uploadImage } from '@/lib/uploads'
+import { Lightbox } from '@/components/Lightbox'
 import { cn } from '@/lib/utils'
 
 interface Item {
@@ -14,21 +15,29 @@ interface Item {
   position: number
 }
 
-// Reusable editor for an ordered list of {title, note, up to 2 images}, backed
+// Up to this many images per item.
+const MAX_IMAGES = 6
+
+// Reusable editor for an ordered list of {title, note, up to 6 images}, backed
 // by a table filtered on a parent column. Used for journey template items and
 // for the universal recommendations list.
-export function LibraryItemList({ table, parentColumn, parentId, emptyText, addPlaceholder }: {
+export function LibraryItemList({ table, parentColumn, parentId, emptyText, addPlaceholder, onChanged }: {
   table: 'journey_template_items' | 'recommendations'
   parentColumn: string
   parentId: string
   emptyText: string
   addPlaceholder: string
+  // Called after the item count changes (add/remove), so a parent can refresh
+  // any summary it shows (e.g. the library cards' step count + preview).
+  onChanged?: () => void
 }) {
   const t = useTranslations('instructor.library')
+  const tc = useTranslations('common')
   const [items, setItems] = useState<Item[]>([])
   const [title, setTitle] = useState('')
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
+  const [zoom, setZoom] = useState<string | null>(null)
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -49,7 +58,7 @@ export function LibraryItemList({ table, parentColumn, parentId, emptyText, addP
     const { error: e2 } = await supabase.from(table).insert({ [parentColumn]: parentId, title: trimmed, position: items.length })
     setAdding(false)
     if (e2) { setError(e2.message); return }
-    setTitle(''); load()
+    setTitle(''); load(); onChanged?.()
   }
 
   function patchLocal(id: string, patch: Partial<Item>) {
@@ -57,7 +66,8 @@ export function LibraryItemList({ table, parentColumn, parentId, emptyText, addP
   }
   async function persist(id: string, patch: Partial<Item>) {
     const { error: e } = await supabase.from(table).update(patch).eq('id', id)
-    if (e) { setError(e.message); load() }
+    if (e) { setError(e.message); load(); return }
+    if ('title' in patch) onChanged?.()
   }
 
   async function move(index: number, dir: -1 | 1) {
@@ -81,15 +91,18 @@ export function LibraryItemList({ table, parentColumn, parentId, emptyText, addP
   async function remove(id: string) {
     setItems(prev => prev.filter(i => i.id !== id))
     const { error: e } = await supabase.from(table).delete().eq('id', id)
-    if (e) { setError(e.message); load() }
+    if (e) { setError(e.message); load(); return }
+    onChanged?.()
   }
 
-  async function addImage(item: Item, file: File) {
-    if (item.images.length >= 2) return
+  async function addImages(item: Item, files: FileList) {
+    const room = MAX_IMAGES - item.images.length
+    if (room <= 0) return
     setError('')
-    const url = await uploadImage('journey-images', file)
-    if (!url) { setError(t('uploadError')); return }
-    const images = [...item.images, url]
+    const picked = Array.from(files).slice(0, room)
+    const uploaded = (await Promise.all(picked.map(f => uploadImage('journey-images', f)))).filter(Boolean) as string[]
+    if (!uploaded.length) { setError(t('uploadError')); return }
+    const images = [...item.images, ...uploaded]
     patchLocal(item.id, { images })
     persist(item.id, { images })
   }
@@ -123,26 +136,28 @@ export function LibraryItemList({ table, parentColumn, parentId, emptyText, addP
                     placeholder={t('notePlaceholder')}
                     className="h-8 bg-transparent text-xs text-ink-soft placeholder:text-ink-mute/50 focus:outline-none"
                   />
-                  {/* Images */}
-                  <div className="flex items-center gap-2 mt-0.5">
+                  {/* Images — up to MAX_IMAGES, tap a thumbnail to enlarge */}
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {item.images.map(url => (
                       <div key={url} className="relative size-14 rounded-md overflow-hidden border border-rule">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt="" className="w-full h-full object-cover" />
-                        <button onClick={() => removeImage(item, url)} className="absolute top-0.5 right-0.5 size-4 rounded-full bg-black/60 text-white flex items-center justify-center">
+                        <button type="button" onClick={() => setZoom(url)} title={tc('enlarge')} className="block w-full h-full cursor-zoom-in">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                        <button onClick={e => { e.stopPropagation(); removeImage(item, url) }} title={t('remove')} className="absolute top-0.5 right-0.5 size-4 rounded-full bg-black/60 text-white flex items-center justify-center">
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                         </button>
                       </div>
                     ))}
-                    {item.images.length < 2 && (
+                    {item.images.length < MAX_IMAGES && (
                       <>
                         <button onClick={() => fileRefs.current[item.id]?.click()} className="size-14 rounded-md border border-dashed border-rule text-ink-mute hover:border-ink-soft hover:text-ink transition-colors flex items-center justify-center">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20" /></svg>
                         </button>
                         <input
                           ref={el => { fileRefs.current[item.id] = el }}
-                          type="file" accept="image/*" className="hidden"
-                          onChange={e => { const f = e.target.files?.[0]; if (f) addImage(item, f); e.target.value = '' }}
+                          type="file" accept="image/*" multiple className="hidden"
+                          onChange={e => { const fs = e.target.files; if (fs?.length) addImages(item, fs); e.target.value = '' }}
                         />
                       </>
                     )}
@@ -167,6 +182,8 @@ export function LibraryItemList({ table, parentColumn, parentId, emptyText, addP
           {adding ? t('adding') : t('addItem')}
         </button>
       </form>
+
+      <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
@@ -11,7 +11,6 @@ import { weeklyStats, clipScoreSummary, type SessionLike } from '@/lib/trends'
 import { canMessageWhatsapp, isDormantAt } from '@/lib/contacts'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ClassConclusionRecorder } from '@/components/ClassConclusionRecorder'
 import { JourneyEditor } from '@/components/JourneyEditor'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -47,6 +46,19 @@ export default function StudentProfile() {
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shared, setShared] = useState(false)
+  const [showCode, setShowCode] = useState(false)
+  const [tab, setTab] = useState<'plan' | 'clips'>('plan')
+
+  // Access card starts collapsed, but auto-opens ONCE for a brand-new student
+  // (no activity yet) — the onboarding moment. The ref guard keeps it from
+  // re-opening against the instructor if `student` gets a new object reference.
+  const autoExpandedCode = useRef(false)
+  useEffect(() => {
+    if (student && !student.last_activity_at && !autoExpandedCode.current) {
+      autoExpandedCode.current = true
+      setShowCode(true)
+    }
+  }, [student])
 
   useEffect(() => {
     if (authLoading) return
@@ -145,26 +157,23 @@ export default function StudentProfile() {
   const since = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(new Date(student.created_at))
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-rule">
-        <div className="max-w-3xl mx-auto px-4 md:px-6 h-14 flex items-center gap-3">
-          <Link href="/instructor/dashboard" className="text-sm text-ink-soft hover:text-ink transition-colors flex items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            {t('backToStudents')}
-          </Link>
-        </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 md:px-6 py-10">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-10">
+      <Link href="/instructor/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-ink transition-colors mb-6">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        {t('backToStudents')}
+      </Link>
+      {/* Same width frame as the Alumnos list; the ficha stays a readable column
+          anchored to the LEFT of that frame, not stretched. */}
+      <div className="max-w-3xl">
         {/* Identity — typographic ficha header */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <span className={cn('inline-flex items-center gap-1.5 small-caps font-mono text-[10px] px-2 py-0.5 border', stageBadge.className)}>
+              <span className={cn('inline-flex items-center gap-1.5 small-caps font-mono text-[11px] px-2 py-0.5 border', stageBadge.className)}>
                 <span className={cn('size-1.5 rounded-full', stageBadge.dot)} />
                 {stageBadge.label}
               </span>
-              {student.level && <span className="small-caps font-mono text-[10px] text-ink-mute">{student.level}</span>}
+              {student.level && <span className="small-caps font-mono text-[11px] text-ink-mute">{student.level}</span>}
             </div>
             <h1 className="font-display font-semibold text-3xl md:text-[36px] leading-tight">{student.name}</h1>
             {/* High-level contact line */}
@@ -180,20 +189,30 @@ export default function StudentProfile() {
                   )}
                 </span>
               )}
-              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('sinceLabel')} {since}</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute">{t('sinceLabel')} {since}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Link
               href={`/instructor/students/${studentId}/edit`}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-rule text-ink-soft hover:border-ink-soft hover:text-ink transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium border border-rule text-ink-soft hover:border-ink-soft hover:text-ink transition-colors rounded-md"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
               {t('edit')}
             </Link>
+            <button
+              onClick={() => setDeleteDialog(true)}
+              title={t('deleteAction')}
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium border border-rule text-ink-mute hover:border-bad/50 hover:text-bad transition-colors rounded-md"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span className="hidden sm:inline">{t('deleteAction')}</span>
+            </button>
           </div>
         </div>
 
@@ -201,18 +220,23 @@ export default function StudentProfile() {
             this and signs in calmly from home with the code (no QR, so it
             doesn't yank them out of the lesson). */}
         <div className="mt-6 border border-rule bg-paper-2/40">
-          <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-dashed border-rule">
+          <button
+            type="button"
+            onClick={() => setShowCode(v => !v)}
+            className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left hover:bg-paper-2/60 transition-colors"
+          >
             <div className="min-w-0">
-              <p className="small-caps font-mono text-[10px] text-accent mb-1">{t('accessTitle')}</p>
-              <p className="text-sm text-ink-soft leading-snug">{t('accessPhotoHint')}</p>
+              <p className="small-caps font-mono text-[11px] text-accent mb-1">{t('accessTitle')}</p>
+              <p className="text-sm text-ink-soft leading-snug">{showCode ? t('accessPhotoHint') : t('showAccessCode')}</p>
             </div>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-ink-mute shrink-0">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-              <circle cx="12" cy="13" r="4" />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('text-ink-mute shrink-0 transition-transform', showCode && 'rotate-180')}>
+              <polyline points="6 9 12 15 18 9" />
             </svg>
-          </div>
+          </button>
 
-          <div className="px-5 py-7 flex flex-col items-center text-center gap-1.5">
+          {showCode && (
+            <>
+          <div className="px-5 py-7 flex flex-col items-center text-center gap-1.5 border-t border-dashed border-rule">
             <p className="text-sm text-ink-soft flex items-center gap-1.5">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-ink-mute shrink-0">
                 <circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -238,61 +262,44 @@ export default function StudentProfile() {
               {shared ? t('copied') : t('shareLinkLabel')}
             </button>
           </div>
+            </>
+          )}
         </div>
 
-        {/* Journey — the ordered plan of focuses (Module 4). The student sees it. */}
-        <div className="border-t border-rule mt-10 pt-8">
-          <JourneyEditor studentId={studentId} instructorId={instructor!.id} />
+        {/* This week — compact engagement strip (secondary; no score signals) */}
+        <div className="mt-5 flex items-center gap-x-8 gap-y-1 flex-wrap">
+          <div className="flex items-baseline gap-2">
+            <span className="font-display font-semibold text-xl tabular-nums">{attendedThisWeek}</span>
+            <span className="small-caps font-mono text-[11px] text-ink-mute">{t('weekAttendedLabel')}</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-display font-semibold text-xl tabular-nums text-ink-soft">{week.sessionsCount}</span>
+            <span className="small-caps font-mono text-[11px] text-ink-mute">{t('weekRangeLabel')}</span>
+          </div>
+          {week.lastSessionAt && (
+            <span className="small-caps font-mono text-[11px] text-ink-mute sm:ml-auto">{t('weekLastPractice', { when: timeAgo(week.lastSessionAt) })}</span>
+          )}
         </div>
 
-        {/* "Esta semana" — engagement only (did they practice), no score signals */}
-        <div className="border-t border-rule mt-10 pt-8">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="small-caps font-mono text-[10px] text-accent">{t('weekTitle')}</p>
-            {week.lastSessionAt && (
-              <span className="small-caps font-mono text-[10px] text-ink-mute">
-                {t('weekLastPractice', { when: timeAgo(week.lastSessionAt) })}
-              </span>
-            )}
-          </div>
-          <div className="flex items-baseline gap-x-8 gap-y-1 mt-3 flex-wrap">
-            <div>
-              <p className="font-display font-semibold text-2xl">{t('weekAttended', { count: attendedThisWeek })}</p>
-              <p className="small-caps font-mono text-[10px] text-ink-mute mt-0.5">{t('weekAttendedLabel')}</p>
-            </div>
-            <div>
-              <p className="font-display font-semibold text-2xl text-ink-soft">{week.sessionsCount}</p>
-              <p className="small-caps font-mono text-[10px] text-ink-mute mt-0.5">{t('weekRangeLabel')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Class conclusion (guided practice Layer 3) — optional, most recent class */}
-        {classes[0] && (
-          <div className="border-t border-rule mt-10 pt-8">
-            <ClassConclusionRecorder
-              classId={classes[0].id}
-              audioUrl={classes[0].conclusion_audio_url}
-              transcript={classes[0].conclusion_transcript}
-            />
-          </div>
-        )}
-
-        {/* Classes + clips */}
-        <div className="border-t border-rule mt-10 pt-8">
-          <div className="flex items-center justify-between mb-5">
-            <p className="small-caps font-mono text-[10px] text-accent">{t('classesTitle')}</p>
-            <Link
-              href={`/instructor/students/${studentId}/clips/new/record`}
-              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:opacity-85 transition-opacity"
+        {/* Tabs. Recording lives per-step (below) and as a big fallback button
+            at the very bottom — so it's always within reach without crowding here. */}
+        <div className="mt-8 flex items-center gap-1">
+          {(['plan', 'clips'] as const).map(key => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={cn('small-caps font-mono text-[11px] px-3 h-9 border transition-colors', tab === key ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:text-ink hover:border-ink-soft')}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3.5" />
-                <path d="M19 6h-2.5L15 4h-6L7.5 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" />
-              </svg>
-              {t('addClip')}
-            </Link>
-          </div>
+              {key === 'plan' ? t('tabPlan') : t('tabClips')}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6">
+          {tab === 'plan' ? (
+            <JourneyEditor studentId={studentId} instructorId={instructor!.id} />
+          ) : (
+            <>
 
           {classes.length === 0 ? (
             <div className="border-t border-b border-rule py-12 text-center">
@@ -367,23 +374,22 @@ export default function StudentProfile() {
               })}
             </ul>
           )}
+            </>
+          )}
         </div>
 
-        {/* Danger zone — kept far from the primary actions so it can't be a
-            fat-finger. Delete cascades the student's whole history. */}
-        <div className="border-t border-bad/20 mt-16 pt-6">
-          <button
-            onClick={() => setDeleteDialog(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-mute hover:text-bad transition-colors"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-            {t('deleteAction')}
-          </button>
+        {/* Fallback record button — big and impossible to miss when you scroll
+            down, for a clip that doesn't belong to any step. */}
+        <Link
+          href={`/instructor/students/${studentId}/clips/new/record`}
+          className="mt-10 flex items-center justify-center gap-2 h-14 w-full bg-primary text-primary-foreground text-base font-semibold rounded-md hover:opacity-85 transition-opacity"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3.5" /><path d="M19 6h-2.5L15 4h-6L7.5 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" />
+          </svg>
+          {t('recordCta')}
+        </Link>
         </div>
-
-      </div>
 
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <DialogContent>

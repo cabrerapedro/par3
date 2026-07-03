@@ -77,7 +77,7 @@ function InstructorLogin() {
         <Link href="/" className="inline-block">
           <Wordmark size="lg" />
         </Link>
-        <p className="small-caps font-mono text-[10px] text-ink-mute mt-3">
+        <p className="small-caps font-mono text-[11px] text-ink-mute mt-3">
           {tAuth('instructorRole')}
         </p>
       </div>
@@ -96,7 +96,7 @@ function InstructorLogin() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {mode === 'signup' && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="name" className="small-caps font-mono text-[10px] text-ink-mute">
+                <Label htmlFor="name" className="small-caps font-mono text-[11px] text-ink-mute">
                   {t('nameLabel')}
                 </Label>
                 <Input
@@ -112,7 +112,7 @@ function InstructorLogin() {
             )}
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email" className="small-caps font-mono text-[10px] text-ink-mute">
+              <Label htmlFor="email" className="small-caps font-mono text-[11px] text-ink-mute">
                 {t('emailLabel')}
               </Label>
               <Input
@@ -127,7 +127,7 @@ function InstructorLogin() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password" className="small-caps font-mono text-[10px] text-ink-mute">
+              <Label htmlFor="password" className="small-caps font-mono text-[11px] text-ink-mute">
                 {t('passwordLabel')}
               </Label>
               <Input

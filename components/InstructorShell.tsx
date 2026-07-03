@@ -92,7 +92,7 @@ export function InstructorShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 py-4 flex flex-col gap-5 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
             <div key={group} className="flex flex-col gap-0.5">
-              <p className="px-3 mb-1 small-caps font-mono text-[10px] text-ink-mute/80">{t(`groups.${group}`)}</p>
+              <p className="px-3 mb-1 small-caps font-mono text-[11px] text-ink-mute/80">{t(`groups.${group}`)}</p>
               {SECTIONS.filter((s) => s.group === group).map(({ key, href, Icon }) => (
                 <Link
                   key={key}

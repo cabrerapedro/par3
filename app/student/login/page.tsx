@@ -153,7 +153,7 @@ function StudentLogin() {
         <Link href="/" className="inline-block">
           <Wordmark size="lg" />
         </Link>
-        <p className="small-caps font-mono text-[10px] text-ink-mute mt-3">
+        <p className="small-caps font-mono text-[11px] text-ink-mute mt-3">
           {tAuth('studentRole')}
         </p>
       </div>

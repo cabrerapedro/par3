@@ -895,6 +895,48 @@ create policy "journey_items_anon_select"
   to anon
   using (student_id = public.current_student_id());
 
+-- ---------- Learning plans container (Fase: plan de aprendizaje) ----------
+-- A student can have several named plans ("planes de aprendizaje"); one is the
+-- current focus. Each journey_item (step) belongs to one plan via journey_id.
+-- A plan may originate from a library plan (journey_templates) or be blank.
+create table if not exists journeys (
+  id                 uuid primary key default gen_random_uuid(),
+  student_id         uuid not null references students(id)          on delete cascade,
+  instructor_id      uuid not null references instructors(id)       on delete cascade,
+  name               text not null,
+  source_template_id uuid references journey_templates(id)          on delete set null,
+  is_focus           boolean not null default false,
+  position           integer not null default 0,
+  status             text not null default 'active' check (status in ('active', 'archived')),
+  created_at         timestamptz default now()
+);
+create index if not exists idx_journeys_student on journeys(student_id, position);
+
+-- Each step belongs to a plan. Nullable for a safe additive migration; the app
+-- always sets it going forward.
+alter table journey_items add column if not exists journey_id uuid references journeys(id) on delete cascade;
+create index if not exists idx_journey_items_journey on journey_items(journey_id, position);
+
+alter table journeys enable row level security;
+
+drop policy if exists "journeys_instructor_all" on journeys;
+create policy "journeys_instructor_all"
+  on journeys for all
+  to authenticated
+  using (instructor_id = auth.uid())
+  with check (instructor_id = auth.uid());
+
+drop policy if exists "journeys_anon_select" on journeys;
+create policy "journeys_anon_select"
+  on journeys for select
+  to anon
+  using (student_id = public.current_student_id());
+
+-- A clip can be the recorded reference for a plan step ("abre el paso y graba").
+-- Ad-hoc recordings (no step chosen) get a step created for them by the app.
+alter table clips add column if not exists journey_item_id uuid references journey_items(id) on delete set null;
+create index if not exists idx_clips_journey_item on clips(journey_item_id);
+
 -- ---------- Agenda / attendance (Fase 8): lightweight in-app lessons ----------
 -- NOT a booking engine (no availability/payments/waitlists) — a simple agenda
 -- the instructor manages. A group clinic is just several lessons at the same

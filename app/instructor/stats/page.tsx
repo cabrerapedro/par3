@@ -99,7 +99,7 @@ export default function StatsPage() {
   const stageTotal = stats.active + stats.former + stats.prospect || 1
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-10">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-10">
       <div className="mb-8">
         <p className="small-caps font-mono text-[11px] text-accent mb-2">{t('kicker')}</p>
         <h1 className="font-display font-semibold text-3xl md:text-[40px] leading-tight">{t('title')}</h1>
@@ -120,7 +120,7 @@ export default function StatsPage() {
 
           {/* By stage */}
           <div className="mb-10">
-            <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('byStage')}</p>
+            <p className="small-caps font-mono text-[11px] text-accent mb-3">{t('byStage')}</p>
             <div className="flex h-3 rounded-full overflow-hidden border border-rule">
               {stageBar.map(s => (
                 <div key={s.key} className={cn(s.color)} style={{ width: `${(s.value / stageTotal) * 100}%` }} />
@@ -140,13 +140,13 @@ export default function StatsPage() {
           {/* Activity + reactivation */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="border border-rule rounded-lg p-5">
-              <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('engagement')}</p>
+              <p className="small-caps font-mono text-[11px] text-accent mb-3">{t('engagement')}</p>
               <p className="font-display font-semibold text-3xl tabular-nums">{stats.practice30d}</p>
               <p className="text-sm text-ink-soft mt-1">{t('practice30d')}</p>
               <p className="text-xs text-ink-mute mt-0.5">{t('practice30dHint')}</p>
             </div>
             <div className="border border-rule rounded-lg p-5">
-              <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('reactivation')}</p>
+              <p className="small-caps font-mono text-[11px] text-accent mb-3">{t('reactivation')}</p>
               <div className="flex items-baseline gap-6">
                 <div>
                   <p className="font-display font-semibold text-3xl tabular-nums">{stats.sent}</p>
@@ -168,7 +168,7 @@ export default function StatsPage() {
 function BigStat({ label, value, border, accent }: { label: string; value: number; border?: boolean; accent?: boolean }) {
   return (
     <div className={cn('px-5 py-5', border && 'md:border-l border-rule')}>
-      <p className="small-caps font-mono text-[10px] text-ink-mute">{label}</p>
+      <p className="small-caps font-mono text-[11px] text-ink-mute">{label}</p>
       <p className={cn('font-display font-semibold text-3xl md:text-4xl tabular-nums mt-1', accent && 'text-accent')}>{value}</p>
     </div>
   )

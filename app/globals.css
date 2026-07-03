@@ -38,23 +38,24 @@
 
 /* ─── forat design tokens ─────────────────────────────────────────────── */
 @theme {
-  /* Paper / ink / cognac primitives */
-  --color-paper:        #EFE9DC;
-  --color-paper-2:      #F6F1E4;
-  --color-paper-3:      #E5DDC9;
+  /* Paper / ink / cognac primitives — warm off-white pushed further toward white
+     while holding the same warm G−B gap (~7) so it stays paper, not clinical. */
+  --color-paper:        #FCFAF3;
+  --color-paper-2:      #FEFDF9;
+  --color-paper-3:      #EFEADF;
   --color-ink:          #1A1814;
   --color-ink-soft:     #4A4438;
-  --color-ink-mute:     #8A8270;
+  --color-ink-mute:     #655F50;  /* darkened for outdoor legibility — WCAG AA 5.25:1 on paper */
   --color-rule:         rgba(26, 24, 20, 0.18);
   --color-rule-soft:    rgba(26, 24, 20, 0.08);
   --color-primary-ink:  #1F3A38;
-  --color-accent:       #9B5B2A;
+  --color-accent:       #8F5426;
 
-  /* Score colors — outdoor-validated contrast */
-  --color-ok:           #5A7460;
-  --color-warn:         #8C7424;
+  /* Score colors — outdoor-validated contrast (all ≥4.5:1 on paper) */
+  --color-ok:           #4C6656;
+  --color-warn:         #6F5D1E;
   --color-bad:          #A14F3C;
-  --color-on-ok:        #EFE9DC;
+  --color-on-ok:        #FCFAF3;
 
   /* "Live" / measured — the one cool signal reserved for AI-in-real-time
      states (pulsing dot, angle labels). Kept distinct from cognac (human). */
@@ -88,29 +89,29 @@
 /* ─── Light (default for forat) ───────────────────────────────────────── */
 :root {
   --radius:                     0.125rem;
-  --background:                 #EFE9DC;
+  --background:                 #FCFAF3;
   --foreground:                 #1A1814;
-  --card:                       #F6F1E4;
+  --card:                       #FEFDF9;
   --card-foreground:            #1A1814;
-  --popover:                    #F6F1E4;
+  --popover:                    #FEFDF9;
   --popover-foreground:         #1A1814;
   --primary:                    #1F3A38;
-  --primary-foreground:         #EFE9DC;
-  --secondary:                  #E5DDC9;
+  --primary-foreground:         #FCFAF3;
+  --secondary:                  #EFEADF;
   --secondary-foreground:       #1A1814;
-  --muted:                      #E5DDC9;
+  --muted:                      #EFEADF;
   --muted-foreground:           #4A4438;
-  --accent:                     #E5DDC9;
+  --accent:                     #EFEADF;
   --accent-foreground:          #1A1814;
   --destructive:                #A14F3C;
   --border:                     rgba(26, 24, 20, 0.18);
   --input:                      rgba(26, 24, 20, 0.18);
   --ring:                       #1F3A38;
-  --sidebar:                    #F6F1E4;
+  --sidebar:                    #FEFDF9;
   --sidebar-foreground:         #1A1814;
   --sidebar-primary:            #1F3A38;
-  --sidebar-primary-foreground: #EFE9DC;
-  --sidebar-accent:             #E5DDC9;
+  --sidebar-primary-foreground: #FCFAF3;
+  --sidebar-accent:             #EFEADF;
   --sidebar-accent-foreground:  #1A1814;
   --sidebar-border:             rgba(26, 24, 20, 0.18);
   --sidebar-ring:               #1F3A38;

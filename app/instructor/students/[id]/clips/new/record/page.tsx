@@ -166,7 +166,10 @@ export default function ClipRecordPage() {
         // Persist to IndexedDB BEFORE navigating: the layout context is lost
         // when the layout re-mounts across this navigation on iPadOS, so
         // annotate rehydrates the blob from storage instead of memory.
-        await commitRecorded({ blob: raw, mime: rawMime, durationMs, angle: angleRef.current })
+        // Carry the step this clip belongs to (when started from "abre el paso
+        // y graba"); null for an ad-hoc recording.
+        const stepId = new URLSearchParams(window.location.search).get('step')
+        await commitRecorded({ blob: raw, mime: rawMime, durationMs, angle: angleRef.current, journeyItemId: stepId })
         router.push(`/instructor/students/${studentId}/clips/new/annotate`)
       }
       // Timeslice: iOS/WebKit needs periodic dataavailable to reliably
@@ -271,7 +274,7 @@ export default function ClipRecordPage() {
             <span className="absolute top-0 right-0 w-7 h-7 border-t-2 border-r-2 border-white/70 rounded-tr" />
             <span className="absolute bottom-0 left-0 w-7 h-7 border-b-2 border-l-2 border-white/70 rounded-bl" />
             <span className="absolute bottom-0 right-0 w-7 h-7 border-b-2 border-r-2 border-white/70 rounded-br" />
-            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 small-caps font-mono text-[10px] tracking-wide text-white/90 bg-black/45 px-2.5 py-1 rounded-full whitespace-nowrap">
+            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 small-caps font-mono text-[11px] tracking-wide text-white/90 bg-black/45 px-2.5 py-1 rounded-full whitespace-nowrap">
               {t('framingGuideLabel')}
             </span>
           </div>

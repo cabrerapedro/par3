@@ -144,7 +144,7 @@ export default function ImportStudents() {
         </div>
 
         <div className="flex flex-col gap-1.5 mb-6">
-          <label htmlFor="paste" className="small-caps font-mono text-[10px] text-ink-mute">{t('pasteLabel')}</label>
+          <label htmlFor="paste" className="small-caps font-mono text-[11px] text-ink-mute">{t('pasteLabel')}</label>
           <textarea
             id="paste"
             value={text}
@@ -159,13 +159,13 @@ export default function ImportStudents() {
         {rows.length > 0 ? (
           <>
             <div className="flex items-baseline justify-between mb-2">
-              <p className="small-caps font-mono text-[10px] text-ink-mute">{t('parsedTitle', { count: rows.length })}</p>
+              <p className="small-caps font-mono text-[11px] text-ink-mute">{t('parsedTitle', { count: rows.length })}</p>
             </div>
             <div className="border-t border-rule mb-6">
               <div className="hidden sm:grid grid-cols-[1fr_150px_110px] gap-4 py-2 border-b border-rule">
-                <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colName')}</span>
-                <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colPhone')}</span>
-                <span className="small-caps font-mono text-[10px] text-ink-mute">{t('colIssue')}</span>
+                <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colName')}</span>
+                <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colPhone')}</span>
+                <span className="small-caps font-mono text-[11px] text-ink-mute">{t('colIssue')}</span>
               </div>
               {rows.map((r, i) => (
                 <div
@@ -181,7 +181,7 @@ export default function ImportStudents() {
                   <span className="font-mono text-xs text-ink-soft hidden sm:block">{r.phone || '—'}</span>
                   <span className="justify-self-end sm:justify-self-start">
                     {r.issue ? (
-                      <span className="small-caps font-mono text-[9px] text-warn border border-warn/40 px-1.5 py-0.5">
+                      <span className="small-caps font-mono text-[11px] text-warn border border-warn/40 px-1.5 py-0.5">
                         {t(
                           r.issue === 'noName' ? 'issueNoName'
                           : r.issue === 'noPhone' ? 'issueNoPhone'

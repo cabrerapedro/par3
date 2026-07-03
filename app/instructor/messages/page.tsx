@@ -57,7 +57,7 @@ export default function MessagesPage() {
   }, [instructor, loading])
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-10">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-10">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <p className="small-caps font-mono text-[11px] text-accent mb-2">{t('kicker')}</p>
@@ -91,7 +91,7 @@ export default function MessagesPage() {
                   <div className="flex items-center gap-2">
                     <p className="font-display font-medium truncate">{c.name}</p>
                     {c.windowOpen && (
-                      <span className="small-caps font-mono text-[9px] text-ok border border-ok/40 px-1.5 py-0.5 shrink-0">{t('windowOpen')}</span>
+                      <span className="small-caps font-mono text-[11px] text-ok border border-ok/40 px-1.5 py-0.5 shrink-0">{t('windowOpen')}</span>
                     )}
                   </div>
                   <p className="text-xs text-ink-mute truncate mt-0.5">
@@ -99,7 +99,7 @@ export default function MessagesPage() {
                     {c.last.body}
                   </p>
                 </div>
-                <span className="small-caps font-mono text-[10px] text-ink-mute shrink-0">{timeShort(c.last.created_at)}</span>
+                <span className="small-caps font-mono text-[11px] text-ink-mute shrink-0">{timeShort(c.last.created_at)}</span>
               </div>
             </Link>
           ))}

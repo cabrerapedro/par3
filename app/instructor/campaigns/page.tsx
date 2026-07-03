@@ -145,7 +145,7 @@ export default function Campaigns() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-10">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-10">
         <div className="mb-8">
           <p className="small-caps font-mono text-[11px] text-accent mb-2">{t('kicker')}</p>
           <h1 className="font-display font-semibold text-3xl md:text-[40px] leading-tight">{t('title')}</h1>
@@ -170,7 +170,7 @@ export default function Campaigns() {
           <>
             {/* Segment picker */}
             <div className="mb-6">
-              <p className="small-caps font-mono text-[10px] text-ink-mute mb-2">{t('segmentLabel')}</p>
+              <p className="small-caps font-mono text-[11px] text-ink-mute mb-2">{t('segmentLabel')}</p>
               <div className="flex items-center gap-1 flex-wrap">
                 {(['dormant', 'active', 'all'] as const).map(seg => (
                   <button
@@ -178,7 +178,7 @@ export default function Campaigns() {
                     onClick={() => { setSegment(seg); reset() }}
                     disabled={phase === 'previewing' || phase === 'sending'}
                     className={cn(
-                      'small-caps font-mono text-[10px] px-3 h-9 border transition-colors disabled:opacity-50',
+                      'small-caps font-mono text-[11px] px-3 h-9 border transition-colors disabled:opacity-50',
                       segment === seg ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
                     )}
                   >
@@ -221,8 +221,8 @@ export default function Campaigns() {
             ) : (
               <>
                 <div className="flex items-baseline justify-between mb-3">
-                  <p className="small-caps font-mono text-[10px] text-ink-mute">{t('previewTitle', { count: previews.length })}</p>
-                  <button onClick={generate} className="small-caps font-mono text-[10px] text-ink-mute hover:text-ink transition-colors">
+                  <p className="small-caps font-mono text-[11px] text-ink-mute">{t('previewTitle', { count: previews.length })}</p>
+                  <button onClick={generate} className="small-caps font-mono text-[11px] text-ink-mute hover:text-ink transition-colors">
                     {t('regenerate')}
                   </button>
                 </div>
@@ -236,12 +236,12 @@ export default function Campaigns() {
                           {(edited[p.studentId] ?? p.message) !== p.message && (
                             <button
                               onClick={() => setEdited(m => ({ ...m, [p.studentId]: p.message }))}
-                              className="small-caps font-mono text-[9px] text-ink-mute hover:text-ink transition-colors"
+                              className="small-caps font-mono text-[11px] text-ink-mute hover:text-ink transition-colors"
                             >
                               {t('revert')}
                             </button>
                           )}
-                          <span className="small-caps font-mono text-[9px] text-ink-mute">
+                          <span className="small-caps font-mono text-[11px] text-ink-mute">
                             {p.daysAway === null ? t('neverActive') : t('daysAway', { days: p.daysAway })}
                             {p.topic && ` · ${p.topic}`}
                           </span>
@@ -308,7 +308,7 @@ function ResultView({
           <div key={s.studentId} className="flex items-center justify-between py-2.5 border-b border-rule">
             <span className="font-display text-sm">{s.name}</span>
             <span className={cn(
-              'small-caps font-mono text-[9px] px-1.5 py-0.5 border',
+              'small-caps font-mono text-[11px] px-1.5 py-0.5 border',
               s.status === 'failed' ? 'text-bad border-bad/40' : 'text-ink-soft border-rule'
             )}>
               {t(`status_${s.status}`)}

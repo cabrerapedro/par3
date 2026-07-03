@@ -27,6 +27,7 @@ import { AnnotationCanvas, type AnnotationDraft, type AnnotationCanvasHandle, ty
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { getOrCreateTodayClass } from '@/lib/classes'
+import { ensureAdHocStep } from '@/lib/journeySteps'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
 import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
@@ -110,6 +111,20 @@ export default function ClipAnnotatePage() {
   const [clipName, setClipName] = useState('')
   const [discardOpen, setDiscardOpen] = useState(false)
   const [backOpen, setBackOpen] = useState(false)
+
+  // Recorded from a plan step? Pre-fill the clip name with that step's title.
+  // Saves typing, and if the wrong step was picked the mismatch is obvious in
+  // the name field before saving. Only fills when the name is still empty.
+  useEffect(() => {
+    const stepId = recorded?.journeyItemId
+    if (!stepId) return
+    let cancelled = false
+    supabase.from('journey_items').select('title').eq('id', stepId).single().then(({ data }) => {
+      const title = (data as { title?: string } | null)?.title
+      if (!cancelled && title) setClipName(prev => prev || title)
+    })
+    return () => { cancelled = true }
+  }, [recorded])
 
   // Keep <video>.playbackRate in sync.
   useEffect(() => {
@@ -358,12 +373,16 @@ export default function ClipAnnotatePage() {
       if (vidErr) throw vidErr
       const videoUrl = supabase.storage.from('clip-videos').getPublicUrl(videoPath).data.publicUrl
 
-      // 3. Insert the clip row.
+      // 3. Insert the clip row, linked to the step it was recorded into
+      // ("abre el paso y graba"). An ad-hoc clip (no step) gets a fresh step
+      // created and linked AFTER the insert succeeds (step 3b) — so a failed
+      // save can never leave an orphan step/plan behind on retry.
       setSaveStage('insert')
       const { data: clip, error: clipErr } = await supabase
         .from('clips')
         .insert({
           class_id: cls.id,
+          journey_item_id: recorded.journeyItemId ?? null,
           student_id: studentId,
           instructor_id: instructor.id,
           name: finalName,
@@ -376,6 +395,14 @@ export default function ClipAnnotatePage() {
         .select()
         .single()
       if (clipErr || !clip) throw clipErr ?? new Error('Failed to insert clip')
+
+      // 3b. Ad-hoc recording (no step chosen): now that the clip exists, append a
+      // step to the student's last plan and link it. Best-effort — a link failure
+      // leaves the clip in the Clips tab rather than blocking the save.
+      if (!recorded.journeyItemId) {
+        const stepId = await ensureAdHocStep(studentId, instructor.id, finalName, t('defaultPlanName'))
+        if (stepId) await supabase.from('clips').update({ journey_item_id: stepId }).eq('id', clip.id)
+      }
 
       // 4. Persist annotations one by one. Each is best-effort; we don't
       // want a flaky single audio upload to bury the whole clip. But if any
@@ -511,7 +538,9 @@ export default function ClipAnnotatePage() {
   // Top-left "back / re-record". If there's unsaved work, ask first so Steve
   // never loses a clip by reflexively tapping back; otherwise just go.
   const hasUnsavedWork = annotations.length > 0 || canvasOpen
-  const goToRecord = () => router.push(`/instructor/students/${studentId}/clips/new/record`)
+  // Preserve the step when re-recording, so the retake stays linked to the same
+  // plan step instead of silently becoming an ad-hoc clip.
+  const goToRecord = () => router.push(`/instructor/students/${studentId}/clips/new/record${recorded?.journeyItemId ? `?step=${recorded.journeyItemId}` : ''}`)
   const handleBack = () => {
     if (hasUnsavedWork) setBackOpen(true)
     else goToRecord()
@@ -842,7 +871,7 @@ export default function ClipAnnotatePage() {
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
-              onClick={() => { leavingRef.current = true; reset(); router.replace(`/instructor/students/${studentId}/clips/new/record`) }}
+              onClick={() => { const step = recorded?.journeyItemId; leavingRef.current = true; reset(); router.replace(`/instructor/students/${studentId}/clips/new/record${step ? `?step=${step}` : ''}`) }}
               className="w-full bg-primary text-primary-foreground"
             >
               {t('calibRerecord')}

@@ -117,7 +117,7 @@ export default function EditStudent() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name" className="small-caps font-mono text-[10px] text-ink-mute">{t('nameLabel')}</Label>
+            <Label htmlFor="name" className="small-caps font-mono text-[11px] text-ink-mute">{t('nameLabel')}</Label>
             <Input
               id="name"
               type="text"
@@ -130,7 +130,7 @@ export default function EditStudent() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email" className="small-caps font-mono text-[10px] text-ink-mute">{t('emailLabel')}</Label>
+            <Label htmlFor="email" className="small-caps font-mono text-[11px] text-ink-mute">{t('emailLabel')}</Label>
             <Input
               id="email"
               type="email"
@@ -142,7 +142,7 @@ export default function EditStudent() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="phone" className="small-caps font-mono text-[10px] text-ink-mute">
+            <Label htmlFor="phone" className="small-caps font-mono text-[11px] text-ink-mute">
               {t('phoneLabel')} <span className="text-ink-mute/70 normal-case">{t('phoneOptional')}</span>
             </Label>
             <Input
@@ -158,7 +158,7 @@ export default function EditStudent() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="level" className="small-caps font-mono text-[10px] text-ink-mute">{t('levelLabel')}</Label>
+            <Label htmlFor="level" className="small-caps font-mono text-[11px] text-ink-mute">{t('levelLabel')}</Label>
             <Input
               id="level"
               type="text"
@@ -170,7 +170,7 @@ export default function EditStudent() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="notes" className="small-caps font-mono text-[10px] text-ink-mute">{t('notesLabel')}</Label>
+            <Label htmlFor="notes" className="small-caps font-mono text-[11px] text-ink-mute">{t('notesLabel')}</Label>
             <textarea
               id="notes"
               value={notes}
@@ -182,7 +182,7 @@ export default function EditStudent() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="small-caps font-mono text-[10px] text-ink-mute">{t('optInLabel')}</Label>
+            <Label className="small-caps font-mono text-[11px] text-ink-mute">{t('optInLabel')}</Label>
             <button
               type="button"
               onClick={() => setOptIn(v => !v)}
@@ -206,7 +206,7 @@ export default function EditStudent() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="small-caps font-mono text-[10px] text-ink-mute">{t('stageLabel')}</Label>
+            <Label className="small-caps font-mono text-[11px] text-ink-mute">{t('stageLabel')}</Label>
             <div className="flex items-center gap-1">
               {(['active', 'former', 'prospect'] as const).map(key => (
                 <button
@@ -214,7 +214,7 @@ export default function EditStudent() {
                   type="button"
                   onClick={() => setStage(key)}
                   className={cn(
-                    'flex-1 small-caps font-mono text-[10px] h-10 px-1 border transition-colors',
+                    'flex-1 small-caps font-mono text-[11px] h-10 px-1 border transition-colors',
                     stage === key
                       ? 'border-ink bg-ink text-paper'
                       : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
