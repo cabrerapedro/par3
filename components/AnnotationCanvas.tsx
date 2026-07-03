@@ -100,6 +100,8 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
   // Tap-tap: `start` holds the first point until the second tap commits the line.
   const [start, setStart] = useState<[number, number] | null>(null)
   const [preview, setPreview] = useState<[number, number] | null>(null)
+  // Optional typed note (voice is primary, but sometimes a word is easier).
+  const [note, setNote] = useState('')
 
   // Audio state (auto-recording) ------------------------------------------
   const [micState, setMicState] = useState<MicState>('off')
@@ -286,6 +288,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
   const canSave =
     strokes.length > 0 ||
     audioBlob !== null ||
+    note.trim().length > 0 ||
     (micState === 'recording' && audioMs > 1000)
 
   // Finalize the in-progress annotation into a draft (or null if there's
@@ -298,6 +301,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
       strokes,
       audio_blob: audio?.blob,
       audio_mime: audio?.mime,
+      text_note: note.trim() || undefined,
     }
   }
 
@@ -430,6 +434,15 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
             {t('clearAll')}
           </button>
         </div>
+
+        {/* Optional typed note */}
+        <input
+          type="text"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder={t('notePlaceholder')}
+          className="h-12 rounded-md bg-secondary border border-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border"
+        />
 
         {/* Save */}
         <button

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -30,10 +30,10 @@ export default function Home() {
       <main>
         <Hero />
         <Manifesto />
-        <Testimonial />
         <ComoFunciona />
         <TresPrincipios />
         <Faq />
+        <Testimonial />
         <Acceso />
         <Cierre />
       </main>
@@ -48,20 +48,20 @@ export default function Home() {
 // since these are static strings we control. The FAQPage JSON-LD strips the tags.
 const FAQS: { q: string; a: string }[] = [
   {
-    q: '¿Qué es parell.golf?',
-    a: '<strong>parell.golf</strong> es una app de entrenamiento de golf para instructores profesionales y sus alumnos. El instructor graba y anota la técnica correcta del alumno durante la clase. El alumno practica solo en el campo entre clases con esa referencia en su dispositivo y recibe feedback en tiempo real mediante análisis de postura con inteligencia artificial.',
+    q: '¿Qué es forat.golf?',
+    a: '<strong>forat.golf</strong> es una app de entrenamiento de golf para instructores profesionales y sus alumnos. El instructor graba y anota la técnica correcta del alumno durante la clase. El alumno practica solo en el campo entre clases con esa referencia en su dispositivo y recibe feedback en tiempo real mediante análisis de postura con inteligencia artificial.',
   },
   {
     q: '¿Qué problema resuelve?',
-    a: 'Los alumnos de golf olvidan lo que el instructor enseñó. Practican sin guía entre clases y refuerzan malos hábitos sin saberlo. El instructor repite las mismas correcciones semana tras semana sin poder saber qué practicó el alumno ni cómo. parell.golf cierra ese ciclo: el sábado el instructor y el alumno hablan sobre <strong>una semana real de práctica</strong>, no empiezan desde cero.',
+    a: 'Los alumnos de golf olvidan lo que el instructor enseñó. Practican sin guía entre clases y refuerzan malos hábitos sin saberlo. El instructor repite las mismas correcciones semana tras semana sin poder saber qué practicó el alumno ni cómo. forat.golf cierra ese ciclo: el sábado el instructor y el alumno hablan sobre <strong>una semana real de práctica</strong>, no empiezan desde cero.',
   },
   {
-    q: '¿Para quién es parell.golf?',
+    q: '¿Para quién es forat.golf?',
     a: '<strong>Para instructores profesionales de golf</strong> que enseñan en academias o clubs y quieren que su método tenga continuidad entre clases. El instructor es quien paga y quien decide usarlo. <strong>Para sus alumnos</strong> — principiantes e intermedios — que practican en el campo y quieren saber exactamente qué trabajar y si lo están haciendo bien. El alumno accede gratis.',
   },
   {
-    q: '¿Parell reemplaza al instructor?',
-    a: 'No. El instructor es siempre la autoridad. parell.golf guarda su calibración, sus dibujos y su voz, y guía al alumno con esa referencia personalizada. La app <strong>extiende el impacto del instructor entre clases</strong>; no lo reemplaza ni contradice su criterio.',
+    q: '¿Forat reemplaza al instructor?',
+    a: 'No. El instructor es siempre la autoridad. forat.golf guarda su calibración, sus dibujos y su voz, y guía al alumno con esa referencia personalizada. La app <strong>extiende el impacto del instructor entre clases</strong>; no lo reemplaza ni contradice su criterio.',
   },
   {
     q: '¿Cómo graba y anota el instructor?',
@@ -85,7 +85,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: '¿En qué dispositivos funciona?',
-    a: 'En cualquier dispositivo moderno con cámara y navegador — móvil, tablet, u ordenador. El instructor suele usar una tablet durante la clase; el alumno, su teléfono en el campo. parell.golf está disponible en español e inglés.',
+    a: 'En cualquier dispositivo moderno con cámara y navegador — móvil, tablet, u ordenador. El instructor suele usar una tablet durante la clase; el alumno, su teléfono en el campo. forat.golf está disponible en español e inglés.',
   },
 ]
 
@@ -137,7 +137,7 @@ function Header() {
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 py-4 flex items-center justify-between">
         <Link
           href="/"
-          aria-label="Parell, inicio"
+          aria-label="Forat, inicio"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
           <Wordmark size="md" />
@@ -152,6 +152,168 @@ function Header() {
         </nav>
       </div>
     </header>
+  )
+}
+
+/* ─── Hero AI pose overlay ──────────────────────────────────────────────── */
+
+// Coordinates are in the source image space (1024×1536); the SVG shares that
+// viewBox so the skeleton lands on the figure regardless of render size.
+// Real MediaPipe Pose landmarks detected on the hero image (1024×1536 space),
+// so the skeleton is the genuine model output, not a hand-drawn guess. The club
+// (which MediaPipe can't see) is the one manual segment, from the grip up.
+const POSE_BONES: [number, number][][] = [
+  [[329, 361], [505, 95]],                 // club shaft (grip → head)
+  [[498, 434], [355, 501], [318, 360]],    // right arm
+  [[641, 530], [466, 502], [340, 362]],    // left arm
+  [[641, 530], [498, 434]],                // shoulders
+  [[570, 482], [679, 466]],                // neck → nose
+  [[632, 413], [679, 466], [655, 424]],    // head (ear–nose–ear)
+  [[498, 434], [400, 773]],                // torso, right
+  [[641, 530], [522, 797]],                // torso, left
+  [[522, 797], [400, 773]],                // hips
+  [[400, 773], [388, 1029], [353, 1319]],  // right leg
+  [[522, 797], [614, 1048], [604, 1304]],  // left leg
+  [[353, 1319], [361, 1395]],              // right foot
+  [[604, 1304], [682, 1375]],              // left foot
+]
+
+const POSE_JOINTS: [number, number][] = [
+  [505, 95], [318, 360], [340, 362], [355, 501], [466, 502], [498, 434],
+  [641, 530], [679, 466], [655, 424], [632, 413], [400, 773], [522, 797],
+  [388, 1029], [614, 1048], [353, 1319], [604, 1304], [361, 1395], [682, 1375],
+]
+
+// Measured angles (counted up from 0 in live teal). leader → joint on the body.
+const POSE_LABELS: { x: number; y: number; deg: number; lx: number; ly: number }[] = [
+  { x: 715, y: 440, deg: 101, lx: 641, ly: 515 }, // shoulder turn
+  { x: 140, y: 505, deg: 124, lx: 355, ly: 501 }, // arm bend
+  { x: 662, y: 645, deg: 38, lx: 515, ly: 635 },  // spine tilt
+  { x: 686, y: 1045, deg: 22, lx: 614, ly: 1048 },// knee flex
+]
+
+function AiPoseOverlay() {
+  const ref = useRef<HTMLDivElement>(null)
+  // `cycle` re-keys the animated group so the whole analysis replays on re-view.
+  const [cycle, setCycle] = useState(1)
+  const [scan, setScan] = useState(-1) // sweep progress 0→1 (−1 = idle/cleared)
+  const [nums, setNums] = useState<number[]>(POSE_LABELS.map((l) => l.deg))
+
+  // Loop the whole analysis on a timer while the hero is on screen; pause it
+  // when scrolled away so it isn't burning frames off-screen.
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    let timer: ReturnType<typeof setInterval> | undefined
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (!timer) timer = setInterval(() => setCycle((c) => c + 1), 4200)
+        } else if (timer) {
+          clearInterval(timer)
+          timer = undefined
+        }
+      },
+      { threshold: 0.4 },
+    )
+    io.observe(el)
+    return () => { if (timer) clearInterval(timer); io.disconnect() }
+  }, [])
+
+  // Drive the scan sweep + the angle count-up from one rAF loop, each cycle, so
+  // the reveal front and the scan line share a single progress value (in sync).
+  useEffect(() => {
+    const targets = POSE_LABELS.map((l) => l.deg)
+    // Reduced motion: leave state at its initial rest (final numbers, no sweep).
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    // First rAF tick (e≈0) resets nums→0 and scan→0, so no synchronous setState here.
+    let raf = 0
+    const t0 = performance.now()
+    const scanDur = 2400, numBegin = 1250, numDur = 850
+    const tick = (t: number) => {
+      const e = t - t0
+      setScan(Math.min(1, e / scanDur))
+      const np = Math.min(1, Math.max(0, (e - numBegin) / numDur))
+      const ease = 1 - Math.pow(1 - np, 3)
+      setNums(targets.map((v) => Math.round(v * ease)))
+      if (e < scanDur) raf = requestAnimationFrame(tick)
+      else { setScan(-1); setNums(targets) }
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [cycle])
+
+  // Sweep geometry, all derived from the single `scan` progress value.
+  const easeIO = (p: number) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2)
+  const sweeping = scan >= 0
+  const scanPos = sweeping ? -40 + easeIO(scan) * 1600 : 2000
+  const scanOp = sweeping ? Math.sin(scan * Math.PI) : 0
+  const revealH = sweeping ? Math.max(0, scanPos) : 1536 // skeleton shown above the scan
+
+  return (
+    <div ref={ref} className="absolute inset-0">
+      <svg aria-hidden viewBox="0 0 1024 1536" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+        <defs>
+          <clipPath id="poseReveal">
+            <rect x={-100} y={-100} width={1224} height={revealH + 100} />
+          </clipPath>
+        </defs>
+        {/* skeleton (real MediaPipe landmarks) — revealed top→bottom by the scan */}
+        <g clipPath="url(#poseReveal)">
+          {POSE_BONES.map((pts, i) => (
+            <polyline
+              key={`b${i}`}
+              points={pts.map(([x, y]) => `${x},${y}`).join(' ')}
+              fill="none"
+              stroke="var(--color-pose)"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+          {POSE_JOINTS.map(([x, y], i) => (
+            <circle key={`j${i}`} cx={x} cy={y} r={5.5} fill="var(--color-pose)" />
+          ))}
+        </g>
+        {/* angle read-outs — pop in as the scan passes each joint */}
+        {POSE_LABELS.map((l, i) => {
+          const x1 = l.lx < l.x ? l.x - 6 : l.x + 72
+          const shown = !sweeping || scanPos >= l.ly
+          return (
+            <g key={`l${i}`} style={{ opacity: shown ? 1 : 0, transition: 'opacity 0.25s ease-out' }}>
+              <line x1={x1} y1={l.y - 11} x2={l.lx} y2={l.ly} stroke="var(--color-live)" strokeWidth={1.5} strokeDasharray="3 5" />
+              <circle cx={l.lx} cy={l.ly} r={4} fill="var(--color-live)" />
+              <text x={l.x} y={l.y} fill="var(--color-live)" style={{ fontFamily: 'var(--font-jb-mono), monospace', fontSize: 34, fontWeight: 500, letterSpacing: 1 }}>{nums[i]}°</text>
+            </g>
+          )
+        })}
+        {/* scan line + glow band — JS-positioned so it rides the reveal edge */}
+        {sweeping && (
+          <g style={{ transform: `translateY(${scanPos}px)` }} opacity={scanOp}>
+            <line x1={30} y1={0} x2={994} y2={0} stroke="var(--color-live)" strokeWidth={46} opacity={0.12} />
+            <line x1={30} y1={0} x2={994} y2={0} stroke="var(--color-live)" strokeWidth={4} />
+          </g>
+        )}
+      </svg>
+    </div>
+  )
+}
+
+/* ─── Viewfinder marks ──────────────────────────────────────────────────── */
+
+// Camera-through-a-lens corner crop marks. Drop inside a `relative` framed box.
+function ViewfinderMarks() {
+  return (
+    <>
+      {[
+        'left-2 top-2 border-l-[1.5px] border-t-[1.5px]',
+        'right-2 top-2 border-r-[1.5px] border-t-[1.5px]',
+        'left-2 bottom-2 border-l-[1.5px] border-b-[1.5px]',
+        'right-2 bottom-2 border-r-[1.5px] border-b-[1.5px]',
+      ].map((c, i) => (
+        <span key={i} aria-hidden className={`pointer-events-none absolute z-10 size-3.5 border-pose/70 ${c}`} />
+      ))}
+    </>
   )
 }
 
@@ -187,32 +349,34 @@ function Hero() {
             </Link>
           </div>
 
-          <p className="small-caps font-mono text-[10px] text-ink-mute mt-6">
-            Sin tarjeta · español e inglés
-          </p>
         </div>
 
         <div className="relative">
           <div className="relative border border-rule bg-paper-2 aspect-[2/3] overflow-hidden">
             <Image
-              src="/images/sistema-ia-photo-light.png"
-              alt="Golfista de frente en pleno swing con líneas de análisis de IA superpuestas midiendo sus ángulos"
+              src="/images/sistema-ia-photo-light-wo-grades.png"
+              alt="Golfista en pleno swing con líneas de análisis de IA superpuestas midiendo sus ángulos"
               fill
               priority
               sizes="(min-width: 768px) 40vw, 100vw"
               className="object-cover block dark:hidden"
             />
             <Image
-              src="/images/sistema-ia-photo-dark.png"
+              src="/images/sistema-ia-photo-dark-wo-grades.png"
               alt=""
               fill
               sizes="(min-width: 768px) 40vw, 100vw"
               className="object-cover hidden dark:block"
             />
+            <AiPoseOverlay />
+            <ViewfinderMarks />
           </div>
           <div className="flex justify-between mt-3">
-            <span className="small-caps font-mono text-[10px] text-ink-mute">Análisis en tiempo real</span>
-            <span className="small-caps font-mono text-[10px] text-ink-mute">De frente · Face-on</span>
+            <span className="small-caps font-mono text-[10px] text-live inline-flex items-center gap-1.5">
+              <span aria-hidden className="pulse-live inline-block size-1.5 rounded-full bg-live" />
+              Análisis on-device
+            </span>
+            <span className="small-caps font-mono text-[10px] text-ink-mute">Face-on · 33 puntos</span>
           </div>
         </div>
       </div>
@@ -234,11 +398,10 @@ function Manifesto() {
           </p>
 
           <div className="border-t border-rule mt-12 pt-12">
-            <p className="font-display font-semibold text-[28px] md:text-[34px] leading-[1.2] relative pl-9">
-              <span aria-hidden className="absolute left-[-2px] top-[-12px] text-[80px] leading-none text-accent font-semibold">“</span>
-              No reemplazamos al instructor.<br />Lo extendemos.<span aria-hidden className="text-accent font-semibold text-[1.5em] leading-none align-middle ml-1">”</span>
+            <p className="font-display font-semibold text-[28px] md:text-[34px] leading-[1.2]">
+              <span className="text-accent">“</span>No reemplazamos al instructor.<br />Lo extendemos.<span className="text-accent">”</span>
             </p>
-            <p className="small-caps font-mono text-[11px] text-ink-mute mt-4 ml-9">
+            <p className="small-caps font-mono text-[11px] text-ink-mute mt-4">
               Principio irrenunciable
             </p>
           </div>
@@ -253,16 +416,26 @@ function Manifesto() {
 function Testimonial() {
   return (
     <section className="border-b border-rule py-14 md:py-28">
-      <div className="mx-auto max-w-[1180px] px-6 md:px-8">
-        <figure className="mx-auto max-w-[720px] bg-paper-2 border border-rule px-8 py-10 md:px-14 md:py-14 text-center">
-          {/* Foto circular — agregar más adelante:
-          <div className="mx-auto mb-6 size-16 rounded-full bg-paper border border-rule overflow-hidden" aria-hidden /> */}
-          <blockquote className="italic text-base md:text-lg leading-[1.6] text-ink">
-            {'“Lo que me convenció es que la app aprende mi forma de enseñar, no al revés. Mis alumnos entrenan solos entre clases, pero siguiendo mis indicaciones. Como si yo estuviera ahí.”'}
+      <div className="mx-auto max-w-[1180px] px-6 md:px-8 grid md:grid-cols-[180px_1fr] gap-12 md:gap-16">
+        <p className="small-caps font-mono text-[11px] text-accent">En sus palabras</p>
+
+        <figure className="max-w-[760px]">
+          <blockquote className="border-l-2 border-accent pl-6 md:pl-8 font-display font-medium text-2xl md:text-[32px] leading-[1.3] tracking-[-0.01em] text-ink">
+            Lo que me convenció es que la app aprende mi forma de enseñar, no al revés. Mis alumnos entrenan solos entre clases, pero siguiendo <span className="text-accent">mis</span> indicaciones. Como si yo estuviera ahí.
           </blockquote>
-          <figcaption className="mt-7">
-            <p className="font-semibold text-ink">Steve</p>
-            <p className="small-caps font-mono text-[11px] text-accent mt-1.5">PGA Professional · La Roca Golf, Barcelona</p>
+
+          <figcaption className="flex items-center gap-4 mt-9 pt-6 border-t border-rule">
+            {/* Avatar — reemplazar por foto real de Steve cuando esté disponible */}
+            <span
+              aria-hidden
+              className="grid place-items-center size-12 shrink-0 rounded-full bg-paper-2 border border-rule font-display font-semibold text-lg text-ink-soft"
+            >
+              S
+            </span>
+            <span className="leading-tight">
+              <span className="block font-display font-semibold text-ink">Steve</span>
+              <span className="small-caps font-mono text-[11px] text-ink-mute">PGA Professional · La Roca Golf, Barcelona</span>
+            </span>
           </figcaption>
         </figure>
       </div>
@@ -321,14 +494,14 @@ function Panel({ numeral, who, title, body, imageBase, imageAlt, divider }: { nu
     <div className={`px-7 py-10 ${divider ? 'md:border-l border-rule' : ''}`}>
       <div className="relative aspect-[4/3] bg-paper-2 border border-rule mb-6 overflow-hidden">
         <Image
-          src={`/images/${imageBase}-light.png`}
+          src={`/images/${imageBase}-light-human.png`}
           alt={imageAlt}
           fill
           sizes="(min-width: 768px) 33vw, 100vw"
           className="object-cover block dark:hidden"
         />
         <Image
-          src={`/images/${imageBase}-dark.png`}
+          src={`/images/${imageBase}-dark-human.png`}
           alt=""
           fill
           sizes="(min-width: 768px) 33vw, 100vw"
@@ -346,28 +519,19 @@ function Panel({ numeral, who, title, body, imageBase, imageAlt, divider }: { nu
 
 function TresPrincipios() {
   return (
-    <section id="principios" className="border-b border-rule py-14 md:py-28">
+    <section id="principios" className="dark bg-paper text-ink border-y border-rule py-14 md:py-28">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 md:gap-16 items-center">
           {/* Image: instructor's line-drawing plate with technical annotations */}
-          <div className="relative border border-rule bg-paper-2 aspect-[4/5] overflow-hidden">
+          <div className="relative aspect-[1131/1391] overflow-hidden">
             <Image
-              src="/images/hero-address-light.png"
+              src="/images/hero-address-dark-human.png"
               alt="Postura de dirección, vista de perfil, con anotaciones técnicas del instructor"
               fill
               sizes="(min-width: 768px) 45vw, 100vw"
-              className="object-cover block dark:hidden"
+              className="object-cover"
             />
-            <Image
-              src="/images/hero-address-dark.png"
-              alt=""
-              fill
-              sizes="(min-width: 768px) 45vw, 100vw"
-              className="object-cover hidden dark:block"
-            />
-            <div className="absolute top-6 right-6 z-10">
-              <Stamp>PAR</Stamp>
-            </div>
+            <ViewfinderMarks />
           </div>
 
           {/* Text */}
@@ -402,8 +566,8 @@ function Acceso() {
   async function inviteInstructor() {
     const url = `${window.location.origin}/instructor/login?mode=signup`
     const shareData = {
-      title: 'Parell',
-      text: 'Te invito a usar Parell para nuestras clases de golf. Crea tu cuenta gratis:',
+      title: 'Forat',
+      text: 'Te invito a usar Forat para nuestras clases de golf. Crea tu cuenta gratis:',
       url,
     }
     if (navigator.share) {
@@ -430,13 +594,13 @@ function Acceso() {
           <AccessBlock
             numeral="I"
             who="Para instructores"
-            title="Empieza con diez alumnos."
-            body="Prueba con tus primeros diez alumnos. Si funciona, escalas."
+            title="Empieza con treinta alumnos."
+            body="Prueba con tus primeros treinta alumnos. Si funciona, escalas."
             ctaText="Crear cuenta"
             ctaHref="/instructor/login?mode=signup"
             secondaryText="Ya tengo cuenta"
             secondaryHref="/instructor/login"
-            stamp="GRATIS HASTA 10 ALUMNOS"
+            stamp="GRATIS HASTA 30 ALUMNOS"
           />
           <AccessBlock
             numeral="II"
@@ -458,7 +622,7 @@ function Acceso() {
           <DialogHeader>
             <DialogTitle>¿No tienes código?</DialogTitle>
             <DialogDescription className="leading-relaxed">
-              Tu código de 6 caracteres lo crea tu instructor cuando te suma a Parell. Si tu profe todavía no lo usa, invítalo a crear su cuenta gratis.
+              Tu código de 6 caracteres lo crea tu instructor cuando te suma a Forat. Si tu profe todavía no lo usa, invítalo a crear su cuenta gratis.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -535,7 +699,7 @@ function Cierre() {
     <section className="border-b border-rule py-12 md:py-24">
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 text-center">
         <p className="font-display italic font-medium text-[28px] md:text-[40px] leading-[1.2] text-ink max-w-[760px] mx-auto">
-          Lo que enseñas no se queda en la clase.
+          El camino hacia un mejor golf.
         </p>
       </div>
     </section>
@@ -555,12 +719,11 @@ function Footer() {
           <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Términos</a>
         </div>
         <span className="small-caps font-mono text-[10px] text-ink-mute inline-flex items-center gap-2">
-          <span>Del tee al green</span>
           <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden className="shrink-0">
             <line x1="1.5" y1="11" x2="1.5" y2="1" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
             <polygon points="1.5,1 7.5,2.5 1.5,4.5" style={{ fill: 'var(--color-accent)' }} />
           </svg>
-          <span>Barcelona</span>
+          <span>Golf + IA, desde Barcelona</span>
         </span>
       </div>
     </footer>

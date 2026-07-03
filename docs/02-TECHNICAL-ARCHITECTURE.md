@@ -1,4 +1,4 @@
-# parell.golf — Technical Architecture
+# forat.golf — Technical Architecture
 
 ## Tech Stack
 
@@ -242,7 +242,7 @@ Grip, club position, swing tempo, wrist angles, impact quality, actual weight di
 ## Key Technical Decisions
 
 ### Recording in the App
-The app IS the recording tool. Clean video, no overlay during recording. Instructor records directly in parell.golf — video is automatically linked to the student and auto-class. No file transfer, no manual upload.
+The app IS the recording tool. Clean video, no overlay during recording. Instructor records directly in forat.golf — video is automatically linked to the student and auto-class. No file transfer, no manual upload.
 
 ### On-Device Processing
 MediaPipe runs on-device for:

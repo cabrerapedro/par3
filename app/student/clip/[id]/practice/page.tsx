@@ -851,7 +851,6 @@ export default function StudentClipPractice() {
                           <div className="h-full bg-warn" style={{ width: `${warnPct}%` }} />
                           <div className="h-full bg-bad" style={{ width: `${badPct}%` }} />
                         </div>
-                        <p className="text-muted-foreground text-xs mt-1.5">{t('withinRange', { percent: okPct })}</p>
                       </div>
                     )
                   })}

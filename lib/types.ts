@@ -43,6 +43,13 @@ export interface CalibrationMark {
 
 export type Locale = 'es' | 'en'
 
+// Explicit, human-set lifecycle of a student (distinct from the derived
+// "dormant" engagement signal in lib/contacts.ts):
+//   prospect — signed up, never came to a lesson yet
+//   active   — currently taking lessons
+//   former   — lessons ended, could come back (reactivation target)
+export type LifecycleStage = 'prospect' | 'active' | 'former'
+
 export interface Instructor {
   id: string
   name: string
@@ -58,6 +65,7 @@ export interface Student {
   email?: string
   access_code: string
   status?: 'active' | 'inactive'
+  lifecycle_stage?: LifecycleStage
   avatar_url?: string
   handicap?: string
   dominant_hand?: 'right' | 'left'
@@ -65,7 +73,95 @@ export interface Student {
   home_course?: string
   bio?: string
   preferred_locale?: Locale
+  // School CRM (July 2026) — contacts + WhatsApp campaigns
+  phone?: string
+  notes?: string
+  level?: string
+  whatsapp_opt_in_at?: string | null
+  whatsapp_opt_in_source?: string | null
+  whatsapp_window_expires_at?: string | null
+  // Denormalized most-recent activity (last class/practice), kept fresh by a
+  // DB trigger. Powers the "dormant" filter at scale.
+  last_activity_at?: string | null
   created_at: string
+}
+
+export type JourneyStatus = 'todo' | 'doing' | 'done'
+
+export interface JourneyItem {
+  id: string
+  student_id: string
+  instructor_id: string
+  title: string
+  note?: string | null
+  images?: string[]
+  position: number
+  status: JourneyStatus
+  created_at: string
+}
+
+export interface JourneyTemplate {
+  id: string
+  instructor_id: string
+  name: string
+  category?: string | null
+  created_at: string
+}
+
+export interface JourneyTemplateItem {
+  id: string
+  template_id: string
+  title: string
+  note?: string | null
+  images?: string[]
+  position: number
+  created_at: string
+}
+
+export interface Recommendation {
+  id: string
+  instructor_id: string
+  title: string
+  note?: string | null
+  images?: string[]
+  position: number
+  created_at: string
+}
+
+export type LessonStatus = 'scheduled' | 'attended' | 'no_show' | 'cancelled'
+
+export interface Lesson {
+  id: string
+  instructor_id: string
+  student_id: string
+  starts_at: string
+  ends_at?: string | null
+  status: LessonStatus
+  note?: string | null
+  created_at: string
+}
+
+export type MessageChannel = 'whatsapp' | 'email'
+export type MessageDirection = 'outbound' | 'inbound'
+export type MessageCategory = 'marketing' | 'utility' | 'service'
+export type MessageStatus = 'queued' | 'sent' | 'delivered' | 'read' | 'failed' | 'received'
+
+export interface MessageLog {
+  id: string
+  student_id: string
+  instructor_id: string
+  channel: MessageChannel
+  direction: MessageDirection
+  category?: MessageCategory | null
+  template_name?: string | null
+  body?: string | null
+  locale?: Locale | null
+  status: MessageStatus
+  kapso_message_id?: string | null
+  kapso_broadcast_id?: string | null
+  error?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface MetricResult {

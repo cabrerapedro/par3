@@ -14,7 +14,7 @@
 
 import type { CameraAngle } from '@/lib/types'
 
-const DB_NAME = 'parell'
+const DB_NAME = 'forat'
 const STORE = 'clip-handoff'
 const KEY = 'pending'
 

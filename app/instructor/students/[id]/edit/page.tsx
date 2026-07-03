@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import type { LifecycleStage } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,7 +21,13 @@ export default function EditStudent() {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'active' | 'inactive'>('active')
+  const [stage, setStage] = useState<LifecycleStage>('active')
+  const [phone, setPhone] = useState('')
+  const [level, setLevel] = useState('')
+  const [notes, setNotes] = useState('')
+  const [optIn, setOptIn] = useState(false)
+  // Preserve the original consent timestamp so re-saving doesn't reset it.
+  const [optInAt, setOptInAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -33,7 +40,13 @@ export default function EditStudent() {
         if (data) {
           setName(data.name)
           setEmail(data.email ?? '')
-          setStatus(data.status === 'inactive' ? 'inactive' : 'active')
+          // Prefer the explicit lifecycle_stage; fall back to legacy status.
+          setStage(data.lifecycle_stage ?? (data.status === 'inactive' ? 'former' : 'active'))
+          setPhone(data.phone ?? '')
+          setLevel(data.level ?? '')
+          setNotes(data.notes ?? '')
+          setOptIn(!!data.whatsapp_opt_in_at)
+          setOptInAt(data.whatsapp_opt_in_at ?? null)
         }
         setLoading(false)
       })
@@ -45,16 +58,36 @@ export default function EditStudent() {
     e.preventDefault()
     setError('')
     setSaving(true)
+    // Opt-in: stamp a fresh consent time only on the transition to true; keep
+    // the existing timestamp otherwise; clear both when consent is withdrawn.
+    const optInFields = optIn
+      ? {
+          whatsapp_opt_in_at: optInAt ?? new Date().toISOString(),
+          whatsapp_opt_in_source: optInAt ? undefined : 'manual',
+        }
+      : { whatsapp_opt_in_at: null, whatsapp_opt_in_source: null }
     const { error: updateErr } = await supabase
       .from('students')
-      .update({ name: name.trim(), email: email.trim().toLowerCase(), status })
+      .update({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        lifecycle_stage: stage,
+        // Keep the legacy status in sync for code paths still reading it.
+        status: stage === 'former' ? 'inactive' : 'active',
+        phone: phone.trim() || null,
+        level: level.trim() || null,
+        notes: notes.trim() || null,
+        ...optInFields,
+      })
       .eq('id', studentId)
     setSaving(false)
     if (updateErr) { setError(t('saveError')); return }
     router.push(`/instructor/students/${studentId}`)
   }
 
-  const emailValid = email.includes('@')
+  // Email is optional (imported contacts often have only a phone); when present
+  // it must look like an email.
+  const emailValid = email.trim() === '' || email.includes('@')
 
   if (loading) return (
     <div className="min-h-screen bg-paper flex items-center justify-center">
@@ -104,31 +137,94 @@ export default function EditStudent() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder={t('emailPlaceholder')}
-              required
               className="h-11"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="small-caps font-mono text-[10px] text-ink-mute">{t('statusLabel')}</Label>
+            <Label htmlFor="phone" className="small-caps font-mono text-[10px] text-ink-mute">
+              {t('phoneLabel')} <span className="text-ink-mute/70 normal-case">{t('phoneOptional')}</span>
+            </Label>
+            <Input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder={t('phonePlaceholder')}
+              className="h-11 font-mono"
+            />
+            <p className="text-xs text-ink-mute">{t('phoneHint')}</p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="level" className="small-caps font-mono text-[10px] text-ink-mute">{t('levelLabel')}</Label>
+            <Input
+              id="level"
+              type="text"
+              value={level}
+              onChange={e => setLevel(e.target.value)}
+              placeholder={t('levelPlaceholder')}
+              className="h-11"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="notes" className="small-caps font-mono text-[10px] text-ink-mute">{t('notesLabel')}</Label>
+            <textarea
+              id="notes"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={t('notesPlaceholder')}
+              rows={3}
+              className="w-full bg-paper-2/40 border border-rule rounded-md px-3 py-2 text-sm leading-relaxed focus:outline-none focus:border-ink-soft resize-y"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="small-caps font-mono text-[10px] text-ink-mute">{t('optInLabel')}</Label>
+            <button
+              type="button"
+              onClick={() => setOptIn(v => !v)}
+              className={cn(
+                'flex items-center justify-between h-11 px-3 border transition-colors text-left',
+                optIn ? 'border-ok bg-ok/5 text-ink' : 'border-rule text-ink-mute hover:border-ink-soft'
+              )}
+            >
+              <span className="text-sm font-medium">{optIn ? t('optInOn') : t('optInOff')}</span>
+              <span className={cn(
+                'relative w-9 h-5 rounded-full transition-colors shrink-0',
+                optIn ? 'bg-ok' : 'bg-rule'
+              )}>
+                <span className={cn(
+                  'absolute top-0.5 size-4 rounded-full bg-paper transition-all',
+                  optIn ? 'left-[18px]' : 'left-0.5'
+                )} />
+              </span>
+            </button>
+            <p className="text-xs text-ink-mute">{t('optInHint')}</p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="small-caps font-mono text-[10px] text-ink-mute">{t('stageLabel')}</Label>
             <div className="flex items-center gap-1">
-              {(['active', 'inactive'] as const).map(key => (
+              {(['active', 'former', 'prospect'] as const).map(key => (
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setStatus(key)}
+                  onClick={() => setStage(key)}
                   className={cn(
-                    'flex-1 small-caps font-mono text-[10px] h-10 border transition-colors',
-                    status === key
+                    'flex-1 small-caps font-mono text-[10px] h-10 px-1 border transition-colors',
+                    stage === key
                       ? 'border-ink bg-ink text-paper'
                       : 'border-rule text-ink-mute hover:border-ink-soft hover:text-ink'
                   )}
                 >
-                  {key === 'active' ? t('statusActive') : t('statusInactive')}
+                  {key === 'active' ? t('stageActive') : key === 'former' ? t('stageFormer') : t('stageProspect')}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-ink-mute">{t('statusHint')}</p>
+            <p className="text-xs text-ink-mute">{t('stageHint')}</p>
           </div>
 
           {error && (

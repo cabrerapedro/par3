@@ -53,17 +53,17 @@ export async function POST(req: Request) {
     }
 
     // Send email
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Parell <onboarding@resend.dev>'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Forat <onboarding@resend.dev>'
     console.log('[send-otp] Sending email from:', fromEmail, '| to:', clean)
 
     const { data: emailResult, error: emailError } = await resend.emails.send({
       from: fromEmail,
       to: clean,
-      subject: 'Tu código de acceso a Parell',
+      subject: 'Tu código de acceso a Forat',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 400px; margin: 0 auto; padding: 32px 24px;">
           <p style="color: #666; font-size: 14px; margin: 0 0 24px;">Hola ${student.name.split(' ')[0]},</p>
-          <p style="color: #333; font-size: 14px; margin: 0 0 24px;">Tu código de verificación para entrar a Parell es:</p>
+          <p style="color: #333; font-size: 14px; margin: 0 0 24px;">Tu código de verificación para entrar a Forat es:</p>
           <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 24px;">
             <span style="font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 0.3em; color: #111;">${code}</span>
           </div>

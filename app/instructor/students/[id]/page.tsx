@@ -5,12 +5,14 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import type { Student } from '@/lib/types'
+import type { Student, LifecycleStage } from '@/lib/types'
 import type { Class, Clip } from '@/lib/classes'
 import { weeklyStats, clipScoreSummary, type SessionLike } from '@/lib/trends'
+import { canMessageWhatsapp, isDormantAt } from '@/lib/contacts'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ClassConclusionRecorder } from '@/components/ClassConclusionRecorder'
+import { JourneyEditor } from '@/components/JourneyEditor'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -38,13 +40,13 @@ export default function StudentProfile() {
   const [classes, setClasses] = useState<Class[]>([])
   const [clips, setClips] = useState<Clip[]>([])
   const [sessions, setSessions] = useState<SessionLike[]>([])
+  const [attendedThisWeek, setAttendedThisWeek] = useState(0)
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shared, setShared] = useState(false)
-  const [statusSaving, setStatusSaving] = useState(false)
 
   useEffect(() => {
     if (authLoading) return
@@ -57,7 +59,8 @@ export default function StudentProfile() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: s }, { data: cls }, { data: cl }, { data: ps }] = await Promise.all([
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+    const [{ data: s }, { data: cls }, { data: cl }, { data: ps }, { data: lessons }] = await Promise.all([
       supabase.from('students').select('*').eq('id', studentId).single(),
       supabase.from('classes').select('*').eq('student_id', studentId).order('date', { ascending: false }),
       supabase.from('clips').select('*').eq('student_id', studentId).order('created_at', { ascending: false }),
@@ -66,11 +69,13 @@ export default function StudentProfile() {
         .select('clip_id, checkpoint_id, overall_score, date')
         .eq('student_id', studentId)
         .order('date', { ascending: false }),
+      supabase.from('lessons').select('id').eq('student_id', studentId).eq('status', 'attended').gte('starts_at', weekAgo),
     ])
     if (s) setStudent(s)
     setClasses(cls ?? [])
     setClips(cl ?? [])
     setSessions((ps as SessionLike[]) ?? [])
+    setAttendedThisWeek((lessons ?? []).length)
     // Default-expand the most recent class so the instructor lands on the
     // class they were just working on.
     if (cls && cls.length > 0) setExpandedClassId(cls[0].id)
@@ -106,15 +111,6 @@ export default function StudentProfile() {
     router.replace('/instructor/dashboard')
   }
 
-  async function toggleStatus() {
-    if (!student || statusSaving) return
-    const next = (student.status ?? 'active') === 'inactive' ? 'active' : 'inactive'
-    setStatusSaving(true)
-    const { error } = await supabase.from('students').update({ status: next }).eq('id', student.id)
-    setStatusSaving(false)
-    if (!error) setStudent({ ...student, status: next })
-  }
-
   if (loading) return <LoadingScreen />
   if (!student) return (
     <div className="min-h-screen bg-paper flex items-center justify-center">
@@ -137,7 +133,16 @@ export default function StudentProfile() {
     clipsByClass[c.class_id].push(c)
   }
 
-  const isActiveStudent = (student.status ?? 'active') !== 'inactive'
+  const lc: LifecycleStage = student.lifecycle_stage ?? 'active'
+  const stageBadge =
+    lc === 'active' && isDormantAt(student.last_activity_at)
+      ? { label: t('stageDormant'), className: 'border-accent/40 text-accent', dot: 'bg-accent' }
+      : lc === 'former'
+        ? { label: t('stageFormer'), className: 'border-warn/40 text-warn', dot: 'bg-warn' }
+        : lc === 'prospect'
+          ? { label: t('stageProspect'), className: 'border-blue/40 text-blue', dot: 'bg-blue' }
+          : { label: t('stageActive'), className: 'border-rule text-ink-soft', dot: 'bg-ok' }
+  const since = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(new Date(student.created_at))
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -154,27 +159,31 @@ export default function StudentProfile() {
         {/* Identity — typographic ficha header */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="small-caps font-mono text-[10px] text-accent mb-2">
-              Alumno · {t('clipsCount', { count: clips.length })}
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={cn('inline-flex items-center gap-1.5 small-caps font-mono text-[10px] px-2 py-0.5 border', stageBadge.className)}>
+                <span className={cn('size-1.5 rounded-full', stageBadge.dot)} />
+                {stageBadge.label}
+              </span>
+              {student.level && <span className="small-caps font-mono text-[10px] text-ink-mute">{student.level}</span>}
+            </div>
             <h1 className="font-display font-semibold text-3xl md:text-[36px] leading-tight">{student.name}</h1>
-            {student.email && <p className="text-ink-soft text-sm mt-1">{student.email}</p>}
+            {/* High-level contact line */}
+            <div className="flex items-center gap-x-4 gap-y-1 flex-wrap mt-2 text-sm text-ink-soft">
+              {student.email && <span className="truncate">{student.email}</span>}
+              {student.phone && (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  {student.phone}
+                  {canMessageWhatsapp(student) && (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-ok/70" aria-label={t('waReady')}>
+                      <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2zm0 2a8 8 0 1 1-4.1 14.9l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 0 1 12 4z" />
+                    </svg>
+                  )}
+                </span>
+              )}
+              <span className="small-caps font-mono text-[10px] text-ink-mute">{t('sinceLabel')} {since}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={toggleStatus}
-              disabled={statusSaving}
-              title={t('statusHint')}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border transition-colors disabled:opacity-50",
-                isActiveStudent
-                  ? "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
-                  : "border-warn/50 text-warn hover:border-warn"
-              )}
-            >
-              <span className={cn("size-1.5 rounded-full", isActiveStudent ? "bg-ok" : "bg-warn")} />
-              {isActiveStudent ? t('statusActive') : t('statusInactive')}
-            </button>
             <Link
               href={`/instructor/students/${studentId}/edit`}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-rule text-ink-soft hover:border-ink-soft hover:text-ink transition-colors"
@@ -185,15 +194,6 @@ export default function StudentProfile() {
               </svg>
               {t('edit')}
             </Link>
-            <button
-              onClick={() => setDeleteDialog(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-rule text-ink-soft hover:border-bad hover:text-bad transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              {t('deleteAction')}
-            </button>
           </div>
         </div>
 
@@ -219,7 +219,7 @@ export default function StudentProfile() {
               </svg>
               {t('accessStepWeb')}
             </p>
-            <p className="font-display font-semibold text-2xl text-ink mb-4">parell.golf</p>
+            <p className="font-display font-semibold text-2xl text-ink mb-4">forat.golf</p>
             <p className="text-sm text-ink-soft">{t('accessStepCode')}</p>
             <p className="font-mono font-semibold text-4xl md:text-5xl tracking-[0.18em] text-ink">{student.access_code}</p>
           </div>
@@ -240,6 +240,11 @@ export default function StudentProfile() {
           </div>
         </div>
 
+        {/* Journey — the ordered plan of focuses (Module 4). The student sees it. */}
+        <div className="border-t border-rule mt-10 pt-8">
+          <JourneyEditor studentId={studentId} instructorId={instructor!.id} />
+        </div>
+
         {/* "Esta semana" — engagement only (did they practice), no score signals */}
         <div className="border-t border-rule mt-10 pt-8">
           <div className="flex items-baseline justify-between gap-3">
@@ -250,9 +255,16 @@ export default function StudentProfile() {
               </span>
             )}
           </div>
-          <p className="font-display font-semibold text-2xl mt-3">
-            {t('weekSessions', { count: week.sessionsCount })}
-          </p>
+          <div className="flex items-baseline gap-x-8 gap-y-1 mt-3 flex-wrap">
+            <div>
+              <p className="font-display font-semibold text-2xl">{t('weekAttended', { count: attendedThisWeek })}</p>
+              <p className="small-caps font-mono text-[10px] text-ink-mute mt-0.5">{t('weekAttendedLabel')}</p>
+            </div>
+            <div>
+              <p className="font-display font-semibold text-2xl text-ink-soft">{week.sessionsCount}</p>
+              <p className="small-caps font-mono text-[10px] text-ink-mute mt-0.5">{t('weekRangeLabel')}</p>
+            </div>
+          </div>
         </div>
 
         {/* Class conclusion (guided practice Layer 3) — optional, most recent class */}
@@ -357,6 +369,20 @@ export default function StudentProfile() {
           )}
         </div>
 
+        {/* Danger zone — kept far from the primary actions so it can't be a
+            fat-finger. Delete cascades the student's whole history. */}
+        <div className="border-t border-bad/20 mt-16 pt-6">
+          <button
+            onClick={() => setDeleteDialog(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-mute hover:text-bad transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            {t('deleteAction')}
+          </button>
+        </div>
+
       </div>
 
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
@@ -365,6 +391,11 @@ export default function StudentProfile() {
             <DialogTitle>{t('deleteDialogTitle', { name: student.name })}</DialogTitle>
             <DialogDescription>{t('deleteDialogDescription')}</DialogDescription>
           </DialogHeader>
+          {clips.length > 0 && (
+            <p className="text-sm text-bad bg-bad/10 border border-bad/20 rounded-md px-3 py-2.5">
+              {t('deleteDialogCount', { count: clips.length })}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialog(false)}>{t('deleteCancel')}</Button>
             <Button variant="destructive" onClick={deleteStudent} disabled={deleting}>{deleting ? t('deleting') : t('deleteConfirm')}</Button>

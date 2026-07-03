@@ -12,9 +12,9 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Class, Clip } from '@/lib/classes'
+import type { JourneyItem, Recommendation } from '@/lib/types'
 import { clipScoreSummary, type SessionLike } from '@/lib/trends'
 import { Badge } from '@/components/ui/badge'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { UserMenu } from '@/components/UserMenu'
 import { Wordmark } from '@/components/Wordmark'
 import { WarmupCard } from '@/components/WarmupCard'
@@ -50,6 +50,8 @@ export default function StudentJourney() {
   const [classes, setClasses] = useState<Class[]>([])
   const [clips, setClips] = useState<Clip[]>([])
   const [sessions, setSessions] = useState<SessionLike[]>([])
+  const [journey, setJourney] = useState<JourneyItem[]>([])
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [fetching, setFetching] = useState(true)
 
   // Optional email capture: a non-blocking nudge shown while the student has no
@@ -74,7 +76,7 @@ export default function StudentJourney() {
 
   async function load(studentId: string) {
     setFetching(true)
-    const [{ data: cls }, { data: cl }, { data: ps }] = await Promise.all([
+    const [{ data: cls }, { data: cl }, { data: ps }, { data: jr }, { data: rec }] = await Promise.all([
       supabase
         .from('classes')
         .select('*')
@@ -91,10 +93,22 @@ export default function StudentJourney() {
         .select('clip_id, checkpoint_id, overall_score, date')
         .eq('student_id', studentId)
         .order('date', { ascending: false }),
+      supabase
+        .from('journey_items')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('position', { ascending: true }),
+      // Universal recommendations from this student's instructor (RLS-scoped).
+      supabase
+        .from('recommendations')
+        .select('*')
+        .order('position', { ascending: true }),
     ])
     setClasses(cls ?? [])
     setClips(cl ?? [])
     setSessions((ps as SessionLike[]) ?? [])
+    setJourney((jr as JourneyItem[]) ?? [])
+    setRecommendations((rec as Recommendation[]) ?? [])
     setFetching(false)
   }
 
@@ -130,11 +144,10 @@ export default function StudentJourney() {
     <div className="min-h-screen bg-paper text-ink">
       <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-rule">
         <div className="max-w-3xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-3">
-          <Link href="/student/journey" aria-label="Parell — inicio">
+          <Link href="/student/journey" aria-label="Forat — inicio">
             <Wordmark size="md" />
           </Link>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <UserMenu
               name={student.name}
               role="student"
@@ -198,6 +211,67 @@ export default function StudentJourney() {
                 {emailErr && <p className="text-xs text-bad mt-2">{t('emailPromptError')}</p>}
               </>
             )}
+          </div>
+        )}
+
+        {/* Your plan — the coach's curated, ordered list of focuses (read-only). */}
+        {!fetching && journey.length > 0 && (
+          <div className="mb-8 border border-rule bg-paper-2/40 p-4 md:p-5">
+            <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('planTitle')}</p>
+            <ul className="flex flex-col gap-3.5">
+              {journey.map((item, i) => (
+                <li key={item.id}>
+                  <div className="flex items-center gap-3">
+                    <span className={cn(
+                      'size-5 rounded-full border flex items-center justify-center shrink-0',
+                      item.status === 'done' ? 'border-ok bg-ok/10 text-ok'
+                      : item.status === 'doing' ? 'border-accent text-accent'
+                      : 'border-rule text-ink-mute'
+                    )}>
+                      {item.status === 'done'
+                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        : <span className="font-mono text-[10px] tabular-nums">{i + 1}</span>}
+                    </span>
+                    <span className={cn('flex-1 text-base', item.status === 'done' ? 'text-ink-mute line-through' : 'text-ink')}>{item.title}</span>
+                    {item.status === 'doing' && (
+                      <span className="small-caps font-mono text-[9px] text-accent border border-accent/40 px-1.5 py-0.5 shrink-0">{t('planDoing')}</span>
+                    )}
+                  </div>
+                  {item.note && <p className="text-sm text-ink-soft mt-1 ml-8">{item.note}</p>}
+                  {item.images && item.images.length > 0 && (
+                    <div className="flex gap-2 mt-2 ml-8">
+                      {item.images.map(url => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={url} src={url} alt="" className="w-24 h-24 object-cover rounded-md border border-rule" />
+                      ))}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Universal recommendations from the coach (warm-up, routine…). */}
+        {!fetching && recommendations.length > 0 && (
+          <div className="mb-8 border border-rule bg-paper-2/40 p-4 md:p-5">
+            <p className="small-caps font-mono text-[10px] text-accent mb-3">{t('recommendationsTitle')}</p>
+            <ul className="flex flex-col gap-4">
+              {recommendations.map(rec => (
+                <li key={rec.id}>
+                  <p className="text-base font-medium text-ink">{rec.title}</p>
+                  {rec.note && <p className="text-sm text-ink-soft mt-0.5">{rec.note}</p>}
+                  {rec.images && rec.images.length > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      {rec.images.map(url => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={url} src={url} alt="" className="w-24 h-24 object-cover rounded-md border border-rule" />
+                      ))}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

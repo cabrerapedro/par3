@@ -65,6 +65,11 @@ export default function StudentClipMirror() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [kiosk, setKiosk] = useState(false)
+  // Skeleton is opt-in (product principle): off by default, the student can turn
+  // it on. onResults reads it via a ref since it's a stable [] callback.
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const showSkeletonRef = useRef(false)
+  useEffect(() => { showSkeletonRef.current = showSkeleton }, [showSkeleton])
 
   useEffect(() => {
     // Wait for auth to hydrate before redirecting. On a hard load this effect
@@ -197,9 +202,9 @@ export default function StudentClipMirror() {
     frameTimeRef.current += 1 / 15  // approximate ~15fps from MediaPipe
     const filteredLm = filterLandmarks(filterStateRef.current, lm, frameTimeRef.current)
 
-    // Draw skeleton with status colors
+    // Draw skeleton with status colors — only when the student opted in.
     const { drawConnectors, drawLandmarks, POSE_CONNECTIONS } = getDrawingUtils()
-    if (drawConnectors && drawLandmarks && POSE_CONNECTIONS) {
+    if (showSkeletonRef.current && drawConnectors && drawLandmarks && POSE_CONNECTIONS) {
       const overall = baselineOverallStatus(smoothed)
       const color = STATUS_COLORS[overall] ?? '#34d178'
       const isTablet = canvas.width >= 768
@@ -258,6 +263,16 @@ export default function StudentClipMirror() {
                 </svg>
               </button>
             )}
+            {/* Skeleton opt-in toggle */}
+            <button
+              onClick={() => setShowSkeleton(s => !s)}
+              title={showSkeleton ? t('skeletonHide') : t('skeletonShow')}
+              className={`backdrop-blur border rounded-xl w-12 h-12 flex items-center justify-center transition-colors ${showSkeleton ? 'bg-ok/20 border-ok/50 text-ok' : 'bg-background/70 border-border text-muted-foreground hover:text-foreground'}`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="5" r="2" /><path d="M12 7v6" /><path d="m9 21 3-8 3 8" /><path d="M6 11h12" />
+              </svg>
+            </button>
           </div>
         )}
 
@@ -300,43 +315,35 @@ export default function StudentClipMirror() {
       {/* Panel — hidden in kiosk mode, hidden on phone */}
       {!kiosk && (
         <div className="flex-shrink-0 md:w-80 lg:w-[26rem] bg-card border-t md:border-t-0 md:border-l border-border hidden md:flex flex-col h-dvh">
-          <div className="flex-1 flex flex-col p-3 md:p-4 min-h-0">
+          <div className="flex-1 flex flex-col p-4 md:p-6 min-h-0 justify-center">
             {checks.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-muted-foreground text-sm md:text-base">{t('waitingPose')}</p>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col gap-2">
-                {checks.map(check => {
-                  const hint = check.status !== 'ok' && check.direction !== 'center'
-                    ? ACTION_HINTS[check.id]?.[check.direction] ?? ''
-                    : ''
-                  return (
-                    <div
-                      key={check.id}
-                      className="flex items-center gap-4 rounded-xl px-4 flex-1 min-h-0"
-                      style={{ backgroundColor: STATUS_COLORS[check.status] + '10' }}
-                    >
-                      <div
-                        className="flex-shrink-0 w-5 h-5 lg:w-6 lg:h-6 rounded-full"
-                        style={{ backgroundColor: STATUS_COLORS[check.status] }}
-                      />
-                      <span className="flex-1 text-foreground font-medium text-lg lg:text-xl truncate">{check.label}</span>
-                      {check.status === 'ok' ? (
-                        <span className="text-ok font-bold text-2xl lg:text-3xl shrink-0">✓</span>
-                      ) : (
-                        <span
-                          className="font-semibold text-base lg:text-lg shrink-0"
-                          style={{ color: STATUS_COLORS[check.status] }}
-                        >
-                          {hint}
-                        </span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+              <p className="text-muted-foreground text-center text-sm md:text-base">{t('waitingPose')}</p>
+            ) : (() => {
+              // One instruction at a time: the single most urgent thing to fix
+              // (a red first, then a yellow). If nothing's off, celebrate.
+              const primary = checks.find(c => c.status === 'bad') ?? checks.find(c => c.status === 'warn')
+              if (!primary) {
+                return (
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <span className="text-ok text-5xl">✓</span>
+                    <p className="text-foreground font-semibold text-xl lg:text-2xl">{t('allGood')}</p>
+                  </div>
+                )
+              }
+              const hint = primary.direction !== 'center' ? ACTION_HINTS[primary.id]?.[primary.direction] ?? '' : ''
+              return (
+                <div
+                  className="flex flex-col items-center text-center gap-4 rounded-2xl px-6 py-8"
+                  style={{ backgroundColor: STATUS_COLORS[primary.status] + '14' }}
+                >
+                  <span className="w-4 h-4 rounded-full" style={{ backgroundColor: STATUS_COLORS[primary.status] }} />
+                  <p className="text-foreground font-semibold text-2xl lg:text-3xl leading-tight">{primary.label}</p>
+                  {hint && (
+                    <p className="font-bold text-3xl lg:text-4xl" style={{ color: STATUS_COLORS[primary.status] }}>{hint}</p>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-# parell.golf — Roadmap
+# forat.golf — Roadmap
 
 > Mayo 2026
 
@@ -6,7 +6,7 @@
 
 ## Visión
 
-parell.golf empieza como una herramienta para el instructor individual. Escala hacia una plataforma que conecta academias, alumnos y eventualmente produce su propio modelo de análisis de movimiento entrenado con datos reales de instructores expertos.
+forat.golf empieza como una herramienta para el instructor individual. Escala hacia una plataforma que conecta academias, alumnos y eventualmente produce su propio modelo de análisis de movimiento entrenado con datos reales de instructores expertos.
 
 > **Camino al "aha moment"** (docs de dirección, no spec):
 > - [`docs/GUIDED-PRACTICE-PLAN.md`](./GUIDED-PRACTICE-PLAN.md) — práctica guiada
@@ -105,12 +105,12 @@ parell.golf empieza como una herramienta para el instructor individual. Escala h
 
 ## Fase 4 — Plataforma
 
-**Objetivo:** parell.golf se convierte en la infraestructura estándar de enseñanza de golf a nivel global.
+**Objetivo:** forat.golf se convierte en la infraestructura estándar de enseñanza de golf a nivel global.
 
 **Features:**
-- Marketplace de instructores: alumnos encuentran instructores certificados en parell.golf
+- Marketplace de instructores: alumnos encuentran instructores certificados en forat.golf
 - Clases remotas: el instructor puede calibrar a un alumno que mandó un video desde otro país
-- Certificación parell: instructores que usan parell.golf obtienen una certificación de metodología
+- Certificación forat: instructores que usan forat.golf obtienen una certificación de metodología
 - API para fabricantes de equipamiento: integrar datos de swing con datos del palo, la pelota, el campo
 - Integración con torneos y handicap oficial
 
@@ -136,7 +136,7 @@ parell.golf empieza como una herramienta para el instructor individual. Escala h
 
 ## Lo que NO está en el roadmap
 
-- **Análisis de ronda real / campo:** parell.golf es para el rango y la clase, no para el campo.
+- **Análisis de ronda real / campo:** forat.golf es para el rango y la clase, no para el campo.
 - **Video de torneos:** fuera de scope. Ese es otro producto.
 - **Wearables / sensores físicos:** MediaPipe es suficiente para el problema que resolvemos ahora.
 - **Social / feed:** no es una red social. La relación es instructor-alumno, no pública.

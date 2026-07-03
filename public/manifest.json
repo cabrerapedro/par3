@@ -1,6 +1,6 @@
 {
-  "name": "Parell",
-  "short_name": "Parell",
+  "name": "Forat",
+  "short_name": "Forat",
   "description": "Cuaderno de práctica para instructores de golf y sus alumnos",
   "start_url": "/",
   "display": "standalone",
@@ -8,18 +8,8 @@
   "theme_color": "#EFE9DC",
   "orientation": "any",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ],
   "categories": ["sports", "education"]
 }

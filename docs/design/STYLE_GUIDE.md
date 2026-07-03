@@ -1,4 +1,4 @@
-# parell.golf — Style Guide
+# forat.golf — Style Guide
 
 > Versión 2.0 — Mayo 2026
 > Actualizado desde Sweep v1.0
@@ -7,11 +7,11 @@
 
 ## Marca
 
-- **Nombre:** parell.golf (siempre minúscula, con el dominio como nombre completo)
+- **Nombre:** forat.golf (siempre minúscula, con el dominio como nombre completo)
 - **Pronunciación:** "pa-rell" — viene de "par" en catalán
 - **Tagline ES:** "Practica con la guía de tu profesor"
 - **Tagline EN:** "Practice with your coach's guidance"
-- **Dominio:** parell.golf
+- **Dominio:** forat.golf
 
 ### Logo
 

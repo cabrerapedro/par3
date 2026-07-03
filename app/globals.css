@@ -36,7 +36,7 @@
   --color-sidebar-ring:                  var(--sidebar-ring);
 }
 
-/* ─── parell design tokens ─────────────────────────────────────────────── */
+/* ─── forat design tokens ─────────────────────────────────────────────── */
 @theme {
   /* Paper / ink / cognac primitives */
   --color-paper:        #EFE9DC;
@@ -55,6 +55,14 @@
   --color-warn:         #8C7424;
   --color-bad:          #A14F3C;
   --color-on-ok:        #EFE9DC;
+
+  /* "Live" / measured — the one cool signal reserved for AI-in-real-time
+     states (pulsing dot, angle labels). Kept distinct from cognac (human). */
+  --color-live:         #2E6E68;
+
+  /* Pose skeleton — a livelier orange sibling of the cognac accent, used for
+     the AI landmark overlay so it reads as machine vision, not ink. */
+  --color-pose:         #DD7A33;
 
   /* Legacy aliases — kept until pages are migrated phase by phase.
      New code should not reference these. */
@@ -77,7 +85,7 @@
   --animate-fade-up:    fade-up 0.8s ease-out both;
 }
 
-/* ─── Light (default for parell) ───────────────────────────────────────── */
+/* ─── Light (default for forat) ───────────────────────────────────────── */
 :root {
   --radius:                     0.125rem;
   --background:                 #EFE9DC;
@@ -137,7 +145,7 @@
   --sidebar-border:             rgba(239, 233, 220, 0.10);
   --sidebar-ring:               #7AA7A3;
 
-  /* Dark overrides for parell tokens */
+  /* Dark overrides for forat tokens */
   --color-paper:        #13110E;
   --color-paper-2:      #1C1916;
   --color-paper-3:      #26221C;
@@ -152,12 +160,49 @@
   --color-warn:         #D9B26C;
   --color-bad:          #C97B66;
   --color-on-ok:        #13110E;
+  --color-live:         #7FB3AD;
+  --color-pose:         #E8944C;
 }
 
 /* ─── Keyframes (legacy — review in Phase F) ───────────────────────────── */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* "Live" pulse — the measuring-in-real-time signal on the landing hero. */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+.pulse-live { animation: live-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pulse-live { animation: none; }
+}
+
+/* Hero AI pose overlay — skeleton lines trace in, joints pop, angle labels
+   fade last, reading as the AI measuring the swing in real time. */
+@keyframes pose-draw { to { stroke-dashoffset: 0; } }
+@keyframes pose-pop  { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
+@keyframes pose-fade { from { opacity: 0; } to { opacity: 1; } }
+.pose-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pose-draw 0.9s ease-out forwards;
+}
+.pose-joint {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pose-pop 0.4s ease-out forwards;
+}
+.pose-label { opacity: 0; animation: pose-fade 0.6s ease-out forwards; }
+/* The scan sweep + reveal front are driven in JS (see AiPoseOverlay) so they
+   share one progress value; only the trace/pop/fade stay as CSS. */
+@media (prefers-reduced-motion: reduce) {
+  .pose-line   { stroke-dashoffset: 0; animation: none; }
+  .pose-joint  { opacity: 1; transform: none; animation: none; }
+  .pose-label  { opacity: 1; animation: none; }
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────── */

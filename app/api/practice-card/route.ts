@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (!coachText) return NextResponse.json({ card: null })
 
     const angleLabel = cameraAngle === 'face_on' ? 'de frente' : 'de perfil'
-    const prompt = `Sos el copiloto de práctica de Parell Golf. El instructor marcó un momento de un ejercicio${clipName ? ` ("${clipName}")` : ''} (vista ${angleLabel}${clipType === 'swing' ? ', swing' : ''}) y dejó esta explicación (voz/nota):
+    const prompt = `Sos el copiloto de práctica de Forat Golf. El instructor marcó un momento de un ejercicio${clipName ? ` ("${clipName}")` : ''} (vista ${angleLabel}${clipType === 'swing' ? ', swing' : ''}) y dejó esta explicación (voz/nota):
 
 """
 ${coachText}

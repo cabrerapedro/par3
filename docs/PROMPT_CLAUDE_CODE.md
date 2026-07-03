@@ -1,6 +1,6 @@
-# parell.golf — Prompt para Claude Code
+# forat.golf — Prompt para Claude Code
 
-> Este documento describe todos los cambios a implementar para migrar de Sweep a parell.golf.
+> Este documento describe todos los cambios a implementar para migrar de Sweep a forat.golf.
 > Leer el CLAUDE.md completo antes de empezar. Cada decisión técnica tiene una razón.
 > Trabajar en el orden de las secciones. No saltear pasos.
 
@@ -8,7 +8,7 @@
 
 ## Contexto
 
-Esta app era "Sweep". Ahora se llama **parell.golf**. El stack técnico no cambia (Next.js 15 + Supabase + MediaPipe + Tailwind v4). Lo que cambia es el modelo de datos, el flujo del instructor, la pantalla principal del alumno, y se agrega un canvas de anotación vectorial.
+Esta app era "Sweep". Ahora se llama **forat.golf**. El stack técnico no cambia (Next.js 15 + Supabase + MediaPipe + Tailwind v4). Lo que cambia es el modelo de datos, el flujo del instructor, la pantalla principal del alumno, y se agrega un canvas de anotación vectorial.
 
 Lee el CLAUDE.md antes de empezar. Todas las decisiones están explicadas ahí.
 
@@ -16,7 +16,7 @@ Lee el CLAUDE.md antes de empezar. Todas las decisiones están explicadas ahí.
 
 ## 1. Renombrar el producto
 
-**Objetivo:** Reemplazar todas las referencias a "Sweep" por "parell.golf".
+**Objetivo:** Reemplazar todas las referencias a "Sweep" por "forat.golf".
 
 **Qué cambiar:**
 - `app/layout.tsx`: metadata title y description
@@ -24,7 +24,7 @@ Lee el CLAUDE.md antes de empezar. Todas las decisiones están explicadas ahí.
 - Todos los componentes que muestran el nombre "Sweep" en UI
 - El logo SVG se mantiene igual, solo cambia el nombre que lo acompaña
 - El tagline pasa a ser: ES → "Practica con la guía de tu profesor" / EN → "Practice with your coach's guidance"
-- Dominio en footer y metadata: `parell.golf`
+- Dominio en footer y metadata: `forat.golf`
 
 **No cambiar:** nombres de variables internas, nombres de tablas en Supabase, nombres de archivos. Solo lo visible en UI.
 
@@ -507,7 +507,7 @@ Políticas: los videos del instructor son privados (solo accesibles con signed U
 ## Orden de implementación recomendado
 
 1. **i18n** — sin esto, todo lo que se construya después hay que retroalimentarlo. Hacerlo primero.
-2. **Renombrar a parell.golf** — cosmético pero importante, hacerlo temprano.
+2. **Renombrar a forat.golf** — cosmético pero importante, hacerlo temprano.
 3. **Schema de DB** — crear las tablas nuevas sin eliminar las viejas todavía.
 4. **`getOrCreateTodayClass`** — lógica central del nuevo modelo.
 5. **Canvas de anotación** — el componente más nuevo y más importante del instructor.

@@ -42,19 +42,17 @@ export default function ClipRecordPage() {
   const startMsRef = useRef<number>(0)
   // Track auto-stop timer so a manual stop can clear it.
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Keep the chosen angle in a ref so the recorder's onstop closure reads the
-  // latest value (closures capture the value at start time otherwise).
+  // Angle is no longer chosen before recording (frame → record; the instructor
+  // sets/confirms the real angle when annotating). Default carried into commit.
   const angleRef = useRef<CameraAngle>('face_on')
 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [cameraReady, setCameraReady] = useState(false)
   const [recording, setRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const [angle, setAngle] = useState<CameraAngle>('face_on')
   const [error, setError] = useState<string | null>(null)
 
   useWakeLock(recording)
-  useEffect(() => { angleRef.current = angle }, [angle])
 
   // --- Camera lifecycle -------------------------------------------------
 
@@ -288,13 +286,6 @@ export default function ClipRecordPage() {
           </div>
         )}
 
-        {/* Locked angle chip while recording */}
-        {recording && (
-          <div className="absolute top-4 left-4 small-caps font-mono text-[10px] text-white/90 bg-black/45 px-2.5 py-1 rounded-full">
-            {angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
-          </div>
-        )}
-
         {/* Flip camera */}
         {cameraReady && !recording && (
           <button
@@ -323,27 +314,6 @@ export default function ClipRecordPage() {
 
         {!recording ? (
           <>
-            {/* Angle picker — chosen here because it's a physical decision */}
-            <div className="w-full max-w-md">
-              <p className="small-caps font-mono text-[10px] text-muted-foreground mb-2 text-center">
-                {t('angleQuestion')}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <AngleButton
-                  active={angle === 'face_on'}
-                  onClick={() => setAngle('face_on')}
-                  label={t('angleFaceOn')}
-                  icon={<FaceOnIcon />}
-                />
-                <AngleButton
-                  active={angle === 'dtl'}
-                  onClick={() => setAngle('dtl')}
-                  label={t('angleDtl')}
-                  icon={<DtlIcon />}
-                />
-              </div>
-            </div>
-
             <button
               type="button"
               onClick={startRecording}
@@ -398,56 +368,5 @@ export default function ClipRecordPage() {
         )}
       </div>
     </div>
-  )
-}
-
-// --- Tiny presentational helpers ---
-
-function AngleButton({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  icon: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`h-14 rounded-xl flex items-center justify-center gap-2 text-sm font-medium border transition-colors ${
-        active
-          ? 'bg-ok/15 text-ok border-ok/40'
-          : 'bg-secondary text-muted-foreground hover:text-foreground border-transparent'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  )
-}
-
-function FaceOnIcon() {
-  // Person facing the camera.
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="7" r="3" />
-      <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
-    </svg>
-  )
-}
-
-function DtlIcon() {
-  // Person seen from the side, plus an arrow showing the line of sight.
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="3" />
-      <path d="M5 20a5 5 0 0 1 7-4.6" />
-      <path d="M15 14h5m0 0-2-2m2 2-2 2" />
-    </svg>
   )
 }

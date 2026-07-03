@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth'
+import { useTheme } from '@/lib/theme'
 import type { Locale } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -38,17 +39,22 @@ interface UserMenuProps {
   avatarUrl?: string
   onLogout: () => void
   profileHref?: string
+  // 'avatar' = compact circle (top bars). 'bar' = full-width row with the name
+  // (desktop sidebar) so it clearly reads as "your account" for older users.
+  variant?: 'avatar' | 'bar'
 }
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }: UserMenuProps) {
+export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref, variant = 'avatar' }: UserMenuProps) {
   const t = useTranslations('userMenu')
   const tLang = useTranslations('language')
+  const tTheme = useTranslations('components.themeToggle')
   const locale = useLocale() as Locale
   const { setLocale } = useAuth()
+  const { theme, toggle: toggleTheme } = useTheme()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const isInstructor = role === 'instructor'
 
@@ -64,17 +70,32 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className={cn(
-            'rounded-full outline-none ring-offset-2 ring-offset-background transition-all hover:ring-2',
-            ringCn
-          )}>
-            <Avatar className="size-8">
-              {avatarUrl && <AvatarImage src={avatarUrl} alt={name} className="object-cover" />}
-              <AvatarFallback className={cn('text-xs font-bold border', avatarCn)}>
-                {initials(name)}
-              </AvatarFallback>
-            </Avatar>
-          </button>
+          {variant === 'bar' ? (
+            <button className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md border border-rule hover:bg-ink/[0.03] transition-colors text-left outline-none">
+              <Avatar className="size-8 shrink-0">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={name} className="object-cover" />}
+                <AvatarFallback className={cn('text-xs font-bold border', avatarCn)}>
+                  {initials(name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">{name}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground shrink-0">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          ) : (
+            <button className={cn(
+              'rounded-full outline-none ring-offset-2 ring-offset-background transition-all hover:ring-2',
+              ringCn
+            )}>
+              <Avatar className="size-8">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={name} className="object-cover" />}
+                <AvatarFallback className={cn('text-xs font-bold border', avatarCn)}>
+                  {initials(name)}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          )}
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" className="w-56">
@@ -110,10 +131,33 @@ export function UserMenu({ name, email, role, avatarUrl, onLogout, profileHref }
                     {t('profile')}
                   </Link>
                 </DropdownMenuItem>
+                {isInstructor && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/instructor/library" className="flex items-center gap-2 cursor-pointer">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                      {t('library')}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
             </>
           )}
+
+          {/* Appearance — light/dark, labeled (clearer than a naked icon) */}
+          <DropdownMenuItem
+            onSelect={e => { e.preventDefault(); toggleTheme() }}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            {theme === 'dark' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+            )}
+            {theme === 'dark' ? tTheme('switchToLight') : tTheme('switchToDark')}
+          </DropdownMenuItem>
 
           {/* Language submenu */}
           <DropdownMenuSub>

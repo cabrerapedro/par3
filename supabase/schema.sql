@@ -1,4 +1,4 @@
--- Sweep — Schema SQL
+-- forat.golf — Schema SQL
 -- Ejecutar en Supabase > SQL Editor
 
 -- ============================================================
@@ -268,7 +268,7 @@ alter table checkpoints add column if not exists instructor_audio_url text;
 -- ============================================================
 -- SECTION 3 / 11 / 12 — CLASS + CLIP DATA MODEL (May 2026)
 -- ============================================================
--- New schema for the parell.golf model. Idempotent: safe to re-run.
+-- New schema for the forat.golf model. Idempotent: safe to re-run.
 -- Keeps the legacy `checkpoints` table around during migration; will
 -- be dropped once all data is backfilled into `clips`.
 -- ============================================================
@@ -723,3 +723,319 @@ create policy "practice_videos_anon_upload"
     bucket_id = 'practice-videos'
     and (storage.foldername(name))[1]::uuid = public.current_student_id()
   );
+
+-- ============================================================
+-- ============================================================
+-- SECTION — SCHOOL CRM + WHATSAPP CAMPAIGNS (July 2026)
+-- ============================================================
+-- Contacts CRM fields on students + a message_log for WhatsApp/email
+-- sends and inbound replies. Messaging goes through Kapso (managed
+-- WhatsApp Business Platform). See docs/CRM/CLAUDE-CODE-BRIEF-whatsapp.md
+-- and Decision 22. Idempotent: safe to re-run.
+-- ============================================================
+
+-- ---------- Contacts CRM fields on students ----------
+-- phone: E.164 (e.g. +34600111222) — required to reach the student on WhatsApp.
+-- notes: instructor-managed free text (their address book, not the student bio).
+-- level: coarse skill label for segmentation (free text; kept simple on purpose).
+-- whatsapp_opt_in_at / _source: consent capture (Meta + GDPR). Marked BY HAND by
+--   the instructor. Sending is blocked when opt_in_at is null.
+-- whatsapp_window_expires_at: when the student replies, a 24h service window opens
+--   during which free-form (AI) text is allowed. Set by the inbound webhook.
+alter table students add column if not exists phone                      text;
+alter table students add column if not exists notes                      text;
+alter table students add column if not exists level                      text;
+alter table students add column if not exists whatsapp_opt_in_at         timestamptz;
+alter table students add column if not exists whatsapp_opt_in_source     text;
+alter table students add column if not exists whatsapp_window_expires_at timestamptz;
+
+-- ---------- message_log ----------
+-- One row per outbound send and per inbound reply / status transition source.
+-- Instructor-scoped. Server-side webhook writes use the service role (bypasses
+-- RLS); the instructor UI reads/manages under the authenticated policy below.
+create table if not exists message_log (
+  id                uuid primary key default gen_random_uuid(),
+  student_id        uuid not null references students(id)    on delete cascade,
+  instructor_id     uuid not null references instructors(id) on delete cascade,
+  channel           text not null default 'whatsapp' check (channel in ('whatsapp', 'email')),
+  direction         text not null check (direction in ('outbound', 'inbound')),
+  -- Meta message category. utility = reminders (cheap/free in-window),
+  -- marketing = reactivation, service = free-form inside the 24h window.
+  category          text          check (category in ('marketing', 'utility', 'service')),
+  template_name     text,          -- null for free-form / inbound
+  body              text,          -- rendered body (variables filled) or inbound text
+  locale            text          check (locale in ('es', 'en')),
+  status            text not null default 'queued'
+                      check (status in ('queued', 'sent', 'delivered', 'read', 'failed', 'received')),
+  kapso_message_id   text,         -- id returned by Kapso for reconciliation with webhooks
+  kapso_broadcast_id text,         -- set when the send was part of a campaign broadcast
+  error              text,         -- populated on failed status
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
+);
+
+create index if not exists idx_message_log_student    on message_log(student_id, created_at desc);
+create index if not exists idx_message_log_instructor on message_log(instructor_id, created_at desc);
+create index if not exists idx_message_log_kapso_msg  on message_log(kapso_message_id);
+create index if not exists idx_message_log_broadcast  on message_log(kapso_broadcast_id);
+
+alter table message_log enable row level security;
+
+-- Instructor manages the logs of their own students (read + write from the UI).
+drop policy if exists "message_log_instructor_all" on message_log;
+create policy "message_log_instructor_all"
+  on message_log for all
+  to authenticated
+  using (instructor_id = auth.uid())
+  with check (instructor_id = auth.uid());
+-- Note: no anon policy. Students never read the message log. Inbound replies
+-- and delivery-status updates are written server-side via the service role.
+
+-- ---------- Lifecycle stage (3-state student model) ----------
+-- The explicit, human-set lifecycle of a student. Distinct from the DERIVED
+-- "dormant" engagement signal (computed in lib/contacts.ts, never stored):
+--   prospect — signed up but never came to a lesson yet
+--   active   — currently taking lessons
+--   former   — lessons ended, but could come back (reactivation target)
+-- Steve sets/confirms this by hand ("manual + automatic signal" decision).
+-- The legacy `status` (active|inactive) is kept for now; inactive maps to
+-- 'former'. The app migrates its reads to lifecycle_stage in the Alumnos phase.
+alter table students add column if not exists lifecycle_stage text not null default 'active'
+  check (lifecycle_stage in ('prospect', 'active', 'former'));
+
+-- One-time backfill from the legacy status. Guarded so re-running schema.sql
+-- doesn't clobber a stage Steve later edited by hand: only rows that are still
+-- at the default 'active' but were archived (status='inactive') get moved to
+-- 'former'. Once a row is 'former' (or manually changed), this WHERE skips it.
+update students set lifecycle_stage = 'former'
+  where status = 'inactive' and lifecycle_stage = 'active';
+
+create index if not exists idx_students_instructor_stage
+  on students(instructor_id, lifecycle_stage);
+-- Case-insensitive name search at scale (Alumnos list). pg_trgm powers ILIKE.
+create extension if not exists pg_trgm;
+create index if not exists idx_students_name_trgm
+  on students using gin (name gin_trgm_ops);
+
+-- ---------- Denormalized last_activity_at (scales the "dormant" filter) ----------
+-- "Dormant" = active but no lesson/practice in DORMANT_DAYS. Computing that from
+-- nested classes/practice_sessions is fine for a handful of students but doesn't
+-- filter/paginate at scale. So we denormalize the most-recent activity onto the
+-- student and keep it fresh with triggers. The Alumnos list can then do a plain
+-- indexed WHERE (last_activity_at < cutoff) with server-side pagination.
+alter table students add column if not exists last_activity_at timestamptz;
+
+create index if not exists idx_students_last_activity
+  on students(instructor_id, last_activity_at);
+
+-- Backfill from existing activity (classes.date is a date, practice.date is tz).
+-- GREATEST ignores NULLs, returning NULL only when the student has no activity.
+update students s set last_activity_at = greatest(
+  (select max(c.date::timestamptz) from classes c where c.student_id = s.id),
+  (select max(ps.date)             from practice_sessions ps where ps.student_id = s.id)
+) where last_activity_at is null;
+
+-- Keep it fresh. SECURITY DEFINER is required: practice_sessions are inserted by
+-- the anon (student) role, which has no UPDATE policy on students — without
+-- definer the trigger's UPDATE would be blocked by RLS and the insert would fail.
+create or replace function public.bump_student_activity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.students
+    set last_activity_at = greatest(coalesce(last_activity_at, to_timestamp(0)), new.date::timestamptz)
+    where id = new.student_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_class_activity on classes;
+create trigger trg_class_activity
+  after insert on classes
+  for each row execute function public.bump_student_activity();
+
+drop trigger if exists trg_practice_activity on practice_sessions;
+create trigger trg_practice_activity
+  after insert on practice_sessions
+  for each row execute function public.bump_student_activity();
+
+-- ---------- Journey (Module 4): a simple ordered focus list per student ----------
+-- Deliberately simple (no complex builder): an ordered list of focus items the
+-- instructor curates for a student and the student sees in their app. `position`
+-- drives ordering; `status` tracks progress (todo -> doing -> done).
+create table if not exists journey_items (
+  id            uuid primary key default gen_random_uuid(),
+  student_id    uuid not null references students(id)    on delete cascade,
+  instructor_id uuid not null references instructors(id) on delete cascade,
+  title         text not null,
+  note          text,
+  position      integer not null default 0,
+  status        text not null default 'todo' check (status in ('todo', 'doing', 'done')),
+  created_at    timestamptz default now()
+);
+create index if not exists idx_journey_items_student on journey_items(student_id, position);
+
+alter table journey_items enable row level security;
+
+-- Instructor manages the journeys of their own students.
+drop policy if exists "journey_items_instructor_all" on journey_items;
+create policy "journey_items_instructor_all"
+  on journey_items for all
+  to authenticated
+  using (instructor_id = auth.uid())
+  with check (instructor_id = auth.uid());
+
+-- Student reads their own journey via the anon role (access-code scoped).
+drop policy if exists "journey_items_anon_select" on journey_items;
+create policy "journey_items_anon_select"
+  on journey_items for select
+  to anon
+  using (student_id = public.current_student_id());
+
+-- ---------- Agenda / attendance (Fase 8): lightweight in-app lessons ----------
+-- NOT a booking engine (no availability/payments/waitlists) — a simple agenda
+-- the instructor manages. A group clinic is just several lessons at the same
+-- time, one per student (everything tracks per student). Marking a lesson
+-- 'attended' is the attendance signal that keeps "dormant" and lifecycle honest.
+-- Google Calendar sync is a future step.
+create table if not exists lessons (
+  id            uuid primary key default gen_random_uuid(),
+  instructor_id uuid not null references instructors(id) on delete cascade,
+  student_id    uuid not null references students(id)    on delete cascade,
+  starts_at     timestamptz not null,
+  ends_at       timestamptz,
+  status        text not null default 'scheduled'
+                  check (status in ('scheduled', 'attended', 'no_show', 'cancelled')),
+  note          text,
+  created_at    timestamptz default now()
+);
+create index if not exists idx_lessons_instructor_start on lessons(instructor_id, starts_at);
+create index if not exists idx_lessons_student on lessons(student_id, starts_at desc);
+
+alter table lessons enable row level security;
+
+drop policy if exists "lessons_instructor_all" on lessons;
+create policy "lessons_instructor_all"
+  on lessons for all
+  to authenticated
+  using (instructor_id = auth.uid())
+  with check (instructor_id = auth.uid());
+
+-- Students may read their own lessons (upcoming/next class in their app).
+drop policy if exists "lessons_anon_select" on lessons;
+create policy "lessons_anon_select"
+  on lessons for select
+  to anon
+  using (student_id = public.current_student_id());
+
+-- Attendance is the source of truth for "dormant": marking a lesson 'attended'
+-- bumps the student's last_activity_at, so a student who takes lessons (even
+-- without a recorded clip) never looks dormant. SECURITY DEFINER to bypass RLS.
+create or replace function public.bump_activity_on_attendance()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status = 'attended' then
+    update public.students
+      set last_activity_at = greatest(coalesce(last_activity_at, to_timestamp(0)), new.starts_at)
+      where id = new.student_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_lesson_attendance on lessons;
+create trigger trg_lesson_attendance
+  after insert or update of status on lessons
+  for each row execute function public.bump_activity_on_attendance();
+
+-- ---------- Journey library (Fase 9): reusable templates + recommendations ----------
+-- Steve builds a LIBRARY of journey templates (some by level/handicap, some
+-- corrective) and assigns one to a student at onboarding — the template's items
+-- are COPIED into that student's journey_items (then editable per student).
+-- Focuses are text + up to 2 images (not video).
+create table if not exists journey_templates (
+  id            uuid primary key default gen_random_uuid(),
+  instructor_id uuid not null references instructors(id) on delete cascade,
+  name          text not null,
+  category      text,               -- free label: level / handicap / corrective…
+  created_at    timestamptz default now()
+);
+create index if not exists idx_journey_templates_instructor on journey_templates(instructor_id);
+
+create table if not exists journey_template_items (
+  id          uuid primary key default gen_random_uuid(),
+  template_id uuid not null references journey_templates(id) on delete cascade,
+  title       text not null,
+  note        text,
+  images      text[] not null default '{}',
+  position    integer not null default 0,
+  created_at  timestamptz default now()
+);
+create index if not exists idx_journey_template_items_template on journey_template_items(template_id, position);
+
+-- Per-student journey items gain images (copied from the template, editable).
+alter table journey_items add column if not exists images text[] not null default '{}';
+
+-- Universal recommendations (warm-up, routine…) — one list per instructor, every
+-- student of that instructor sees them. Supporting habits, not a progression.
+create table if not exists recommendations (
+  id            uuid primary key default gen_random_uuid(),
+  instructor_id uuid not null references instructors(id) on delete cascade,
+  title         text not null,
+  note          text,
+  images        text[] not null default '{}',
+  position      integer not null default 0,
+  created_at    timestamptz default now()
+);
+create index if not exists idx_recommendations_instructor on recommendations(instructor_id, position);
+
+alter table journey_templates      enable row level security;
+alter table journey_template_items enable row level security;
+alter table recommendations        enable row level security;
+
+-- Templates + their items: instructor-only (students never read templates; the
+-- items are copied into journey_items on assignment).
+drop policy if exists "journey_templates_instructor_all" on journey_templates;
+create policy "journey_templates_instructor_all"
+  on journey_templates for all to authenticated
+  using (instructor_id = auth.uid()) with check (instructor_id = auth.uid());
+
+drop policy if exists "journey_template_items_instructor_all" on journey_template_items;
+create policy "journey_template_items_instructor_all"
+  on journey_template_items for all to authenticated
+  using (exists (select 1 from journey_templates jt where jt.id = template_id and jt.instructor_id = auth.uid()))
+  with check (exists (select 1 from journey_templates jt where jt.id = template_id and jt.instructor_id = auth.uid()));
+
+-- Recommendations: instructor manages; the student (anon) reads their own
+-- instructor's list.
+drop policy if exists "recommendations_instructor_all" on recommendations;
+create policy "recommendations_instructor_all"
+  on recommendations for all to authenticated
+  using (instructor_id = auth.uid()) with check (instructor_id = auth.uid());
+
+drop policy if exists "recommendations_anon_select" on recommendations;
+create policy "recommendations_anon_select"
+  on recommendations for select to anon
+  using (instructor_id = (select s.instructor_id from public.students s where s.id = public.current_student_id()));
+
+-- Storage bucket for journey/recommendation images (public read; instructor upload).
+insert into storage.buckets (id, name, public)
+values ('journey-images', 'journey-images', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "journey_images_instructor_upload" on storage.objects;
+create policy "journey_images_instructor_upload"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'journey-images');
+
+drop policy if exists "journey_images_public_read" on storage.objects;
+create policy "journey_images_public_read"
+  on storage.objects for select to anon, authenticated
+  using (bucket_id = 'journey-images');

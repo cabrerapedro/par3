@@ -1,4 +1,4 @@
-// parell.golf service worker — minimal PWA offline shell.
+// forat.golf service worker — minimal PWA offline shell.
 //
 // Strategy:
 // - Navigation requests (HTML pages): network-first with cache fallback.
@@ -15,8 +15,8 @@
 // themselves naturally).
 
 const CACHE_VERSION = 'v1'
-const STATIC_CACHE = `parell-static-${CACHE_VERSION}`
-const NAV_CACHE = `parell-nav-${CACHE_VERSION}`
+const STATIC_CACHE = `forat-static-${CACHE_VERSION}`
+const NAV_CACHE = `forat-nav-${CACHE_VERSION}`
 
 self.addEventListener('install', () => {
   // Skip the "waiting" phase: the new SW takes over on next page load.

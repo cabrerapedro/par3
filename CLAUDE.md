@@ -1,20 +1,20 @@
-# parell.golf — CLAUDE.md
+# forat.golf — CLAUDE.md
 
 > Documento vivo. Actualizado: Mayo 2026.
 > Fuente de verdad del producto para Claude Code y cualquier colaborador técnico.
-> "Parell" significa "par" en catalán.
+> "Forat" significa "par" en catalán.
 
 ---
 
-## Qué es parell.golf
+## Qué es forat.golf
 
-parell.golf es un **copiloto de práctica de golf** para instructores profesionales y sus alumnos.
+forat.golf es un **copiloto de práctica de golf** para instructores profesionales y sus alumnos.
 
 El instructor graba el movimiento correcto del alumno durante la clase, lo anota con voz, texto y dibujo, y construye una referencia personal. El alumno practica solo en el rango con esa referencia en su teléfono. La app compara su técnica en tiempo real contra lo que el instructor calibró, prioriza qué practicar según su progreso, y cierra el loop para que el sábado instructor y alumno puedan hablar sobre una semana real de práctica.
 
-**Principio irrenunciable:** El instructor es siempre la autoridad. parell.golf complementa su método, nunca lo contradice ni lo reemplaza.
+**Principio irrenunciable:** El instructor es siempre la autoridad. forat.golf complementa su método, nunca lo contradice ni lo reemplaza.
 
-**Dominio:** parell.golf
+**Dominio:** forat.golf
 **Idiomas:** Español e inglés desde el inicio. i18n en todas las strings desde el día 1.
 **Modelo de negocio:** Suscripción mensual del instructor. El precio varía según la cantidad de alumnos activos incluidos. El alumno accede gratis.
 
@@ -25,7 +25,7 @@ El instructor graba el movimiento correcto del alumno durante la clase, lo anota
 ### Instructor (cliente que paga)
 
 - Enseña en academia o club. Target: 30+ alumnos activos.
-- Usa parell.golf en **iPad durante la clase** — no entre clases.
+- Usa forat.golf en **iPad durante la clase** — no entre clases.
 - Durante una clase trabaja varios movimientos según cómo avanza el alumno.
 - No es técnico. La app tiene que ser obvia sin explicaciones.
 - Su workflow natural: graba → pausa en el frame clave → dibuja y explica con voz → guarda.
@@ -33,7 +33,7 @@ El instructor graba el movimiento correcto del alumno durante la clase, lo anota
 ### Alumno (usuario final, accede gratis)
 
 - Practica en el rango entre clases, típicamente durante la semana.
-- Usa parell.golf en su **teléfono**.
+- Usa forat.golf en su **teléfono**.
 - Quiere saber exactamente qué practicar y si lo está haciendo bien.
 - No quiere pensar — quiere instrucciones claras y feedback inmediato.
 
@@ -44,7 +44,7 @@ El instructor graba el movimiento correcto del alumno durante la clase, lo anota
 El instructor está en la academia con su alumno. Saca el iPad.
 
 **1. Acceso al alumno**
-- Abre parell.golf → ve su lista de alumnos.
+- Abre forat.golf → ve su lista de alumnos.
 - Selecciona al alumno. La clase del día se crea automáticamente si pasaron más de 24 horas desde la última grabación con ese alumno. Sin fricción, sin botón "crear clase".
 
 **2. Durante la clase — grabar un clip**
@@ -196,7 +196,7 @@ Las anotaciones se guardan como vectores (no como imagen) para poder escalar, re
 
 ### Cambios de arquitectura requeridos respecto a Sweep
 
-| Área | Antes (Sweep) | Ahora (parell.golf) |
+| Área | Antes (Sweep) | Ahora (forat.golf) |
 |------|--------------|---------------------|
 | Unidad central | `checkpoint` suelto | `clip` dentro de `class` |
 | Creación de clase | Manual por el instructor | Automática (umbral 24hs) |
@@ -204,7 +204,7 @@ Las anotaciones se guardan como vectores (no como imagen) para poder escalar, re
 | Landmarks guardados | Solo frames marcados como buenos | Todos los frames de todos los clips |
 | Anotaciones | Texto + audio separados | Canvas vectorial + audio simultáneo |
 | Pantalla principal alumno | Lista de checkpoints | "Practicá esto hoy" (priorizado) |
-| Nombre del producto | Sweep | parell.golf |
+| Nombre del producto | Sweep | forat.golf |
 | i18n | No | Sí, desde el día 1 |
 
 ---
@@ -270,7 +270,7 @@ Sin formularios intermedios. Sin pasos extra. Un gesto continuo.
 
 ### El activo diferencial
 
-parell.golf tiene acceso a algo que ningún dataset público tiene: **anotaciones de expertos reales sobre movimientos reales de alumnos reales**. Cada vez que un instructor pausa en el frame 2.3 y dibuja una línea en la columna diciendo "esto está mal", produce un label humano de alta calidad sobre un error técnico específico.
+forat.golf tiene acceso a algo que ningún dataset público tiene: **anotaciones de expertos reales sobre movimientos reales de alumnos reales**. Cada vez que un instructor pausa en el frame 2.3 y dibuja una línea en la columna diciendo "esto está mal", produce un label humano de alta calidad sobre un error técnico específico.
 
 Con suficiente volumen esto permite entrenar:
 - Un detector de errores técnicos sin calibración manual por alumno.

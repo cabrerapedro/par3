@@ -1,10 +1,10 @@
-# parell.golf — Product Flows
+# forat.golf — Product Flows
 
 ## User Personas
 
 ### The Instructor (Primary Client)
 - Teaches at academy or club, typically 30+ active students
-- Uses parell.golf on **iPad during the lesson** — not between lessons
+- Uses forat.golf on **iPad during the lesson** — not between lessons
 - Currently records on another app, draws lines on paused video, explains verbally
 - Not technically advanced but comfortable with tablet
 - Pain: repeats same corrections, no continuity between lessons, can't scale impact
@@ -24,7 +24,7 @@
 This is the core interaction. The instructor is at the range with the student.
 
 ### Step 1: Select student
-- Opens parell.golf → sees list of students
+- Opens forat.golf → sees list of students
 - Taps the student's name
 - The class for today is auto-created if 24+ hours have passed since the last clip for this student
 - No "create class" button. No friction.
@@ -82,7 +82,7 @@ At the start of Saturday's lesson, before picking up the iPad to record.
 
 ## Flow 3: Student — Main Screen
 
-The student arrives at the range. Opens parell.golf.
+The student arrives at the range. Opens forat.golf.
 
 ### "Practicá esto hoy / Practice this today" (top block)
 - 1-2 clips auto-prioritized by the app
@@ -206,7 +206,7 @@ The annotation canvas is the most important UX in the product. It must feel as n
 When a student first receives their access code.
 
 1. Receives 6-character code from instructor (via WhatsApp, email, or QR)
-2. Opens parell.golf — taps "Soy Alumno / I'm a Student"
+2. Opens forat.golf — taps "Soy Alumno / I'm a Student"
 3. Enters the code → enters their name
 4. Optionally: fills basic golf profile (dominant hand, years playing, home course)
 5. Sees their journey — clips from their instructor, ready to practice
@@ -217,7 +217,7 @@ The instructor creates the student profile first. The student just activates it.
 
 ---
 
-## What Does NOT Exist in parell.golf
+## What Does NOT Exist in forat.golf
 
 These were in earlier versions or proposed features that are explicitly out of scope:
 

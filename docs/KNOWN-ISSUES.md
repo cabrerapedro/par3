@@ -1,4 +1,4 @@
-# Known issues — parell.golf
+# Known issues — forat.golf
 
 > Final state after the post-review remediation pass.
 > Almost every actionable finding from the code review is now closed.

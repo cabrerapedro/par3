@@ -102,6 +102,12 @@ export default function ClipAnnotatePage() {
   const [clipType, setClipType] = useState<ClipType>('position')
   const [annotations, setAnnotations] = useState<DraftAnnotation[]>([])
   const [error, setError] = useState<string | null>(null)
+  // Loud, blocking warning when the clip couldn't be calibrated (bad framing /
+  // no baseline) — so the instructor never leaves thinking they saved a
+  // reference when they didn't.
+  const [calibProblem, setCalibProblem] = useState(false)
+  // Optional clip name so clips in the same class don't all read "Posición".
+  const [clipName, setClipName] = useState('')
   const [discardOpen, setDiscardOpen] = useState(false)
   const [backOpen, setBackOpen] = useState(false)
 
@@ -218,9 +224,10 @@ export default function ClipAnnotatePage() {
 
   // Persist a single annotation row. Best-effort on each piece — if Whisper
   // is down we still keep the audio file + drawing; if audio upload fails
-  // we still keep the strokes + transcript text. Returns void.
+  // we still keep the strokes + transcript text. Returns true if the core
+  // annotation row (strokes + audio + note) persisted, false if it was lost.
   const persistAnnotation = useCallback(
-    async (clipId: string, draft: DraftAnnotation): Promise<void> => {
+    async (clipId: string, draft: DraftAnnotation): Promise<boolean> => {
       let audioUrl: string | null = null
       let transcript: string | null = null
 
@@ -268,7 +275,7 @@ export default function ClipAnnotatePage() {
 
       // Insert the core annotation first — strokes, audio and note must never
       // be lost over a snapshot problem.
-      const { data: inserted } = await supabase
+      const { data: inserted, error: insErr } = await supabase
         .from('clip_annotations')
         .insert({
           clip_id: clipId,
@@ -281,14 +288,19 @@ export default function ClipAnnotatePage() {
         .select('id')
         .single()
 
+      // The core row is what the instructor's drawing/voice note lives in — if
+      // it didn't persist, report the failure so we can warn them.
+      if (insErr || !inserted) return false
+
       // Attach the snapshot URL as a best-effort follow-up. If the
       // detection_ratio/snapshot_url column isn't there yet, this just no-ops.
-      if (inserted && snapshotUrl) {
+      if (snapshotUrl) {
         await supabase
           .from('clip_annotations')
           .update({ snapshot_url: snapshotUrl })
           .eq('id', inserted.id)
       }
+      return true
     },
     [studentId],
   )
@@ -325,7 +337,7 @@ export default function ClipAnnotatePage() {
     }
     const allAnnotations = pendingAnnotation ? [...annotations, pendingAnnotation] : annotations
 
-    const finalName = defaultName
+    const finalName = clipName.trim() || defaultName
     const selectedMetrics = METRICS_BY_ANGLE[angle] ?? []
 
     try {
@@ -366,12 +378,16 @@ export default function ClipAnnotatePage() {
       if (clipErr || !clip) throw clipErr ?? new Error('Failed to insert clip')
 
       // 4. Persist annotations one by one. Each is best-effort; we don't
-      // want a flaky single audio upload to bury the whole clip.
+      // want a flaky single audio upload to bury the whole clip. But if any
+      // annotation's core row is lost, the instructor must be told — a clip
+      // that "saved" while dropping drawings/voice notes is worse than a warning.
+      let annotationsFailed = false
       for (const a of allAnnotations) {
         try {
-          await persistAnnotation(clip.id, a)
+          const ok = await persistAnnotation(clip.id, a)
+          if (!ok) annotationsFailed = true
         } catch {
-          /* skip this annotation, keep going */
+          annotationsFailed = true
         }
       }
 
@@ -412,7 +428,7 @@ export default function ClipAnnotatePage() {
           .update({ status: 'pending' })
           .eq('id', clip.id)
         setSaveStage('idle')
-        setError(t('lowDetection', { pct: Math.round(detection * 100) }))
+        setCalibProblem(true)
         return
       }
 
@@ -456,14 +472,33 @@ export default function ClipAnnotatePage() {
         })
         .eq('id', clip.id)
 
-      // 7. Done. Clean the in-memory blob and bounce to the student profile.
+      // Couldn't build a baseline → the clip is NOT a usable reference. Don't
+      // slip away to the profile silently; tell the instructor to their face.
+      if (!baseline) {
+        setSaveStage('idle')
+        setCalibProblem(true)
+        return
+      }
+
+      // 7. If any annotation was lost, don't slip away silently — the clip is
+      // saved, but the instructor's drawings/voice notes may be incomplete.
+      // Keep them on the page with a visible warning so they can check.
+      if (annotationsFailed) {
+        setSaveStage('idle')
+        setError(t('annotationsSaveWarning'))
+        return
+      }
+
+      // 8. Done. Clean the in-memory blob and bounce to the student profile.
       leavingRef.current = true
       reset()
       router.replace(`/instructor/students/${studentId}`)
     } catch (e: unknown) {
+      // Show a plain, reassuring message; keep the technical reason in the
+      // console for debugging instead of scaring the instructor mid-lesson.
+      console.error('clip save failed:', e)
       setSaveStage('idle')
-      const reason = e instanceof Error ? e.message : String(e)
-      setError(`${t('saveErrorTitle')}: ${reason}`)
+      setError(t('saveErrorFriendly'))
     }
   }
 
@@ -641,6 +676,16 @@ export default function ClipAnnotatePage() {
           {/* Metadata form */}
           <div className="bg-card border border-border rounded-md p-4 flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
+              <Label htmlFor="clipName" className="text-sm">{t('nameLabel')}</Label>
+              <input
+                id="clipName"
+                value={clipName}
+                onChange={e => setClipName(e.target.value)}
+                placeholder={defaultName}
+                className="h-10 px-3 bg-secondary border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
               <Label className="text-sm">{t('angleLabel')}</Label>
               <div className="flex gap-2">
                 <SegBtn active={angle === 'face_on'} onClick={() => setAngle('face_on')}>{t('angleFaceOn')}</SegBtn>
@@ -782,6 +827,32 @@ export default function ClipAnnotatePage() {
             </Button>
             <Button variant="destructive" onClick={handleDiscard} className="flex-1">
               {t('discardConfirmAction')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Calibration problem — loud, blocking. The clip is saved but is NOT a
+          usable reference; make the instructor decide, don't slip away. */}
+      <Dialog open={calibProblem} onOpenChange={setCalibProblem}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('calibProblemTitle')}</DialogTitle>
+            <DialogDescription>{t('calibProblemBody')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              onClick={() => { leavingRef.current = true; reset(); router.replace(`/instructor/students/${studentId}/clips/new/record`) }}
+              className="w-full bg-primary text-primary-foreground"
+            >
+              {t('calibRerecord')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { leavingRef.current = true; reset(); router.replace(`/instructor/students/${studentId}`) }}
+              className="w-full border-border"
+            >
+              {t('calibGoProfile')}
             </Button>
           </DialogFooter>
         </DialogContent>
