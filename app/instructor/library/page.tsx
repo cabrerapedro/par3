@@ -56,6 +56,7 @@ export default function LibraryPage() {
   }
 
   async function deleteTemplate(id: string) {
+    if (!window.confirm(t('deleteTemplateConfirm'))) return
     setSelectedId(s => (s === id ? null : s))
     setTemplates(prev => prev.filter(t => t.id !== id))
     const { error: e } = await supabase.from('journey_templates').delete().eq('id', id)
@@ -128,14 +129,14 @@ export default function LibraryPage() {
                         value={selected.name}
                         onChange={e => setTemplates(prev => prev.map(t => (t.id === selected.id ? { ...t, name: e.target.value } : t)))}
                         onBlur={e => updateTemplate(selected.id, { name: e.target.value.trim() || selected.name })}
-                        className="flex-1 h-9 bg-transparent border-b border-transparent hover:border-rule focus:border-ink-soft font-display font-semibold text-lg focus:outline-none"
+                        className="flex-1 h-9 bg-transparent border-b border-rule/60 hover:border-ink-soft/60 focus:border-ink-soft font-display font-semibold text-lg focus:outline-none"
                       />
                       <button onClick={() => deleteTemplate(selected.id)} title={t('deleteTemplate')} className="size-8 flex items-center justify-center text-ink-mute hover:text-bad transition-colors shrink-0">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                       </button>
                     </div>
                     <p className="small-caps font-mono text-[10px] text-accent mb-2">{t('templateItemsTitle')}</p>
-                    <LibraryItemList table="journey_template_items" parentColumn="template_id" parentId={selected.id} />
+                    <LibraryItemList table="journey_template_items" parentColumn="template_id" parentId={selected.id} emptyText={t('itemsEmpty')} addPlaceholder={t('addItemPlaceholder')} />
                   </div>
                 ) : (
                   <p className="text-sm text-ink-mute text-center py-6">{t('selectTemplateHint')}</p>
@@ -145,7 +146,7 @@ export default function LibraryPage() {
           </>
         ) : (
           <div>
-            <LibraryItemList table="recommendations" parentColumn="instructor_id" parentId={instructor.id} />
+            <LibraryItemList table="recommendations" parentColumn="instructor_id" parentId={instructor.id} emptyText={t('tipsEmpty')} addPlaceholder={t('addTipPlaceholder')} />
           </div>
         )}
     </div>

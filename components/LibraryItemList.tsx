@@ -17,10 +17,12 @@ interface Item {
 // Reusable editor for an ordered list of {title, note, up to 2 images}, backed
 // by a table filtered on a parent column. Used for journey template items and
 // for the universal recommendations list.
-export function LibraryItemList({ table, parentColumn, parentId }: {
+export function LibraryItemList({ table, parentColumn, parentId, emptyText, addPlaceholder }: {
   table: 'journey_template_items' | 'recommendations'
   parentColumn: string
   parentId: string
+  emptyText: string
+  addPlaceholder: string
 }) {
   const t = useTranslations('instructor.library')
   const [items, setItems] = useState<Item[]>([])
@@ -100,7 +102,7 @@ export function LibraryItemList({ table, parentColumn, parentId }: {
   return (
     <div>
       {items.length === 0 ? (
-        <p className="text-sm text-ink-soft border-t border-b border-rule py-6 text-center">{t('itemsEmpty')}</p>
+        <p className="text-sm text-ink-soft border-t border-b border-rule py-6 text-center">{emptyText}</p>
       ) : (
         <ul className="border-t border-rule">
           {items.map((item, i) => (
@@ -112,7 +114,7 @@ export function LibraryItemList({ table, parentColumn, parentId }: {
                     value={item.title}
                     onChange={e => patchLocal(item.id, { title: e.target.value })}
                     onBlur={e => persist(item.id, { title: e.target.value.trim() })}
-                    className="h-9 bg-transparent border-b border-transparent hover:border-rule focus:border-ink-soft text-sm font-medium focus:outline-none"
+                    className="h-9 bg-transparent border-b border-rule/60 hover:border-ink-soft/60 focus:border-ink-soft text-sm font-medium focus:outline-none"
                   />
                   <input
                     value={item.note ?? ''}
@@ -160,7 +162,7 @@ export function LibraryItemList({ table, parentColumn, parentId }: {
       {error && <p className="text-xs text-bad mt-3 font-mono break-words">{error}</p>}
 
       <form onSubmit={add} className="flex items-center gap-2 mt-4">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t('addItemPlaceholder')} className="flex-1 h-10 bg-paper-2/40 border border-rule rounded-md px-3 text-sm focus:outline-none focus:border-ink-soft" />
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder={addPlaceholder} className="flex-1 h-10 bg-paper-2/40 border border-rule rounded-md px-3 text-sm focus:outline-none focus:border-ink-soft" />
         <button type="submit" disabled={!title.trim() || adding} className="h-10 px-4 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:opacity-85 transition-opacity disabled:opacity-50 shrink-0">
           {adding ? t('adding') : t('addItem')}
         </button>
