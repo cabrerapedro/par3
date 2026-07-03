@@ -596,10 +596,11 @@
     "library": {
       "back": "Back",
       "title": "Library",
-      "subtitle": "Your journey templates and the recommendations every student sees.",
+      "subtitle": "Build once, reuse always: practice plans you load into students, and general tips for everyone.",
       "tabTemplates": "Templates",
       "tabRecommendations": "Recommendations",
-      "newTemplatePlaceholder": "Name (e.g. Beginner, High handicap, Fix slice)",
+      "templatesHint": "A plan of steps you build once and load into a student, so you don't rebuild it every lesson. E.g. 'Beginner' → grip, stance, half swing. Tap a template to edit its focuses.",
+      "newTemplatePlaceholder": "Plan name (e.g. Beginner, Fix slice)",
       "categoryPlaceholder": "Category (optional)",
       "createTemplate": "Create template",
       "noTemplates": "No templates yet. Create your first.",

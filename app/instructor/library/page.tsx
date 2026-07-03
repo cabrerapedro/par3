@@ -18,7 +18,6 @@ export default function LibraryPage() {
   const [templates, setTemplates] = useState<JourneyTemplate[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [category, setCategory] = useState('')
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState('')
 
@@ -42,10 +41,10 @@ export default function LibraryPage() {
     if (!instructor || !name.trim()) return
     setError('')
     const { data, error: err } = await supabase.from('journey_templates')
-      .insert({ instructor_id: instructor.id, name: name.trim(), category: category.trim() || null })
+      .insert({ instructor_id: instructor.id, name: name.trim(), category: null })
       .select().single()
     if (err) { setError(err.message); return }
-    setName(''); setCategory('')
+    setName('')
     await loadTemplates()
     if (data) setSelectedId((data as JourneyTemplate).id)
   }
@@ -77,13 +76,18 @@ export default function LibraryPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 mb-6">
+        <div className="flex items-center gap-1 mb-3">
           {(['templates', 'recommendations'] as const).map(key => (
             <button key={key} onClick={() => setTab(key)} className={cn('small-caps font-mono text-[10px] px-3 h-9 border transition-colors', tab === key ? 'border-ink bg-ink text-paper' : 'border-rule text-ink-mute hover:text-ink hover:border-ink-soft')}>
               {key === 'templates' ? t('tabTemplates') : t('tabRecommendations')}
             </button>
           ))}
         </div>
+
+        {/* Plain-language explainer for the active tab */}
+        <p className="text-[13px] text-ink-soft mb-6 max-w-xl leading-relaxed">
+          {tab === 'templates' ? t('templatesHint') : t('recommendationsHint')}
+        </p>
 
         {error && (
           <div className="mb-4 text-bad text-sm bg-bad/10 border border-bad/20 rounded-md px-4 py-3">
@@ -97,7 +101,6 @@ export default function LibraryPage() {
             {/* Create template */}
             <form onSubmit={createTemplate} className="flex flex-col sm:flex-row gap-2 mb-6">
               <input value={name} onChange={e => setName(e.target.value)} placeholder={t('newTemplatePlaceholder')} className="flex-1 h-10 bg-paper-2/40 border border-rule rounded-md px-3 text-sm focus:outline-none focus:border-ink-soft" />
-              <input value={category} onChange={e => setCategory(e.target.value)} placeholder={t('categoryPlaceholder')} className="sm:w-40 h-10 bg-paper-2/40 border border-rule rounded-md px-3 text-sm focus:outline-none focus:border-ink-soft" />
               <button type="submit" disabled={!name.trim()} className="h-10 px-4 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:opacity-85 transition-opacity disabled:opacity-50 shrink-0">{t('createTemplate')}</button>
             </form>
 
@@ -127,13 +130,6 @@ export default function LibraryPage() {
                         onBlur={e => updateTemplate(selected.id, { name: e.target.value.trim() || selected.name })}
                         className="flex-1 h-9 bg-transparent border-b border-transparent hover:border-rule focus:border-ink-soft font-display font-semibold text-lg focus:outline-none"
                       />
-                      <input
-                        value={selected.category ?? ''}
-                        onChange={e => setTemplates(prev => prev.map(t => (t.id === selected.id ? { ...t, category: e.target.value } : t)))}
-                        onBlur={e => updateTemplate(selected.id, { category: e.target.value.trim() || null })}
-                        placeholder={t('categoryPlaceholder')}
-                        className="w-32 h-9 bg-transparent border-b border-transparent hover:border-rule focus:border-ink-soft small-caps font-mono text-[10px] text-ink-mute focus:outline-none"
-                      />
                       <button onClick={() => deleteTemplate(selected.id)} title={t('deleteTemplate')} className="size-8 flex items-center justify-center text-ink-mute hover:text-bad transition-colors shrink-0">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                       </button>
@@ -149,7 +145,6 @@ export default function LibraryPage() {
           </>
         ) : (
           <div>
-            <p className="text-xs text-ink-mute mb-4">{t('recommendationsHint')}</p>
             <LibraryItemList table="recommendations" parentColumn="instructor_id" parentId={instructor.id} />
           </div>
         )}
