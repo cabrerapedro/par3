@@ -465,7 +465,11 @@
       "messages": "Mensajes",
       "campaigns": "Campañas",
       "stats": "Estadísticas",
-      "library": "Librería"
+      "library": "Librería",
+      "groups": {
+        "clase": "Clase",
+        "gestion": "Gestión"
+      }
     },
     "soon": {
       "kicker": "Próximamente",

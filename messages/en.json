@@ -465,7 +465,11 @@
       "messages": "Messages",
       "campaigns": "Campaigns",
       "stats": "Stats",
-      "library": "Library"
+      "library": "Library",
+      "groups": {
+        "clase": "Teaching",
+        "gestion": "Management"
+      }
     },
     "soon": {
       "kicker": "Coming soon",
