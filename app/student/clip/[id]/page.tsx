@@ -111,7 +111,9 @@ export default function ClipDetail() {
   )
 
   const isSwing = clip.clip_type === 'swing'
-  const hasBaseline = clip.baseline != null && typeof clip.baseline === 'object' && Object.keys(clip.baseline as object).length > 0
+  // `_`-prefixed keys are internal (metrics-version stamp), not real content.
+  const hasBaseline = clip.baseline != null && typeof clip.baseline === 'object'
+    && Object.keys(clip.baseline as object).some(k => !k.startsWith('_'))
 
   return (
     <div className="min-h-screen bg-background">

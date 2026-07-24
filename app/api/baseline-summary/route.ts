@@ -38,6 +38,7 @@ export async function POST(req: Request) {
         .map(([phase, metrics]) => {
           const phaseLabel = PHASE_LABELS[phase as SwingPhaseName] ?? phase
           const lines = Object.entries(metrics)
+            .filter(([key]) => !key.startsWith('_'))
             .filter(([key]) => !selectedMetrics?.length || selectedMetrics.includes(key))
             .map(([key, val]) => formatMetricLine(key, val))
             .join('\n')
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
         })
         .join('\n\n')
     } else {
+      // Skip internal `_`-prefixed fields (e.g. the `_v` metrics-version stamp).
       metricLines = Object.entries(baseline as Record<string, BaselineMetric>)
+        .filter(([key]) => !key.startsWith('_'))
         .filter(([key]) => !selectedMetrics?.length || selectedMetrics.includes(key))
         .map(([key, val]) => formatMetricLine(key, val))
         .join('\n')

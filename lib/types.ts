@@ -16,8 +16,13 @@ export interface BaselineMetric {
   max: number
 }
 
-export interface Baseline {
-  [metricKey: string]: BaselineMetric
+// Intersection (not a plain index signature) so the internal `_v` metrics-
+// version stamp is visible to the type system: metric reads still resolve to
+// BaselineMetric, while `baseline._v` types as number | undefined. Iterating
+// code must skip `_`-prefixed keys (use baselineMetricKeys from lib/baseline).
+export type Baseline = { [metricKey: string]: BaselineMetric } & {
+  /** Metrics version the baseline was built with (absent = 1, legacy). */
+  _v?: number
 }
 
 export interface SwingPhase {
@@ -29,6 +34,8 @@ export interface SwingPhase {
 
 export interface SwingBaseline {
   _type: 'swing'
+  /** Metrics version the baseline was built with (absent = 1, legacy). */
+  _v?: number
   phases: Partial<Record<SwingPhaseName, Baseline>>
 }
 

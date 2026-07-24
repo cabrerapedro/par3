@@ -256,8 +256,9 @@ export default function ClipDetailPage() {
     )
   }
 
+  // Skip internal `_`-prefixed fields (e.g. the `_v` metrics-version stamp).
   const baselineMetricKeys = clip.baseline && typeof clip.baseline === 'object' && !('_type' in (clip.baseline as object))
-    ? Object.keys(clip.baseline as Record<string, unknown>)
+    ? Object.keys(clip.baseline as Record<string, unknown>).filter(k => !k.startsWith('_'))
     : []
 
   return (

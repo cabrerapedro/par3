@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { calculateMetrics, compareToBaseline, baselineOverallStatus, METRICS_BY_ANGLE } from '@/lib/baseline'
+import { calculateMetrics, compareToBaseline, baselineOverallStatus, baselineMetricsVersion, METRICS_BY_ANGLE } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera, getDrawingUtils } from '@/lib/mediapipe'
 import type { PoseInstance, CameraInstance, PoseResults } from '@/lib/mediapipe'
 import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
@@ -50,8 +50,11 @@ export default function StudentClipMirror() {
   const poseRef = useRef<PoseInstance | null>(null)
   const cameraRef = useRef<CameraInstance | null>(null)
   const clipRef = useRef<Clip | null>(null)
-  // Smoothing buffer for baseline checks
-  const smoothRef = useRef<Array<Array<{ id: string; status: string; direction: string }>>>([])
+  // Smoothing buffer for baseline checks — keyed by metric id, NOT array
+  // position: the set of detectable metrics changes frame to frame (a landmark
+  // dips below the visibility threshold), so positional indexing would mix
+  // votes from different metrics.
+  const smoothRef = useRef<Array<Record<string, { status: 'ok' | 'warn' | 'bad'; direction: 'high' | 'low' | 'center' }>>>([])
   const filterStateRef = useRef(createOneEuroState())
   const frameTimeRef = useRef(0)
 
@@ -94,7 +97,8 @@ export default function StudentClipMirror() {
       router.replace(`/student/clip/${clipId}/practice`)
       return
     }
-    if (!data.baseline || Object.keys(data.baseline).length === 0) { setError(t('errorNoBaseline')); return }
+    // `_`-prefixed keys are internal (metrics-version stamp), not metrics.
+    if (!data.baseline || Object.keys(data.baseline).filter(k => !k.startsWith('_')).length === 0) { setError(t('errorNoBaseline')); return }
     setClip(data as Clip)
     clipRef.current = data as Clip
     // Front camera so the student sees themselves — it's a mirror, not the
@@ -163,7 +167,9 @@ export default function StudentClipMirror() {
     if (!lm) { setPoseDetected(false); return }
 
     setPoseDetected(true)
-    const metrics = calculateMetrics(lm, c.camera_angle)
+    // Compute metrics with the SAME version the baseline was built with —
+    // v2 baselines store body-normalized distances, v1 (legacy) raw ones.
+    const metrics = calculateMetrics(lm, c.camera_angle, baselineMetricsVersion(c.baseline))
     const expected = c.selected_metrics?.length
       ? c.selected_metrics
       : METRICS_BY_ANGLE[c.camera_angle] ?? []
@@ -171,11 +177,13 @@ export default function StudentClipMirror() {
     setDetectedCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
     const rawChecks = compareToBaseline(metrics, c.baseline as Baseline, c.selected_metrics)
 
-    // 6-frame majority vote smoothing
-    smoothRef.current.push(rawChecks.map(c => ({ id: c.id, status: c.status, direction: c.direction })))
+    // 6-frame majority vote smoothing, keyed by metric id.
+    smoothRef.current.push(Object.fromEntries(
+      rawChecks.map(c => [c.id, { status: c.status, direction: c.direction }]),
+    ))
     if (smoothRef.current.length > 6) smoothRef.current.shift()
 
-    const smoothed = rawChecks.map((check, i) => {
+    const smoothed = rawChecks.map((check) => {
       const votes: Record<string, number> = {}
       const dirVotes: Record<string, number> = {}
       // Skip frames where this metric isn't present (landmark dipped, baseline
@@ -183,7 +191,7 @@ export default function StudentClipMirror() {
       // vote toward a happy result and violate CLAUDE.md's "no wrong feedback"
       // principle.
       for (const frame of smoothRef.current) {
-        const entry = frame[i]
+        const entry = frame[check.id]
         if (!entry) continue
         votes[entry.status] = (votes[entry.status] ?? 0) + 1
         dirVotes[entry.direction] = (dirVotes[entry.direction] ?? 0) + 1

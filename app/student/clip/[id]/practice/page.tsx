@@ -6,9 +6,9 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
-  calculateMetrics, compareToBaseline,
-  generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
-  detectSwingPhases, compareSwingToBaseline, generateSwingSummary,
+  calculateMetrics, generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
+  detectSwingReps, averageSwingReps, compareSwingToBaseline, generateSwingSummary,
+  selectStableFrames, aggregatePositionChecks, baselineMetricsVersion, estimateCameraAngle,
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import type { PoseResults } from '@/lib/mediapipe'
@@ -16,15 +16,11 @@ import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib
 import { useWakeLock } from '@/lib/wakeLock'
 import { insertSessionFrames, type FrameRow } from '@/lib/frames'
 import type { Clip } from '@/lib/classes'
-import type { Baseline, Landmark, SwingBaseline } from '@/lib/types'
-import type { BaselineCheck, SwingPhaseCheck } from '@/lib/baseline'
+import type { Baseline, CameraAngle, Landmark, SwingBaseline } from '@/lib/types'
+import type { AggregatedCheck, SwingPhaseCheck } from '@/lib/baseline'
 import Link from 'next/link'
 
 type Stage = 'input' | 'recording' | 'processing' | 'results'
-
-interface FrameResult {
-  checks: BaselineCheck[]
-}
 
 export default function StudentClipPractice() {
   const { student, loading: authLoading } = useAuth()
@@ -49,7 +45,14 @@ export default function StudentClipPractice() {
   const [stage, setStage] = useState<Stage>('input')
   const [cameraReady, setCameraReady] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [frameResults, setFrameResults] = useState<FrameResult[]>([])
+  const [positionChecks, setPositionChecks] = useState<AggregatedCheck[]>([])
+  // Seconds of stable, in-position footage the evaluation actually used.
+  const [evaluatedSeconds, setEvaluatedSeconds] = useState(0)
+  // Swing reps detected in the attempt (0 = not swing mode).
+  const [repsCount, setRepsCount] = useState(0)
+  // Set when the video's geometry clearly doesn't match the clip's configured
+  // camera angle — the comparison is then unreliable and we say so.
+  const [detectedAngle, setDetectedAngle] = useState<CameraAngle | null>(null)
   const [summary, setSummary] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -205,7 +208,9 @@ export default function StudentClipPractice() {
       const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
       pose.onResults((results: PoseResults) => {
         if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
-        const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle)
+        // Same metrics version as the eventual evaluation, so the live
+        // "N/6 métricas" counter matches what will actually be scored.
+        const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle, baselineMetricsVersion(c.baseline))
         const expected = c.selected_metrics?.length
           ? c.selected_metrics
           : METRICS_BY_ANGLE[c.camera_angle] ?? []
@@ -295,6 +300,9 @@ export default function StudentClipPractice() {
     setStage('processing')
     setProgress(0)
     setSwingPhaseChecks([])
+    setPositionChecks([])
+    setRepsCount(0)
+    setDetectedAngle(null)
 
     const isSwingMode = clip.clip_type === 'swing' || isSwingBaseline(clip.baseline)
 
@@ -319,9 +327,10 @@ export default function StudentClipPractice() {
     // Lite model: the medium model is far too slow on an iPhone.
     const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
 
-    const results: FrameResult[] = []
-    const allLandmarks: Landmark[][] = []
-    // Frame rows captured for session_frames batch insert (ML training corpus)
+    // Frame rows captured for session_frames batch insert (ML training corpus).
+    // All evaluation happens AFTER the loop, from these rows — that's what lets
+    // us filter to stable segments and aggregate per metric with real presence
+    // accounting instead of judging frame by frame.
     const frameRows: FrameRow[] = []
     const canvas = canvasRef.current || document.createElement('canvas')
     canvas.width = video.videoWidth || 1280
@@ -329,25 +338,19 @@ export default function StudentClipPractice() {
     const ctx = canvas.getContext('2d')!
 
     let resolveFrame: (() => void) | null = null
-    let frameChecks: BaselineCheck[] = []
     let frameLandmarks: Landmark[] | null = null
     let frameMetrics: Record<string, number> | undefined = undefined
     pose.onResults((r: PoseResults) => {
-      frameChecks = []
       frameLandmarks = null
       frameMetrics = undefined
       if (r.poseLandmarks) {
-        const lms: Landmark[] = r.poseLandmarks.map((lm) => ({
+        frameLandmarks = r.poseLandmarks.map((lm) => ({
           x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
         }))
-        frameLandmarks = lms
-        if (isSwingMode) {
-          allLandmarks.push(lms)
-        } else {
-          const metrics = calculateMetrics(r.poseLandmarks, clip.camera_angle)
-          frameMetrics = metrics
-          frameChecks = compareToBaseline(metrics, clip.baseline as Baseline, clip.selected_metrics)
-        }
+        // Stored metrics are always current-version (canonical for the ML
+        // corpus); comparison metrics are computed separately below with the
+        // baseline's own version.
+        frameMetrics = calculateMetrics(r.poseLandmarks, clip.camera_angle)
       }
       resolveFrame?.()
       resolveFrame = null
@@ -373,7 +376,6 @@ export default function StudentClipPractice() {
       if (cancelledRef.current) { aborted = true; break }
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      frameChecks = []
       frameLandmarks = null
       frameMetrics = undefined
 
@@ -408,7 +410,6 @@ export default function StudentClipPractice() {
         })
       }
 
-      if (!isSwingMode && frameChecks.length) results.push({ checks: frameChecks })
       setProgress(Math.round((i + 1) / totalFrames * 100))
     }
 
@@ -417,25 +418,44 @@ export default function StudentClipPractice() {
       return
     }
 
+    // Camera-angle sanity check: if the video's geometry clearly says the
+    // student filmed from the other view, every metric comparison is invalid.
+    // We still show results (the instructor's clip config is authority) but
+    // warn loudly so a bad score isn't read as bad technique.
+    const estimated = estimateCameraAngle(frameRows.map((r) => r.landmarks))
+    if (estimated && estimated !== clip.camera_angle) {
+      setDetectedAngle(estimated)
+    }
+
+    // Comparison metrics must match the baseline's metrics version (v1 clips
+    // were calibrated with camera-dependent distances; v2 with body-normalized
+    // ones).
+    const compareVersion = baselineMetricsVersion(clip.baseline)
+
     if (isSwingMode) {
-      // Swing mode: detect phases and compare
+      // Swing mode: segment every repetition, average them, compare per phase
+      const allLandmarks = frameRows.map((r) => r.landmarks)
       if (allLandmarks.length < 10) {
         setError(t('swingNotEnoughPose'))
         URL.revokeObjectURL(url)
         return
       }
 
-      const phases = detectSwingPhases(allLandmarks, clip.camera_angle)
-      if (!phases) {
+      const reps = detectSwingReps(allLandmarks, clip.camera_angle, compareVersion)
+      if (!reps) {
         setError(t('swingNotDetected'))
         URL.revokeObjectURL(url)
         return
       }
 
       const swingBaseline = clip.baseline as SwingBaseline
-      const phaseChecks = compareSwingToBaseline(phases, swingBaseline, clip.selected_metrics)
+      // Judge the averaged attempt: steadier than a single rep, and consistent
+      // with how the baseline itself is built (stats across reps).
+      const avgPhases = averageSwingReps(reps)
+      const phaseChecks = compareSwingToBaseline(avgPhases, swingBaseline, clip.selected_metrics)
 
       setPreviewUrl(url)
+      setRepsCount(reps.length)
       setSwingPhaseChecks(phaseChecks)
       setSummary(generateSwingSummary(phaseChecks, tSwingSummary))
 
@@ -444,9 +464,17 @@ export default function StudentClipPractice() {
         const overall_score = allChecks.length > 0
           ? Math.round(allChecks.filter(c => c.status === 'ok').length / allChecks.length * 100)
           : 0
+        // Persist the real measured value + signed deviation (in std units)
+        // per phase/metric — the Saturday review and any trend analysis need
+        // more than a traffic-light status.
         const resultsMap = Object.fromEntries(
           phaseChecks.flatMap(pc =>
-            pc.checks.map(c => [`${pc.phase}__${c.id}`, { value: 0, deviation: 0, status: c.status }])
+            pc.checks.map(c => {
+              const value = avgPhases.find(p => p.phase === pc.phase)?.metrics[c.id]
+              const b = swingBaseline.phases[pc.phase]?.[c.id]
+              const deviation = value !== undefined && b && b.std > 0 ? (value - b.mean) / b.std : 0
+              return [`${pc.phase}__${c.id}`, { value: value ?? 0, deviation, status: c.status }]
+            })
           )
         )
         const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
@@ -455,7 +483,7 @@ export default function StudentClipPractice() {
           class_id: clip.class_id,
           checkpoint_id: null,
           date: new Date().toISOString(),
-          duration_seconds: Math.round(allLandmarks.length / fps),
+          duration_seconds: Math.round(frameRows.length / fps),
           results: resultsMap,
           overall_score,
         }).select('id').single()
@@ -470,25 +498,43 @@ export default function StudentClipPractice() {
 
       setStage('results')
     } else {
-      // Position mode: aggregate frame results
-      if (!results.length) {
+      // Position mode: evaluate only the stable, in-position stretches, then
+      // aggregate per metric with presence accounting (a frame where a metric
+      // wasn't measurable is a visibility gap, not a technique failure).
+      if (frameRows.length === 0) {
         setError(t('positionNotDetected'))
         URL.revokeObjectURL(url)
         return
       }
 
-      const aggregated = aggregateFrameResults(results)
+      const stable = selectStableFrames(frameRows)
+      const evalMetrics = stable.map((r) =>
+        calculateMetrics(r.landmarks, clip.camera_angle, compareVersion),
+      )
+      const aggregated = aggregatePositionChecks(
+        evalMetrics,
+        clip.baseline as Baseline,
+        clip.selected_metrics,
+      )
+
+      if (!aggregated.length) {
+        setError(t('positionNotDetected'))
+        URL.revokeObjectURL(url)
+        return
+      }
 
       setPreviewUrl(url)
-      setFrameResults(results)
+      setPositionChecks(aggregated)
+      setEvaluatedSeconds(Math.round(stable.length / fps))
       setSummary(generateBaselineSummary(aggregated, tBaselineSummary))
 
       if (student && clip) {
         const overall_score = Math.round(
           aggregated.filter(c => c.status === 'ok').length / aggregated.length * 100
         )
+        // Real measured values + signed deviations, not zero placeholders.
         const resultsMap = Object.fromEntries(
-          aggregated.map(c => [c.id, { value: 0, deviation: 0, status: c.status }])
+          aggregated.map(c => [c.id, { value: c.value, deviation: c.deviation, status: c.status }])
         )
         const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
@@ -496,7 +542,7 @@ export default function StudentClipPractice() {
           class_id: clip.class_id,
           checkpoint_id: null,
           date: new Date().toISOString(),
-          duration_seconds: Math.round(results.length / fps),
+          duration_seconds: Math.round(frameRows.length / fps),
           results: resultsMap,
           overall_score,
         }).select('id').single()
@@ -511,28 +557,6 @@ export default function StudentClipPractice() {
 
       setStage('results')
     }
-  }
-
-  function aggregateFrameResults(frames: FrameResult[]): BaselineCheck[] {
-    if (!frames.length) return []
-    const total = frames.length
-    const keys = frames[0].checks.map(c => c.id)
-
-    return keys.map(key => {
-      let ok = 0, bad = 0
-      frames.forEach(f => {
-        const status = f.checks.find(c => c.id === key)?.status
-        // Only 'ok' and 'bad' feed the score. A 'warn' frame (and a missing
-        // one) is neither — but a missing frame still counts as 'bad', matching
-        // the original behavior.
-        if (status === 'ok') ok++
-        else if (status !== 'warn') bad++
-      })
-      const badPct = bad / total
-      const status = badPct > 0.4 ? 'bad' : ok / total > 0.6 ? 'ok' : 'warn'
-      const template = frames[frames.length - 1].checks.find(c => c.id === key)!
-      return { ...template, status }
-    })
   }
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -763,6 +787,28 @@ export default function StudentClipPractice() {
             </div>
 
             <div className="flex-1">
+              {/* Camera-angle mismatch — the comparison is unreliable, say so */}
+              {detectedAngle && (
+                <div className="bg-warn/10 border border-warn/20 rounded-xl px-4 py-3 mb-4">
+                  <p className="text-warn text-sm font-medium">
+                    {t('angleMismatchTitle')}
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {t('angleMismatchDesc', {
+                      expected: clip.camera_angle === 'face_on' ? t('angleFaceOnLower') : t('angleDtlLower'),
+                      detected: detectedAngle === 'face_on' ? t('angleFaceOnLower') : t('angleDtlLower'),
+                    })}
+                  </p>
+                </div>
+              )}
+
+              {/* Swing mode: reps detected */}
+              {swingPhaseChecks.length > 0 && repsCount > 0 && (
+                <p className="text-muted-foreground text-xs mb-3">
+                  {t('repsDetected', { count: repsCount })}
+                </p>
+              )}
+
               {/* Swing mode results */}
               {swingPhaseChecks.length > 0 && (
                 <div className="flex flex-col gap-3 mb-6">
@@ -810,11 +856,11 @@ export default function StudentClipPractice() {
               )}
 
               {/* Position mode: Warning if some metrics are missing */}
-              {frameResults.length > 0 && (() => {
+              {positionChecks.length > 0 && (() => {
                 const expected = clip.selected_metrics?.length
                   ? clip.selected_metrics
                   : METRICS_BY_ANGLE[clip.camera_angle] ?? []
-                const detected = aggregateFrameResults(frameResults).map(c => c.id)
+                const detected = positionChecks.map(c => c.id)
                 const missing = expected.filter(k => !detected.includes(k))
                 if (missing.length > 0) return (
                   <div className="bg-warn/10 border border-warn/20 rounded-xl px-4 py-3 mb-4">
@@ -828,12 +874,17 @@ export default function StudentClipPractice() {
                 )
                 return null
               })()}
-              {frameResults.length > 0 && (
+              {positionChecks.length > 0 && evaluatedSeconds > 0 && (
+                <p className="text-muted-foreground text-xs mb-3">
+                  {t('evaluatedStable', { seconds: evaluatedSeconds })}
+                </p>
+              )}
+              {positionChecks.length > 0 && (
                 <div className="flex flex-col gap-2 mb-6">
-                  {aggregateFrameResults(frameResults).map(check => {
-                    const okPct = Math.round(frameResults.filter(f => f.checks.find(c => c.id === check.id)?.status === 'ok').length / frameResults.length * 100)
-                    const warnPct = Math.round(frameResults.filter(f => f.checks.find(c => c.id === check.id)?.status === 'warn').length / frameResults.length * 100)
-                    const badPct = 100 - okPct - warnPct
+                  {positionChecks.map(check => {
+                    const okPct = Math.round(check.okPct * 100)
+                    const warnPct = Math.round(check.warnPct * 100)
+                    const badPct = Math.max(0, 100 - okPct - warnPct)
 
                     return (
                       <div key={check.id} className="bg-card border border-border rounded-xl px-4 py-3">
@@ -866,7 +917,7 @@ export default function StudentClipPractice() {
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => { setStage('input'); setFrameResults([]); setSwingPhaseChecks([]); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
+                  onClick={() => { setStage('input'); setPositionChecks([]); setSwingPhaseChecks([]); setRepsCount(0); setDetectedAngle(null); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
                   className="flex-1 bg-card border border-border text-muted-foreground font-semibold rounded-xl py-3 hover:bg-secondary transition-all text-sm"
                 >
                   {t('recordAgain')}

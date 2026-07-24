@@ -30,7 +30,7 @@ import { getOrCreateTodayClass } from '@/lib/classes'
 import { ensureAdHocStep } from '@/lib/journeySteps'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
-import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
+import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio, estimateCameraAngle, calculateMetrics } from '@/lib/baseline'
 import { useClipFlow } from '../layout'
 
 type CameraAngle = 'face_on' | 'dtl'
@@ -111,6 +111,23 @@ export default function ClipAnnotatePage() {
   const [clipName, setClipName] = useState('')
   const [discardOpen, setDiscardOpen] = useState(false)
   const [backOpen, setBackOpen] = useState(false)
+  // Camera-angle sanity check: set (with the detected angle) when the
+  // processed video's geometry contradicts the angle the instructor picked.
+  // A wrong angle silently produces garbage metrics, so we pause the save and
+  // let the instructor decide — they stay the authority.
+  const [angleCheck, setAngleCheck] = useState<CameraAngle | null>(null)
+  const angleResolverRef = useRef<((choice: 'detected' | 'keep') => void) | null>(null)
+
+  const askAngleDecision = (detected: CameraAngle): Promise<'detected' | 'keep'> => {
+    setAngleCheck(detected)
+    return new Promise((resolve) => { angleResolverRef.current = resolve })
+  }
+  const resolveAngleDecision = (choice: 'detected' | 'keep') => {
+    const resolve = angleResolverRef.current
+    angleResolverRef.current = null
+    setAngleCheck(null)
+    resolve?.(choice)
+  }
 
   // Recorded from a plan step? Pre-fill the clip name with that step's title.
   // Saves typing, and if the wrong step was picked the mismatch is obvious in
@@ -431,9 +448,40 @@ export default function ClipAnnotatePage() {
         durationMs: recorded.durationMs,
         onProgress: (p) => setFramesPct(Math.round(p * 100)),
       })
-      if (frames.length > 0) {
+
+      // Camera-angle sanity check: if the video's geometry clearly says the
+      // other view (e.g. filmed down-the-line but marked "de frente"), every
+      // metric would be silently wrong. Ask the instructor before calibrating;
+      // switching recomputes the per-frame metrics from the stored landmarks.
+      let effectiveAngle = angle
+      let effectiveMetrics = selectedMetrics
+      let effectiveFrames = frames
+      const estimated = estimateCameraAngle(frames.map((f) => f.landmarks))
+      if (estimated && estimated !== angle) {
+        const choice = await askAngleDecision(estimated)
+        if (choice === 'detected') {
+          effectiveAngle = estimated
+          effectiveMetrics = METRICS_BY_ANGLE[estimated] ?? []
+          effectiveFrames = frames.map((f) => ({
+            ...f,
+            metrics: calculateMetrics(f.landmarks, estimated),
+          }))
+          setAngle(estimated)
+          // This update must not fail silently: a clip whose camera_angle says
+          // one view while its baseline holds the other view's metrics would
+          // never match anything at practice time. Throwing lands in the
+          // friendly catch below and stops the save coherently.
+          const { error: angleErr } = await supabase
+            .from('clips')
+            .update({ camera_angle: estimated, selected_metrics: effectiveMetrics })
+            .eq('id', clip.id)
+          if (angleErr) throw angleErr
+        }
+      }
+
+      if (effectiveFrames.length > 0) {
         try {
-          await insertClipFrames(clip.id, frames)
+          await insertClipFrames(clip.id, effectiveFrames)
         } catch {
           /* frames are nice-to-have for ML; don't fail the save */
         }
@@ -445,7 +493,7 @@ export default function ClipAnnotatePage() {
       // Detection-ratio sanity check (M4). If MediaPipe lost the person for
       // most of the clip the baseline would be garbage — surface that and
       // leave the clip in 'pending' so the instructor can re-record.
-      const detection = clipDetectionRatio(frames.length, recorded.durationMs / 1000, fps)
+      const detection = clipDetectionRatio(effectiveFrames.length, recorded.durationMs / 1000, fps)
       // Store the framing-quality cue. Best-effort + separate so a missing
       // detection_ratio column never blocks the save.
       await supabase.from('clips').update({ detection_ratio: detection }).eq('id', clip.id)
@@ -459,7 +507,7 @@ export default function ClipAnnotatePage() {
         return
       }
 
-      const baseline = buildClipBaseline(frames, clipType, angle, selectedMetrics)
+      const baseline = buildClipBaseline(effectiveFrames, clipType, effectiveAngle, effectiveMetrics)
 
       // Generate the personal-reference summary string once, here, so the
       // student detail page doesn't have to hit Claude on every page load
@@ -473,11 +521,11 @@ export default function ClipAnnotatePage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               baseline,
-              cameraAngle: angle,
+              cameraAngle: effectiveAngle,
               checkpointName: finalName,
               instructorNote: null,
-              selectedMetrics,
-              marksCount: frames.length,
+              selectedMetrics: effectiveMetrics,
+              marksCount: effectiveFrames.length,
               checkpointType: clipType,
             }),
           })
@@ -856,6 +904,35 @@ export default function ClipAnnotatePage() {
             </Button>
             <Button variant="destructive" onClick={handleDiscard} className="flex-1">
               {t('discardConfirmAction')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Camera-angle mismatch — the processed video looks like the OTHER
+          view. Pause the save and let the instructor decide; closing the
+          dialog keeps their original choice (they are the authority). */}
+      <Dialog open={angleCheck !== null} onOpenChange={(open) => { if (!open) resolveAngleDecision('keep') }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('angleMismatchTitle')}</DialogTitle>
+            <DialogDescription>
+              {angleCheck && t('angleMismatchBody', {
+                chosen: angle === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
+                detected: angleCheck === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button onClick={() => resolveAngleDecision('detected')} className="w-full">
+              {angleCheck && t('angleMismatchUseDetected', {
+                detected: angleCheck === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
+              })}
+            </Button>
+            <Button variant="outline" onClick={() => resolveAngleDecision('keep')} className="w-full border-border">
+              {t('angleMismatchKeep', {
+                chosen: angle === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
+              })}
             </Button>
           </DialogFooter>
         </DialogContent>
