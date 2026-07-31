@@ -28,6 +28,15 @@ create table if not exists students (
 
 -- Idempotent add for existing databases (create table above is skipped when the
 -- table already exists). Re-running this file backfills the column on prod.
+--
+-- ⚠️  LEE ESTO ANTES DE AÑADIR UNA COLUMNA A UNA TABLA ANTIGUA:
+-- `create table if not exists` NO modifica una tabla que ya existe. Una
+-- columna añadida solo dentro del create-table de arriba jamás llega a la base
+-- viva, y el fichero se ejecuta SIN ERROR, así que nadie se entera hasta que
+-- algo peta en producción. Julio 2026 nos costó: `preferred_locale` y todo el
+-- bloque de perfil del alumno llevaban meses en el código y en los tipos, pero
+-- no en la base. Toda columna nueva va SIEMPRE como
+-- `alter table ... add column if not exists`, además de en el create table.
 alter table students add column if not exists status text not null default 'active'
   check (status in ('active', 'inactive'));
 
@@ -1152,6 +1161,28 @@ create policy "journey_images_instructor_list"
 insert into storage.buckets (id, name, public)
 values ('student-avatars', 'student-avatars', true)
 on conflict (id) do nothing;
+
+-- 3b. Schema drift backfill.
+--
+-- `create table if not exists` is a no-op on a table that already exists, so
+-- EVERY column that was only ever declared inside a create-table body is
+-- missing from the live database — silently, for as long as that table has
+-- existed. That is how `students.preferred_locale` and the whole student
+-- profile block ended up referenced by the code but absent from the database.
+-- These idempotent ALTERs are the only way a column reliably lands on both a
+-- fresh project and the live one.
+alter table instructors add column if not exists preferred_locale text not null default 'es'
+  check (preferred_locale in ('es', 'en'));
+
+alter table students add column if not exists preferred_locale text not null default 'es'
+  check (preferred_locale in ('es', 'en'));
+alter table students add column if not exists avatar_url    text;
+alter table students add column if not exists handicap      text;
+alter table students add column if not exists dominant_hand text
+  check (dominant_hand in ('right', 'left'));
+alter table students add column if not exists years_playing integer;
+alter table students add column if not exists home_course   text;
+alter table students add column if not exists bio           text;
 
 -- 4. The student role could not update its own row (no anon UPDATE policy),
 -- so the profile screen and the e-mail capture failed every single time. The
