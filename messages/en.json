@@ -182,6 +182,8 @@
     "studentRole": "For students",
     "instructor": {
       "loginTitle": "Welcome, coach",
+      "tabCode": "Code",
+      "tabEmail": "Email",
       "loginSubtitle": "Access your students dashboard",
       "signupTitle": "Create account",
       "signupSubtitle": "Set up your coach account",
@@ -198,14 +200,11 @@
       "switchToLoginPrompt": "Already have an account?",
       "switchToSignup": "Create account",
       "switchToLogin": "Sign in",
-      "codeTitle": "Sign in with your code",
       "codeSubtitle": "The access code from your profile — no password.",
       "codeLabel": "Access code",
       "codePlaceholder": "ABCD2345",
       "codeHelp": "You'll find it (or create it) in your profile, under “Access code”.",
-      "codeCta": "Sign in",
-      "switchToCode": "Sign in with a code instead of a password",
-      "switchToPassword": "Sign in with email and password"
+      "codeCta": "Sign in"
     },
     "student": {
       "tabCode": "Code",

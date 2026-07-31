@@ -182,6 +182,8 @@
     "studentRole": "Para alumnos",
     "instructor": {
       "loginTitle": "Bienvenido, instructor",
+      "tabCode": "Código",
+      "tabEmail": "Correo",
       "loginSubtitle": "Accede a tu panel de alumnos",
       "signupTitle": "Crear cuenta",
       "signupSubtitle": "Configura tu cuenta de instructor",
@@ -198,14 +200,11 @@
       "switchToLoginPrompt": "¿Ya tienes cuenta?",
       "switchToSignup": "Crear cuenta",
       "switchToLogin": "Iniciar sesión",
-      "codeTitle": "Entra con tu código",
       "codeSubtitle": "El código de acceso de tu perfil, sin contraseña.",
       "codeLabel": "Código de acceso",
       "codePlaceholder": "ABCD2345",
       "codeHelp": "Lo encuentras (o lo creas) en tu perfil, en «Código de acceso».",
-      "codeCta": "Entrar",
-      "switchToCode": "Entrar con código en vez de contraseña",
-      "switchToPassword": "Entrar con correo y contraseña"
+      "codeCta": "Entrar"
     },
     "student": {
       "tabCode": "Código",

@@ -29,12 +29,13 @@ function InstructorLogin() {
   const tAuth = useTranslations('auth')
   const tErrors = useTranslations('auth.errors')
 
-  // Deep-link: /instructor/login?mode=signup opens straight on the signup form
-  // (the landing "Crear cuenta" CTA uses this). 'code' is the passwordless
-  // access-code login (same UX as the student code).
-  const [mode, setMode] = useState<'login' | 'signup' | 'code'>(
-    searchParams.get('mode') === 'signup' ? 'signup' : 'login'
-  )
+  // Same two-tab anatomy as the student login: code first (the fast in-class
+  // path), email second. Deep-link /instructor/login?mode=signup opens the
+  // email tab straight on the signup form (the landing "Crear cuenta" CTA).
+  const isSignupLink = searchParams.get('mode') === 'signup'
+  const [tab, setTab] = useState<'code' | 'email'>(isSignupLink ? 'email' : 'code')
+  // Within the email tab: sign in vs create account.
+  const [mode, setMode] = useState<'login' | 'signup'>(isSignupLink ? 'signup' : 'login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -51,15 +52,34 @@ function InstructorLogin() {
     }
   }
 
+  function switchTab(next: 'code' | 'email') {
+    setTab(next)
+    setError('')
+  }
+
+  // Codes are 8 chars from an unambiguous alphabet (no O/0, I/1) — strip
+  // anything else so a pasted code with spaces or dashes still works.
+  function handleCodeInput(val: string) {
+    setAccessCode(val.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8))
+  }
+
+  async function handleCodeSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    const result = await instructorCodeLogin(accessCode)
+    setLoading(false)
+    if (result.error) setError(resolveError(result.error))
+    else router.replace('/instructor/dashboard')
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const result = mode === 'code'
-      ? await instructorCodeLogin(accessCode)
-      : mode === 'login'
-        ? await instructorLogin(email, password)
-        : await instructorSignup(email, password, name)
+    const result = mode === 'login'
+      ? await instructorLogin(email, password)
+      : await instructorSignup(email, password, name)
     setLoading(false)
     if (result.error) {
       setError(resolveError(result.error))
@@ -67,6 +87,9 @@ function InstructorLogin() {
       router.replace('/instructor/dashboard')
     }
   }
+
+  const codeInputClass = "h-16 text-center text-3xl font-mono tracking-[0.4em] placeholder:text-ink-mute/40 placeholder:text-xl placeholder:tracking-normal uppercase"
+  const submitClass = "h-11 bg-primary text-primary-foreground font-medium tracking-[0.01em] hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
 
   return (
     <div className="min-h-screen bg-paper text-ink flex flex-col items-center justify-center px-5 py-10">
@@ -87,39 +110,28 @@ function InstructorLogin() {
       </div>
 
       <div className="w-full max-w-sm border border-rule bg-paper-2">
-        <div className="px-7 pt-6 pb-5 border-b border-rule">
-          <h1 className="font-display font-semibold text-2xl leading-tight">
-            {mode === 'login' ? t('loginTitle') : mode === 'signup' ? t('signupTitle') : t('codeTitle')}
-          </h1>
-          <p className="text-ink-soft text-sm mt-1.5">
-            {mode === 'login' ? t('loginSubtitle') : mode === 'signup' ? t('signupSubtitle') : t('codeSubtitle')}
-          </p>
+        <div className="flex border-b border-rule">
+          <button
+            onClick={() => switchTab('code')}
+            className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'code' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
+          >
+            {t('tabCode')}
+          </button>
+          <button
+            onClick={() => switchTab('email')}
+            className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'email' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
+          >
+            {t('tabEmail')}
+          </button>
         </div>
 
         <div className="px-7 py-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {mode === 'signup' && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="name" className="small-caps font-mono text-[11px] text-ink-mute">
-                  {t('nameLabel')}
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder={t('namePlaceholder')}
-                  required
-                  className="h-11 text-base"
-                />
-              </div>
-            )}
-
-            {mode === 'code' ? (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="accessCode" className="small-caps font-mono text-[11px] text-ink-mute">
-                  {t('codeLabel')}
-                </Label>
+          {tab === 'code' ? (
+            <>
+              <p className="text-ink-soft text-sm text-center mb-5">
+                {t('codeSubtitle')}
+              </p>
+              <form onSubmit={handleCodeSubmit} className="flex flex-col gap-5">
                 <Input
                   id="accessCode"
                   type="text"
@@ -127,17 +139,52 @@ function InstructorLogin() {
                   autoCapitalize="characters"
                   autoComplete="off"
                   value={accessCode}
-                  onChange={e => setAccessCode(e.target.value.toUpperCase())}
+                  onChange={e => handleCodeInput(e.target.value)}
                   placeholder={t('codePlaceholder')}
-                  required
-                  minLength={8}
                   maxLength={8}
-                  className="h-12 text-lg font-mono tracking-[0.3em] text-center uppercase"
+                  required
+                  autoFocus
+                  className={codeInputClass}
                 />
-                <p className="text-ink-mute text-xs leading-snug">{t('codeHelp')}</p>
-              </div>
-            ) : (
-              <>
+
+                {error && (
+                  <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
+                    {error}
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading || accessCode.length < 8} className={submitClass}>
+                  {loading ? t('loading') : t('codeCta')}
+                </button>
+              </form>
+
+              <p className="text-ink-soft text-sm text-center mt-6 leading-relaxed">
+                {t('codeHelp')}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-ink-soft text-sm text-center mb-5">
+                {mode === 'login' ? t('loginSubtitle') : t('signupSubtitle')}
+              </p>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                {mode === 'signup' && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="name" className="small-caps font-mono text-[11px] text-ink-mute">
+                      {t('nameLabel')}
+                    </Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder={t('namePlaceholder')}
+                      required
+                      className="h-11 text-base"
+                    />
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="email" className="small-caps font-mono text-[11px] text-ink-mute">
                     {t('emailLabel')}
@@ -168,45 +215,29 @@ function InstructorLogin() {
                     className="h-11 text-base"
                   />
                 </div>
-              </>
-            )}
 
-            {error && (
-              <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
-                {error}
-              </div>
-            )}
+                {error && (
+                  <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
+                    {error}
+                  </div>
+                )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-11 bg-primary text-primary-foreground font-medium tracking-[0.01em] hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-            >
-              {loading
-                ? t('loading')
-                : mode === 'login' ? t('loginCta') : mode === 'signup' ? t('signupCta') : t('codeCta')}
-            </button>
-          </form>
+                <button type="submit" disabled={loading} className={submitClass}>
+                  {loading ? t('loading') : mode === 'login' ? t('loginCta') : t('signupCta')}
+                </button>
+              </form>
 
-          {mode !== 'code' && (
-            <p className="text-center text-ink-soft text-sm mt-6">
-              {mode === 'login' ? t('switchToSignupPrompt') : t('switchToLoginPrompt')}{' '}
-              <button
-                onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-                className="text-primary hover:underline underline-offset-2 font-medium"
-              >
-                {mode === 'login' ? t('switchToSignup') : t('switchToLogin')}
-              </button>
-            </p>
+              <p className="text-center text-ink-soft text-sm mt-6">
+                {mode === 'login' ? t('switchToSignupPrompt') : t('switchToLoginPrompt')}{' '}
+                <button
+                  onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
+                  className="text-primary hover:underline underline-offset-2 font-medium"
+                >
+                  {mode === 'login' ? t('switchToSignup') : t('switchToLogin')}
+                </button>
+              </p>
+            </>
           )}
-          <p className="text-center text-ink-soft text-sm mt-3">
-            <button
-              onClick={() => { setMode(mode === 'code' ? 'login' : 'code'); setError('') }}
-              className="text-primary hover:underline underline-offset-2 font-medium"
-            >
-              {mode === 'code' ? t('switchToPassword') : t('switchToCode')}
-            </button>
-          </p>
         </div>
       </div>
     </div>
