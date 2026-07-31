@@ -28,9 +28,9 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { getOrCreateTodayClass } from '@/lib/classes'
 import { ensureAdHocStep } from '@/lib/journeySteps'
-import { processClip } from '@/lib/processClip'
-import { insertClipFrames } from '@/lib/frames'
-import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio, estimateCameraAngle, calculateMetrics } from '@/lib/baseline'
+import { METRICS_BY_ANGLE } from '@/lib/baseline'
+import { enqueueClipSave } from '@/lib/clipSaveQueue'
+import { withTimeout, retry, sbCall } from '@/lib/net'
 import { useClipFlow } from '../layout'
 
 type CameraAngle = 'face_on' | 'dtl'
@@ -55,7 +55,9 @@ function formatTime(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${tenths}`
 }
 
-type SaveStage = 'idle' | 'upload' | 'insert' | 'frames' | 'baseline'
+// The save is short now: class + clip row + annotations. The heavy work
+// (video upload, MediaPipe, baseline) runs in lib/clipSaveQueue afterwards.
+type SaveStage = 'idle' | 'saving'
 
 export default function ClipAnnotatePage() {
   const t = useTranslations('instructor.clips.annotate')
@@ -67,7 +69,6 @@ export default function ClipAnnotatePage() {
   const { recorded, hydrated, getVideoUrl, reset } = useClipFlow()
 
   const [saveStage, setSaveStage] = useState<SaveStage>('idle')
-  const [framesPct, setFramesPct] = useState(0)
 
   // Set when we intentionally leave (after save or discard). Without this, the
   // reset() that clears the recorded blob would make `recorded` null and trip
@@ -103,31 +104,10 @@ export default function ClipAnnotatePage() {
   const [clipType, setClipType] = useState<ClipType>('position')
   const [annotations, setAnnotations] = useState<DraftAnnotation[]>([])
   const [error, setError] = useState<string | null>(null)
-  // Loud, blocking warning when the clip couldn't be calibrated (bad framing /
-  // no baseline) — so the instructor never leaves thinking they saved a
-  // reference when they didn't.
-  const [calibProblem, setCalibProblem] = useState(false)
   // Optional clip name so clips in the same class don't all read "Posición".
   const [clipName, setClipName] = useState('')
   const [discardOpen, setDiscardOpen] = useState(false)
   const [backOpen, setBackOpen] = useState(false)
-  // Camera-angle sanity check: set (with the detected angle) when the
-  // processed video's geometry contradicts the angle the instructor picked.
-  // A wrong angle silently produces garbage metrics, so we pause the save and
-  // let the instructor decide — they stay the authority.
-  const [angleCheck, setAngleCheck] = useState<CameraAngle | null>(null)
-  const angleResolverRef = useRef<((choice: 'detected' | 'keep') => void) | null>(null)
-
-  const askAngleDecision = (detected: CameraAngle): Promise<'detected' | 'keep'> => {
-    setAngleCheck(detected)
-    return new Promise((resolve) => { angleResolverRef.current = resolve })
-  }
-  const resolveAngleDecision = (choice: 'detected' | 'keep') => {
-    const resolve = angleResolverRef.current
-    angleResolverRef.current = null
-    setAngleCheck(null)
-    resolve?.(choice)
-  }
 
   // Recorded from a plan step? Pre-fill the clip name with that step's title.
   // Saves typing, and if the wrong step was picked the mismatch is obvious in
@@ -267,21 +247,32 @@ export default function ClipAnnotatePage() {
         const m = draft.audio_mime ?? ''
         const ext = m.includes('wav') ? 'wav' : m.includes('mp4') ? 'm4a' : 'webm'
         const path = `${clipId}/${crypto.randomUUID()}.${ext}`
-        const { error: upErr } = await supabase.storage
-          .from('clip-annotations-audio')
-          .upload(path, draft.audio_blob, {
-            contentType: draft.audio_mime || 'audio/webm',
-          })
-        if (!upErr) {
+        // Timeout + one retry: audio blobs are small (hundreds of KB), so a
+        // stall here is a connection hiccup, not a size problem.
+        try {
+          await retry(
+            () => sbCall(
+              supabase.storage.from('clip-annotations-audio').upload(path, draft.audio_blob!, {
+                contentType: draft.audio_mime || 'audio/webm',
+              }),
+              'audio upload',
+              30_000,
+            ),
+            { tries: 2, label: 'annotation audio' },
+          )
           audioUrl = supabase.storage.from('clip-annotations-audio').getPublicUrl(path).data.publicUrl
-        }
+        } catch { /* keep strokes + note without audio */ }
 
-        // Fire-and-forget transcribe. If Whisper is unavailable we just
-        // keep the audio without text — the row still persists.
+        // Best-effort transcribe, with a hard timeout so Whisper being slow
+        // never stalls the save. No text ≠ lost audio.
         try {
           const fd = new FormData()
           fd.append('audio', draft.audio_blob, `audio.${ext}`)
-          const res = await fetch('/api/transcribe', { method: 'POST', body: fd })
+          const res = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: fd,
+            signal: AbortSignal.timeout(20_000),
+          })
           if (res.ok) {
             const data = (await res.json()) as { transcript?: string }
             transcript = data.transcript ?? null
@@ -297,32 +288,49 @@ export default function ClipAnnotatePage() {
       let snapshotUrl: string | null = null
       if (draft.snapshot_blob) {
         const snapPath = `${studentId}/snapshots/${clipId}/${crypto.randomUUID()}.jpg`
-        const { error: snapErr } = await supabase.storage
-          .from('clip-videos')
-          .upload(snapPath, draft.snapshot_blob, { contentType: 'image/jpeg' })
-        if (!snapErr) {
+        try {
+          await retry(
+            () => sbCall(
+              supabase.storage.from('clip-videos').upload(snapPath, draft.snapshot_blob!, {
+                contentType: 'image/jpeg',
+              }),
+              'snapshot upload',
+              30_000,
+            ),
+            { tries: 2, label: 'annotation snapshot' },
+          )
           snapshotUrl = supabase.storage.from('clip-videos').getPublicUrl(snapPath).data.publicUrl
-        }
+        } catch { /* snapshot is a nice-to-have */ }
       }
 
       // Insert the core annotation first — strokes, audio and note must never
       // be lost over a snapshot problem.
-      const { data: inserted, error: insErr } = await supabase
-        .from('clip_annotations')
-        .insert({
-          clip_id: clipId,
-          frame_timestamp_ms: draft.frame_timestamp_ms,
-          strokes: draft.strokes,
-          audio_url: audioUrl,
-          audio_transcript: transcript,
-          text_note: draft.text_note ?? null,
-        })
-        .select('id')
-        .single()
+      const inserted = await retry(async () => {
+        const { data, error: insErr } = await withTimeout(
+          Promise.resolve(
+            supabase
+              .from('clip_annotations')
+              .insert({
+                clip_id: clipId,
+                frame_timestamp_ms: draft.frame_timestamp_ms,
+                strokes: draft.strokes,
+                audio_url: audioUrl,
+                audio_transcript: transcript,
+                text_note: draft.text_note ?? null,
+              })
+              .select('id')
+              .single(),
+          ),
+          20_000,
+          'insert annotation',
+        )
+        if (insErr || !data) throw insErr ?? new Error('no row returned')
+        return data
+      }, { tries: 2, label: 'annotation insert' }).catch(() => null)
 
       // The core row is what the instructor's drawing/voice note lives in — if
       // it didn't persist, report the failure so we can warn them.
-      if (insErr || !inserted) return false
+      if (!inserted) return false
 
       // Attach the snapshot URL as a best-effort follow-up. If the
       // detection_ratio/snapshot_url column isn't there yet, this just no-ops.
@@ -337,8 +345,9 @@ export default function ClipAnnotatePage() {
     [studentId],
   )
 
-  // Build-baseline logic lives in lib/baseline as buildClipBaseline now so the
-  // orphan-clip retry path on the detail page can reuse the same logic.
+  // Analysis + baseline live in lib/clipSaveQueue now (background). The
+  // orphan-clip retry path on the detail page keeps its own pipeline via
+  // lib/baseline's buildClipBaseline.
 
   const handleSave = async () => {
     if (saveStage !== 'idle') return
@@ -374,43 +383,47 @@ export default function ClipAnnotatePage() {
 
     try {
       // 1. Class for today (creates one if 24h since the last).
-      setSaveStage('upload')
-      const cls = await getOrCreateTodayClass(studentId, instructor.id)
+      setSaveStage('saving')
+      const cls = await withTimeout(
+        getOrCreateTodayClass(studentId, instructor.id),
+        15_000,
+        'create class',
+      )
 
-      // 2. Upload the video to clip-videos. Path namespaced by student + class
-      // so we don't collide and so a single cascading delete cleans up.
+      // 2. Decide the video's storage path now — the actual upload happens in
+      // the background queue (resumable TUS), so a slow hotspot never blocks
+      // the instructor mid-lesson. Path namespaced by student + class so we
+      // don't collide and a single cascading delete cleans up.
       const ext = recorded.mime.includes('webm') ? 'webm' : recorded.mime.includes('mp4') ? 'mp4' : 'bin'
       const videoPath = `${studentId}/${cls.id}/${crypto.randomUUID()}.${ext}`
-      const { error: vidErr } = await supabase.storage
-        .from('clip-videos')
-        .upload(videoPath, recorded.blob, {
-          contentType: recorded.mime,
-          upsert: false,
-        })
-      if (vidErr) throw vidErr
-      const videoUrl = supabase.storage.from('clip-videos').getPublicUrl(videoPath).data.publicUrl
 
-      // 3. Insert the clip row, linked to the step it was recorded into
-      // ("abre el paso y graba"). An ad-hoc clip (no step) gets a fresh step
-      // created and linked AFTER the insert succeeds (step 3b) — so a failed
-      // save can never leave an orphan step/plan behind on retry.
-      setSaveStage('insert')
-      const { data: clip, error: clipErr } = await supabase
-        .from('clips')
-        .insert({
-          class_id: cls.id,
-          journey_item_id: recorded.journeyItemId ?? null,
-          student_id: studentId,
-          instructor_id: instructor.id,
-          name: finalName,
-          camera_angle: angle,
-          clip_type: clipType,
-          video_url: videoUrl,
-          selected_metrics: selectedMetrics,
-          status: 'pending',
-        })
-        .select()
-        .single()
+      // 3. Insert the clip row (video_url arrives when the upload finishes),
+      // linked to the step it was recorded into ("abre el paso y graba"). An
+      // ad-hoc clip (no step) gets a fresh step created and linked AFTER the
+      // insert succeeds (step 3b) — so a failed save can never leave an
+      // orphan step/plan behind on retry.
+      const { data: clip, error: clipErr } = await withTimeout(
+        Promise.resolve(
+          supabase
+            .from('clips')
+            .insert({
+              class_id: cls.id,
+              journey_item_id: recorded.journeyItemId ?? null,
+              student_id: studentId,
+              instructor_id: instructor.id,
+              name: finalName,
+              camera_angle: angle,
+              clip_type: clipType,
+              video_url: null,
+              selected_metrics: selectedMetrics,
+              status: 'pending',
+            })
+            .select()
+            .single(),
+        ),
+        20_000,
+        'insert clip',
+      )
       if (clipErr || !clip) throw clipErr ?? new Error('Failed to insert clip')
 
       // 3b. Ad-hoc recording (no step chosen): now that the clip exists, append a
@@ -435,127 +448,26 @@ export default function ClipAnnotatePage() {
         }
       }
 
-      // 5. Run MediaPipe over every frame and write to clip_frames.
-      setSaveStage('frames')
-      setFramesPct(0)
-      // Posture is static, so a low sample rate is plenty and much faster on an
-      // iPad; a swing needs more temporal resolution to find its phases.
-      const fps = clipType === 'swing' ? 10 : 5
-      const frames = await processClip({
-        videoBlob: recorded.blob,
-        cameraAngle: angle,
-        fps,
+      // 5. Hand the heavy work (resumable video upload, MediaPipe analysis,
+      // baseline) to the background queue. The blob is persisted in IndexedDB
+      // by the queue, so it survives a relaunch; the sync pill in the
+      // instructor layout shows progress and surfaces anything that needs
+      // review (angle mismatch, failed calibration).
+      await enqueueClipSave({
+        clipId: clip.id,
+        studentId,
+        clipName: finalName,
+        blob: recorded.blob,
+        mime: recorded.mime,
         durationMs: recorded.durationMs,
-        onProgress: (p) => setFramesPct(Math.round(p * 100)),
+        cameraAngle: angle,
+        clipType,
+        selectedMetrics,
+        videoPath,
+        createdAt: Date.now(),
       })
 
-      // Camera-angle sanity check: if the video's geometry clearly says the
-      // other view (e.g. filmed down-the-line but marked "de frente"), every
-      // metric would be silently wrong. Ask the instructor before calibrating;
-      // switching recomputes the per-frame metrics from the stored landmarks.
-      let effectiveAngle = angle
-      let effectiveMetrics = selectedMetrics
-      let effectiveFrames = frames
-      const estimated = estimateCameraAngle(frames.map((f) => f.landmarks))
-      if (estimated && estimated !== angle) {
-        const choice = await askAngleDecision(estimated)
-        if (choice === 'detected') {
-          effectiveAngle = estimated
-          effectiveMetrics = METRICS_BY_ANGLE[estimated] ?? []
-          effectiveFrames = frames.map((f) => ({
-            ...f,
-            metrics: calculateMetrics(f.landmarks, estimated),
-          }))
-          setAngle(estimated)
-          // This update must not fail silently: a clip whose camera_angle says
-          // one view while its baseline holds the other view's metrics would
-          // never match anything at practice time. Throwing lands in the
-          // friendly catch below and stops the save coherently.
-          const { error: angleErr } = await supabase
-            .from('clips')
-            .update({ camera_angle: estimated, selected_metrics: effectiveMetrics })
-            .eq('id', clip.id)
-          if (angleErr) throw angleErr
-        }
-      }
-
-      if (effectiveFrames.length > 0) {
-        try {
-          await insertClipFrames(clip.id, effectiveFrames)
-        } catch {
-          /* frames are nice-to-have for ML; don't fail the save */
-        }
-      }
-
-      // 6. Build the baseline and flip the clip to calibrated.
-      setSaveStage('baseline')
-
-      // Detection-ratio sanity check (M4). If MediaPipe lost the person for
-      // most of the clip the baseline would be garbage — surface that and
-      // leave the clip in 'pending' so the instructor can re-record.
-      const detection = clipDetectionRatio(effectiveFrames.length, recorded.durationMs / 1000, fps)
-      // Store the framing-quality cue. Best-effort + separate so a missing
-      // detection_ratio column never blocks the save.
-      await supabase.from('clips').update({ detection_ratio: detection }).eq('id', clip.id)
-      if (detection < 0.3) {
-        await supabase
-          .from('clips')
-          .update({ status: 'pending' })
-          .eq('id', clip.id)
-        setSaveStage('idle')
-        setCalibProblem(true)
-        return
-      }
-
-      const baseline = buildClipBaseline(effectiveFrames, clipType, effectiveAngle, effectiveMetrics)
-
-      // Generate the personal-reference summary string once, here, so the
-      // student detail page doesn't have to hit Claude on every page load
-      // (review H6). Non-blocking: a failed summary just leaves the field
-      // null and the student page falls back to the on-demand fetch path.
-      let baselineSummary: string | null = null
-      if (baseline) {
-        try {
-          const res = await fetch('/api/baseline-summary', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              baseline,
-              cameraAngle: effectiveAngle,
-              checkpointName: finalName,
-              instructorNote: null,
-              selectedMetrics: effectiveMetrics,
-              marksCount: effectiveFrames.length,
-              checkpointType: clipType,
-            }),
-          })
-          if (res.ok) {
-            const data = (await res.json()) as { summary?: string }
-            baselineSummary = data.summary ?? null
-          }
-        } catch {
-          /* leave null */
-        }
-      }
-
-      await supabase
-        .from('clips')
-        .update({
-          baseline,
-          baseline_summary: baselineSummary,
-          status: baseline ? 'calibrated' : 'pending',
-        })
-        .eq('id', clip.id)
-
-      // Couldn't build a baseline → the clip is NOT a usable reference. Don't
-      // slip away to the profile silently; tell the instructor to their face.
-      if (!baseline) {
-        setSaveStage('idle')
-        setCalibProblem(true)
-        return
-      }
-
-      // 7. If any annotation was lost, don't slip away silently — the clip is
+      // 6. If any annotation was lost, don't slip away silently — the clip is
       // saved, but the instructor's drawings/voice notes may be incomplete.
       // Keep them on the page with a visible warning so they can check.
       if (annotationsFailed) {
@@ -564,7 +476,8 @@ export default function ClipAnnotatePage() {
         return
       }
 
-      // 8. Done. Clean the in-memory blob and bounce to the student profile.
+      // 7. Done here. Clean the handoff blob (the queue holds its own copy)
+      // and get the instructor back to the class.
       leavingRef.current = true
       reset()
       router.replace(`/instructor/students/${studentId}`)
@@ -615,12 +528,6 @@ export default function ClipAnnotatePage() {
   }
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0
-
-  // Map the save stage to a 3-step stepper (save → analyze → reference).
-  const currentStep =
-    saveStage === 'upload' || saveStage === 'insert' ? 0 :
-    saveStage === 'frames' ? 1 :
-    saveStage === 'baseline' ? 2 : -1
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -851,24 +758,14 @@ export default function ClipAnnotatePage() {
         </aside>
       </div>
 
-      {/* Saving overlay — a plain-language stepper so the long save reads as
-          progress, not a frozen spinner. */}
+      {/* Saving overlay — short now: clip row + annotations only. The video
+          upload + analysis continue in the background queue (sync pill). */}
       {saveStage !== 'idle' && (
         <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center px-6">
-          <div className="bg-card border border-border rounded-md px-7 py-7 max-w-sm w-full flex flex-col gap-5">
+          <div className="bg-card border border-border rounded-md px-7 py-7 max-w-sm w-full flex flex-col items-center gap-4 text-center">
+            <span className="size-7 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             <p className="font-display font-semibold text-lg">{t('savingTitle')}</p>
-
-            <ol className="flex flex-col gap-3.5">
-              <SaveStep state={stepState(0, currentStep)} label={t('stepSave')} />
-              <SaveStep
-                state={stepState(1, currentStep)}
-                label={t('stepAnalyze')}
-                pct={currentStep === 1 ? framesPct : undefined}
-              />
-              <SaveStep state={stepState(2, currentStep)} label={t('stepReference')} />
-            </ol>
-
-            <p className="text-xs text-muted-foreground leading-snug">{t('savingReassure')}</p>
+            <p className="text-xs text-muted-foreground leading-snug">{t('savingBackgroundNote')}</p>
           </div>
         </div>
       )}
@@ -909,60 +806,6 @@ export default function ClipAnnotatePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Camera-angle mismatch — the processed video looks like the OTHER
-          view. Pause the save and let the instructor decide; closing the
-          dialog keeps their original choice (they are the authority). */}
-      <Dialog open={angleCheck !== null} onOpenChange={(open) => { if (!open) resolveAngleDecision('keep') }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('angleMismatchTitle')}</DialogTitle>
-            <DialogDescription>
-              {angleCheck && t('angleMismatchBody', {
-                chosen: angle === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
-                detected: angleCheck === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button onClick={() => resolveAngleDecision('detected')} className="w-full">
-              {angleCheck && t('angleMismatchUseDetected', {
-                detected: angleCheck === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
-              })}
-            </Button>
-            <Button variant="outline" onClick={() => resolveAngleDecision('keep')} className="w-full border-border">
-              {t('angleMismatchKeep', {
-                chosen: angle === 'face_on' ? t('angleFaceOn') : t('angleDtl'),
-              })}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Calibration problem — loud, blocking. The clip is saved but is NOT a
-          usable reference; make the instructor decide, don't slip away. */}
-      <Dialog open={calibProblem} onOpenChange={setCalibProblem}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('calibProblemTitle')}</DialogTitle>
-            <DialogDescription>{t('calibProblemBody')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              onClick={() => { const step = recorded?.journeyItemId; leavingRef.current = true; reset(); router.replace(`/instructor/students/${studentId}/clips/new/record${step ? `?step=${step}` : ''}`) }}
-              className="w-full bg-primary text-primary-foreground"
-            >
-              {t('calibRerecord')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { leavingRef.current = true; reset(); router.replace(`/instructor/students/${studentId}`) }}
-              className="w-full border-border"
-            >
-              {t('calibGoProfile')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
@@ -987,47 +830,6 @@ function SegBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 function Badge({ children }: { children: React.ReactNode }) {
   return <span className="px-1.5 py-0.5 rounded bg-background/60 text-[10px]">{children}</span>
-}
-
-// --- Save stepper ---
-
-type StepState = 'done' | 'active' | 'pending'
-
-function stepState(index: number, current: number): StepState {
-  if (index < current) return 'done'
-  if (index === current) return 'active'
-  return 'pending'
-}
-
-function SaveStep({ state, label, pct }: { state: StepState; label: string; pct?: number }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className="mt-0.5 shrink-0">
-        {state === 'done' ? (
-          <span className="size-5 rounded-full bg-ok text-black flex items-center justify-center">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          </span>
-        ) : state === 'active' ? (
-          <span className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        ) : (
-          <span className="size-5 rounded-full border-2 border-rule" />
-        )}
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${state === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>
-          {label}
-          {state === 'active' && typeof pct === 'number' && (
-            <span className="font-mono text-xs text-muted-foreground tabular-nums"> · {pct}%</span>
-          )}
-        </p>
-        {state === 'active' && typeof pct === 'number' && (
-          <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden mt-1.5">
-            <div className="h-full bg-ok transition-all duration-200" style={{ width: `${pct}%` }} />
-          </div>
-        )}
-      </div>
-    </li>
-  )
 }
 
 // --- Snapshot compositing ---

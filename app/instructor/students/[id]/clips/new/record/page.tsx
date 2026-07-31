@@ -17,7 +17,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { CameraAngle } from '@/lib/types'
-import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
+import { pickVideoMime, resolveRecordedMime, videoRecorderOptions, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
 import { useClipFlow } from '../layout'
 
@@ -137,7 +137,7 @@ export default function ClipRecordPage() {
     const mime = pickVideoMime()
     chunksRef.current = []
     try {
-      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      const recorder = new MediaRecorder(stream, videoRecorderOptions(mime))
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }

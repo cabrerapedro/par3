@@ -34,6 +34,9 @@ export default function InstructorProfile() {
   const [error, setError] = useState('')
   const [studentCount, setStudentCount] = useState<number | null>(null)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [accessCode, setAccessCode] = useState<string | null>(null)
+  const [codeBusy, setCodeBusy] = useState(false)
+  const [codeError, setCodeError] = useState('')
 
   useEffect(() => {
     if (loading) return
@@ -46,7 +49,40 @@ export default function InstructorProfile() {
       .select('id', { count: 'exact', head: true })
       .eq('instructor_id', instructor.id)
       .then(({ count }) => setStudentCount(count ?? 0))
+    // The cached instructor may predate the access_code column — read it fresh.
+    supabase
+      .from('instructors')
+      .select('access_code')
+      .eq('id', instructor.id)
+      .single()
+      .then(({ data }) => setAccessCode((data as { access_code?: string | null } | null)?.access_code ?? null))
   }, [instructor, loading, router])
+
+  // 8 chars (vs 6 for students) because this code IS the instructor login.
+  // Same unambiguous alphabet as student codes (no 0/O/1/I).
+  function generateInstructorCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  }
+
+  async function regenerateCode() {
+    if (!instructor || codeBusy) return
+    setCodeBusy(true)
+    setCodeError('')
+    const code = generateInstructorCode()
+    const { error: upErr } = await supabase
+      .from('instructors')
+      .update({ access_code: code })
+      .eq('id', instructor.id)
+    setCodeBusy(false)
+    if (upErr) {
+      // Most likely the access_code column doesn't exist yet (schema.sql not
+      // re-run) or a 1-in-a-trillion unique collision. Either way, tell them.
+      setCodeError(t('accessCodeError'))
+      return
+    }
+    setAccessCode(code)
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -142,6 +178,29 @@ export default function InstructorProfile() {
             {saved ? t('saved') : saving ? t('saving') : t('saveCta')}
           </Button>
         </form>
+
+        {/* Passwordless access code — log in like a student, no password. */}
+        <div className="bg-card border border-border rounded-xl px-5 py-4 mb-8">
+          <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1.5">{t('accessCodeLabel')}</p>
+          {accessCode ? (
+            <p className="font-mono text-2xl tracking-[0.25em] text-foreground mb-1.5">{accessCode}</p>
+          ) : (
+            <p className="text-muted-foreground text-sm mb-1.5">{t('accessCodeEmpty')}</p>
+          )}
+          <p className="text-muted-foreground/70 text-xs leading-snug mb-3">{t('accessCodeHelp')}</p>
+          {codeError && (
+            <p className="text-bad text-xs mb-3">{codeError}</p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={regenerateCode}
+            disabled={codeBusy}
+            className="h-10 text-sm border-border"
+          >
+            {codeBusy ? t('accessCodeGenerating') : accessCode ? t('accessCodeRegenerate') : t('accessCodeGenerate')}
+          </Button>
+        </div>
 
         <Separator className="bg-border mb-6" />
 

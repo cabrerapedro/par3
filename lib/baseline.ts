@@ -306,6 +306,121 @@ function frameSpeed(a: MotionFrame, b: MotionFrame): number | null {
   return sum / count / torso / dtSec
 }
 
+// ─── Body zones — localize feedback on the student's body ──────────────────
+// Every metric maps to a body zone with anchor landmarks, so the mirror can
+// highlight WHERE the problem is on the video instead of only naming it.
+// Anchors are MediaPipe landmark indices; the highlight sits at the centroid
+// of the visible anchors.
+
+export type BodyZone = 'head' | 'shoulders' | 'arms' | 'torso' | 'hips' | 'knees' | 'feet'
+
+export const METRIC_ZONES: Record<string, { zone: BodyZone; anchors: number[] }> = {
+  head_lateral:   { zone: 'head',      anchors: [0] },
+  head_forward:   { zone: 'head',      anchors: [0] },
+  head_height:    { zone: 'head',      anchors: [0] },
+  shoulder_level: { zone: 'shoulders', anchors: [11, 12] },
+  arm_angle:      { zone: 'arms',      anchors: [13, 14, 15, 16] },
+  trail_arm:      { zone: 'arms',      anchors: [13, 14, 15, 16] },
+  spine_angle:    { zone: 'torso',     anchors: [11, 12, 23, 24] },
+  hip_hinge:      { zone: 'hips',      anchors: [23, 24] },
+  hip_sway:       { zone: 'hips',      anchors: [23, 24] },
+  weight_shift:   { zone: 'hips',      anchors: [23, 24] },
+  knee_flex:      { zone: 'knees',     anchors: [25, 26] },
+  stance_width:   { zone: 'feet',      anchors: [27, 28] },
+}
+
+// Skeleton segments grouped by zone, so the opt-in skeleton can be colored
+// PER ZONE (red knees, green everything else) instead of one global color.
+export const SKELETON_SEGMENTS: Record<BodyZone, [number, number][]> = {
+  head:      [[0, 11], [0, 12]],
+  shoulders: [[11, 12]],
+  arms:      [[11, 13], [13, 15], [12, 14], [14, 16]],
+  torso:     [[11, 23], [12, 24]],
+  hips:      [[23, 24]],
+  knees:     [[23, 25], [24, 26]],
+  feet:      [[25, 27], [26, 28]],
+}
+
+/**
+ * Worst status per body zone from a set of checks. Zones with no measured
+ * metric map to null (drawn neutral — we never green-flag what we didn't
+ * measure).
+ */
+export function zoneStatuses(
+  checks: { id: string; status: 'ok' | 'warn' | 'bad' }[],
+): Partial<Record<BodyZone, 'ok' | 'warn' | 'bad'>> {
+  const rank = { ok: 0, warn: 1, bad: 2 } as const
+  const out: Partial<Record<BodyZone, 'ok' | 'warn' | 'bad'>> = {}
+  for (const check of checks) {
+    const zone = METRIC_ZONES[check.id]?.zone
+    if (!zone) continue
+    const current = out[zone]
+    if (current === undefined || rank[check.status] > rank[current]) {
+      out[zone] = check.status
+    }
+  }
+  return out
+}
+
+// ─── Placement check — "colócate" assistant ─────────────────────────────────
+// The range has marked spots for the device, so before a session starts we can
+// verify in ~2 seconds that the setup will produce usable data: person fully
+// in frame, right distance, right view. Non-blocking by design — it guides,
+// never forbids.
+
+export type PlacementStatus =
+  | 'no_person'
+  | 'too_far'
+  | 'too_close'
+  | 'wrong_angle'
+  | 'partial'
+  | 'ok'
+
+// Torso length (normalized frame units) bounds for a usable framing. A full
+// body spans ≈3.3 torso lengths; below the min the person is a sliver of the
+// frame (landmarks get noisy), above the max limbs start leaving the frame.
+const PLACEMENT_TORSO_MIN = 0.11
+const PLACEMENT_TORSO_MAX = 0.42
+
+/**
+ * Evaluate the current setup from a short buffer of recent landmark frames
+ * (~1-2s). Returns the highest-priority problem, or 'ok'.
+ */
+export function checkPlacement(
+  recentFrames: LM[][],
+  expectedAngle: CameraAngle,
+  expectedMetrics: string[],
+  version: number = METRICS_VERSION,
+): PlacementStatus {
+  if (recentFrames.length === 0) return 'no_person'
+
+  // Distance: median torso length across the buffer.
+  const torsos = recentFrames
+    .map(lm => torsoLength(lm))
+    .filter((t): t is number => t !== null)
+    .sort((a, b) => a - b)
+  if (torsos.length > 0) {
+    const median = torsos[Math.floor(torsos.length / 2)]
+    if (median < PLACEMENT_TORSO_MIN) return 'too_far'
+    if (median > PLACEMENT_TORSO_MAX) return 'too_close'
+  }
+
+  // View: only flag confident mismatches (estimateCameraAngle is null when
+  // ambiguous or under-sampled).
+  const estimated = estimateCameraAngle(recentFrames)
+  if (estimated && estimated !== expectedAngle) return 'wrong_angle'
+
+  // Coverage: every expected metric measurable on the latest frame.
+  if (expectedMetrics.length > 0) {
+    const latest = recentFrames[recentFrames.length - 1]
+    const metrics = calculateMetrics(latest, expectedAngle, version)
+    const visible = expectedMetrics.filter(k => k in metrics).length
+    if (visible < expectedMetrics.length) return 'partial'
+  }
+
+  return 'ok'
+}
+
 // ─── Camera-angle estimation ────────────────────────────────────────────────
 // Face-on, the shoulder line spans roughly a torso length in x; down-the-line
 // the shoulders nearly overlap. The ratio separates the two views cleanly, so

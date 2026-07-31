@@ -22,7 +22,7 @@ export default function InstructorLoginPage() {
 }
 
 function InstructorLogin() {
-  const { instructorLogin, instructorSignup } = useAuth()
+  const { instructorLogin, instructorCodeLogin, instructorSignup } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('auth.instructor')
@@ -30,13 +30,15 @@ function InstructorLogin() {
   const tErrors = useTranslations('auth.errors')
 
   // Deep-link: /instructor/login?mode=signup opens straight on the signup form
-  // (the landing "Crear cuenta" CTA uses this).
-  const [mode, setMode] = useState<'login' | 'signup'>(
+  // (the landing "Crear cuenta" CTA uses this). 'code' is the passwordless
+  // access-code login (same UX as the student code).
+  const [mode, setMode] = useState<'login' | 'signup' | 'code'>(
     searchParams.get('mode') === 'signup' ? 'signup' : 'login'
   )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [accessCode, setAccessCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -53,9 +55,11 @@ function InstructorLogin() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const result = mode === 'login'
-      ? await instructorLogin(email, password)
-      : await instructorSignup(email, password, name)
+    const result = mode === 'code'
+      ? await instructorCodeLogin(accessCode)
+      : mode === 'login'
+        ? await instructorLogin(email, password)
+        : await instructorSignup(email, password, name)
     setLoading(false)
     if (result.error) {
       setError(resolveError(result.error))
@@ -85,10 +89,10 @@ function InstructorLogin() {
       <div className="w-full max-w-sm border border-rule bg-paper-2">
         <div className="px-7 pt-6 pb-5 border-b border-rule">
           <h1 className="font-display font-semibold text-2xl leading-tight">
-            {mode === 'login' ? t('loginTitle') : t('signupTitle')}
+            {mode === 'login' ? t('loginTitle') : mode === 'signup' ? t('signupTitle') : t('codeTitle')}
           </h1>
           <p className="text-ink-soft text-sm mt-1.5">
-            {mode === 'login' ? t('loginSubtitle') : t('signupSubtitle')}
+            {mode === 'login' ? t('loginSubtitle') : mode === 'signup' ? t('signupSubtitle') : t('codeSubtitle')}
           </p>
         </div>
 
@@ -111,36 +115,61 @@ function InstructorLogin() {
               </div>
             )}
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email" className="small-caps font-mono text-[11px] text-ink-mute">
-                {t('emailLabel')}
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder={t('emailPlaceholder')}
-                required
-                className="h-11 text-base"
-              />
-            </div>
+            {mode === 'code' ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="accessCode" className="small-caps font-mono text-[11px] text-ink-mute">
+                  {t('codeLabel')}
+                </Label>
+                <Input
+                  id="accessCode"
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  value={accessCode}
+                  onChange={e => setAccessCode(e.target.value.toUpperCase())}
+                  placeholder={t('codePlaceholder')}
+                  required
+                  minLength={8}
+                  maxLength={8}
+                  className="h-12 text-lg font-mono tracking-[0.3em] text-center uppercase"
+                />
+                <p className="text-ink-mute text-xs leading-snug">{t('codeHelp')}</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="email" className="small-caps font-mono text-[11px] text-ink-mute">
+                    {t('emailLabel')}
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder={t('emailPlaceholder')}
+                    required
+                    className="h-11 text-base"
+                  />
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password" className="small-caps font-mono text-[11px] text-ink-mute">
-                {t('passwordLabel')}
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder={t('passwordPlaceholder')}
-                required
-                minLength={6}
-                className="h-11 text-base"
-              />
-            </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="password" className="small-caps font-mono text-[11px] text-ink-mute">
+                    {t('passwordLabel')}
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder={t('passwordPlaceholder')}
+                    required
+                    minLength={6}
+                    className="h-11 text-base"
+                  />
+                </div>
+              </>
+            )}
 
             {error && (
               <div className="text-bad text-sm border border-bad/40 bg-bad/5 px-4 py-3 leading-snug">
@@ -155,17 +184,27 @@ function InstructorLogin() {
             >
               {loading
                 ? t('loading')
-                : mode === 'login' ? t('loginCta') : t('signupCta')}
+                : mode === 'login' ? t('loginCta') : mode === 'signup' ? t('signupCta') : t('codeCta')}
             </button>
           </form>
 
-          <p className="text-center text-ink-soft text-sm mt-6">
-            {mode === 'login' ? t('switchToSignupPrompt') : t('switchToLoginPrompt')}{' '}
+          {mode !== 'code' && (
+            <p className="text-center text-ink-soft text-sm mt-6">
+              {mode === 'login' ? t('switchToSignupPrompt') : t('switchToLoginPrompt')}{' '}
+              <button
+                onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
+                className="text-primary hover:underline underline-offset-2 font-medium"
+              >
+                {mode === 'login' ? t('switchToSignup') : t('switchToLogin')}
+              </button>
+            </p>
+          )}
+          <p className="text-center text-ink-soft text-sm mt-3">
             <button
-              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
+              onClick={() => { setMode(mode === 'code' ? 'login' : 'code'); setError('') }}
               className="text-primary hover:underline underline-offset-2 font-medium"
             >
-              {mode === 'login' ? t('switchToSignup') : t('switchToLogin')}
+              {mode === 'code' ? t('switchToPassword') : t('switchToCode')}
             </button>
           </p>
         </div>

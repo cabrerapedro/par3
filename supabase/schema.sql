@@ -31,6 +31,21 @@ create table if not exists students (
 alter table students add column if not exists status text not null default 'active'
   check (status in ('active', 'inactive'));
 
+-- Instructor access code — passwordless login ("entra con tu código"), same
+-- UX as the student code. The code is looked up ONLY server-side (service
+-- role) by /api/instructor/code-login, which mints a one-time magic-link
+-- token; RLS on instructors has no anon SELECT, so codes can't be enumerated
+-- from the client. 8 chars from an unambiguous alphabet (vs 6 for students)
+-- because this grants full instructor access.
+alter table instructors add column if not exists access_code text unique;
+
+-- Instructor's verdict on a practice evaluation ("¿refleja lo que ves?").
+-- These are the calibration labels for the measurement-validation loop: with
+-- enough agree/disagree pairs we can tune the traffic-light thresholds
+-- against the coach's eye before giving scores more weight.
+alter table practice_sessions add column if not exists instructor_feedback text
+  check (instructor_feedback in ('agree', 'disagree'));
+
 -- Checkpoints
 create table if not exists checkpoints (
   id                   uuid primary key default gen_random_uuid(),

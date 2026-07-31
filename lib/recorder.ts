@@ -36,6 +36,20 @@ export const pickAudioMime = (): string | undefined => pick(PREFERRED_AUDIO_MIME
 // stop() can yield an empty recording.
 export const RECORDER_TIMESLICE_MS = 1000
 
+// Cap the video bitrate. Uncapped, WebKit records 720p H.264 at ~4-8 Mbps —
+// a 30 s clip of 15-30 MB that takes minutes (or forever) to upload from a
+// range hotspot. ~2.5 Mbps at 720p is more than enough for pose analysis and
+// cuts the file 2-4x. Browsers that ignore the hint just record as before.
+export const VIDEO_BITS_PER_SECOND = 2_500_000
+
+/** MediaRecorder options for video capture: picked mime (if any) + bitrate cap. */
+export function videoRecorderOptions(mime?: string): MediaRecorderOptions {
+  return {
+    ...(mime ? { mimeType: mime } : {}),
+    videoBitsPerSecond: VIDEO_BITS_PER_SECOND,
+  }
+}
+
 /**
  * Resolve the REAL container of a finished recording. Never assume webm:
  * trust recorder.mimeType, then the recorded chunk's own type, then the

@@ -28,6 +28,7 @@ interface AuthState {
   student: Student | null
   loading: boolean
   instructorLogin: (email: string, password: string) => Promise<{ error?: string }>
+  instructorCodeLogin: (code: string) => Promise<{ error?: string }>
   instructorSignup: (email: string, password: string, name: string) => Promise<{ error?: string }>
   updateInstructor: (name: string) => Promise<{ error?: string }>
   studentLogin: (code: string) => Promise<{ error?: string }>
@@ -143,6 +144,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return {}
+  }
+
+  // Passwordless login with the instructor's access code — same UX as the
+  // student code. The server route validates the code (service role) and
+  // returns a one-time magic-link token hash; verifyOtp exchanges it for a
+  // REAL Supabase session, so auth.uid()-based RLS keeps working everywhere.
+  async function instructorCodeLogin(code: string): Promise<{ error?: string }> {
+    try {
+      const res = await fetch('/api/instructor/code-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (!res.ok) return { error: 'wrongInstructorCode' }
+      const { token_hash } = (await res.json()) as { token_hash?: string }
+      if (!token_hash) return { error: 'wrongInstructorCode' }
+
+      const { data, error } = await supabase.auth.verifyOtp({ type: 'magiclink', token_hash })
+      if (error || !data.user) return { error: 'wrongInstructorCode' }
+
+      try {
+        const { data: inst } = await supabase.from('instructors').select('*').eq('id', data.user.id).single()
+        if (inst) {
+          cacheInstructor(inst)
+          syncLocaleFromDb(inst.preferred_locale)
+        }
+      } catch {}
+      return {}
+    } catch {
+      return { error: 'connection' }
+    }
   }
 
   async function instructorSignup(email: string, password: string, name: string): Promise<{ error?: string }> {
@@ -328,7 +361,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ instructor, student, loading, instructorLogin, instructorSignup, updateInstructor, studentLogin, studentOtpRequest, studentOtpVerify, updateStudent, setLocale, logout }}>
+    <AuthContext.Provider value={{ instructor, student, loading, instructorLogin, instructorCodeLogin, instructorSignup, updateInstructor, studentLogin, studentOtpRequest, studentOtpVerify, updateStudent, setLocale, logout }}>
       {children}
     </AuthContext.Provider>
   )

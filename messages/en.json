@@ -197,7 +197,15 @@
       "switchToSignupPrompt": "First time?",
       "switchToLoginPrompt": "Already have an account?",
       "switchToSignup": "Create account",
-      "switchToLogin": "Sign in"
+      "switchToLogin": "Sign in",
+      "codeTitle": "Sign in with your code",
+      "codeSubtitle": "The access code from your profile — no password.",
+      "codeLabel": "Access code",
+      "codePlaceholder": "ABCD2345",
+      "codeHelp": "You'll find it (or create it) in your profile, under “Access code”.",
+      "codeCta": "Sign in",
+      "switchToCode": "Sign in with a code instead of a password",
+      "switchToPassword": "Sign in with email and password"
     },
     "student": {
       "tabCode": "Code",
@@ -233,7 +241,8 @@
       "otpInvalid": "Wrong or expired code.",
       "otpVerifyFailed": "Couldn't verify the code.",
       "emailRequired": "Email required",
-      "emailAndCodeRequired": "Email and code required"
+      "emailAndCodeRequired": "Email and code required",
+      "wrongInstructorCode": "Wrong code. Check it in your profile, or sign in with email and password."
     }
   },
   "instructor": {
@@ -300,7 +309,14 @@
       "saveCta": "Save changes",
       "confirmSignOutPrompt": "Sign out?",
       "signOut": "Sign out",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "accessCodeLabel": "Access code",
+      "accessCodeEmpty": "You don't have a code yet.",
+      "accessCodeHelp": "This code signs you in without a password from any device. Treat it like a key: regenerating it invalidates the old one.",
+      "accessCodeGenerate": "Create code",
+      "accessCodeRegenerate": "Regenerate code",
+      "accessCodeGenerating": "Generating…",
+      "accessCodeError": "Couldn't save the code. Check the database is up to date (schema.sql) and try again."
     },
     "students": {
       "backToStudents": "My students",
@@ -714,7 +730,15 @@
         "retryFailed": "Couldn't reprocess",
         "retryNoBaseline": "Couldn't build the reference. Re-record the clip.",
         "lowDetection": "We only detected the student in {pct}% of the video. Re-record with a better frame.",
-        "pendingHint": "This clip didn't finish processing. Tap Retry processing to build its reference."
+        "pendingHint": "This clip didn't finish processing. Tap Retry processing to build its reference.",
+        "legacyBaseline": "Legacy calibration",
+        "legacyBaselineHint": "This clip was calibrated with the previous measurement version. It still works, but re-recording it makes the comparison more precise and independent of camera placement.",
+        "sessionsHeader": "Student attempts",
+        "sessionsEmpty": "No practice attempts for this exercise yet.",
+        "sessionsFeedbackHint": "Does the evaluation match what you see? Your vote helps us calibrate the traffic light to your judgment.",
+        "sessionMeta": "{duration} · {score}% within their reference",
+        "feedbackAgree": "Matches",
+        "feedbackDisagree": "Doesn't match"
       },
       "annotate": {
         "title": "Review and annotate",
@@ -738,27 +762,12 @@
         "typePosition": "Position",
         "typeSwing": "Swing",
         "save": "Save clip",
-        "savingUpload": "Uploading video…",
-        "savingInsert": "Saving clip…",
-        "savingFrames": "Processing frames… {pct}%",
-        "savingBaseline": "Building your reference…",
         "savingTitle": "Saving your clip",
-        "stepSave": "Saving the video",
-        "stepAnalyze": "Analyzing the student's posture",
-        "stepReference": "Building the personal reference",
-        "savingReassure": "This happens once per clip. It takes a few seconds.",
+        "savingBackgroundNote": "One moment. The video will upload and be analyzed in the background — you can carry on with the lesson meanwhile.",
         "saveErrorTitle": "Couldn't save the clip",
         "saveErrorReason": "{reason}",
         "saveErrorFriendly": "Couldn't save the clip. Check your connection and try again.",
         "annotationsSaveWarning": "Some annotations didn't save. Check the clip.",
-        "calibProblemTitle": "This clip isn't usable as a reference",
-        "calibProblemBody": "The student's body wasn't detected well, so it couldn't be calibrated. Re-record with the student fully in frame (head to toe), or go to their profile and retry from there.",
-        "calibRerecord": "Re-record",
-        "calibGoProfile": "Go to profile",
-        "angleMismatchTitle": "The angle doesn't match",
-        "angleMismatchBody": "You marked this clip as “{chosen}”, but in the video the student appears to be filmed “{detected}”. If the angle is wrong, the reference won't be reliable.",
-        "angleMismatchUseDetected": "Switch to “{detected}”",
-        "angleMismatchKeep": "Keep “{chosen}”",
         "discard": "Discard",
         "discardConfirmTitle": "Discard this clip?",
         "discardConfirmDescription": "You'll lose the recorded video and your annotations.",
@@ -774,6 +783,20 @@
         "lowDetection": "We only detected the student in {pct}% of the video. Re-record with a better frame.",
         "defaultPlanName": "Learning plan"
       }
+    },
+    "sync": {
+      "uploading": "Uploading video… {pct}% · {mb} MB",
+      "processing": "Analyzing movement… {pct}%",
+      "finalizing": "Building the reference…",
+      "errorNetwork": "Upload failed. Nothing is lost — retry when you have a better connection.",
+      "retry": "Retry now",
+      "reviewAngle": "The video looks filmed {detected}. Review the clip's angle so it can be calibrated.",
+      "reviewCalibration": "This clip couldn't be calibrated. Review it to re-record or retry.",
+      "reviewCta": "Review clip",
+      "dismiss": "Dismiss",
+      "done": "Reference for “{name}” is ready",
+      "angleFaceOn": "face-on",
+      "angleDtl": "down-the-line"
     }
   },
   "student": {
@@ -939,9 +962,6 @@
       "errorCamera": "Couldn't start the camera.",
       "backFallback": "Back",
       "backToCheckpoint": "← Back",
-      "backToCheckpointFull": "← Back to exercise",
-      "phoneRestrictionTitle": "Prop up your phone to see yourself",
-      "phoneRestrictionDesc": "The mirror needs to see your whole body while you practice. Stand your phone up (or use an iPad) a few steps away so the camera sees you head to toe.",
       "flipCameraTitle": "Switch camera",
       "kioskExit": "Exit fullscreen",
       "kioskEnter": "Fullscreen",
@@ -952,6 +972,19 @@
       "skeletonShow": "Show skeleton",
       "skeletonHide": "Hide skeleton",
       "allGood": "Looking good! Keep it up."
+    },
+    "placement": {
+      "setupTitle": "Get in position",
+      "setupHint": "Leave the device on its range mark and get into position.",
+      "noPerson": "Stand in front of the camera so your whole body is visible",
+      "tooFar": "Step a bit closer to the camera",
+      "tooClose": "Step back a little from the camera",
+      "wrongAngle": "This reference is {expected}: turn around or reposition the device",
+      "partial": "I can't see all of you: adjust the device until your whole body fits",
+      "ready": "Perfect! Starting…",
+      "skip": "Start now",
+      "faceOn": "face-on",
+      "dtl": "down-the-line"
     },
     "clip": {
       "backToJourney": "My exercises",

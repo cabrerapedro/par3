@@ -9,10 +9,12 @@ import {
   calculateMetrics, generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
   detectSwingReps, averageSwingReps, compareSwingToBaseline, generateSwingSummary,
   selectStableFrames, aggregatePositionChecks, baselineMetricsVersion, estimateCameraAngle,
+  checkPlacement,
 } from '@/lib/baseline'
+import type { PlacementStatus } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import type { PoseResults } from '@/lib/mediapipe'
-import { pickVideoMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
+import { pickVideoMime, resolveRecordedMime, videoRecorderOptions, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
 import { useWakeLock } from '@/lib/wakeLock'
 import { insertSessionFrames, type FrameRow } from '@/lib/frames'
 import type { Clip } from '@/lib/classes'
@@ -28,6 +30,7 @@ export default function StudentClipPractice() {
   const params = useParams()
   const clipId = params.id as string
   const t = useTranslations('student.practice')
+  const tp = useTranslations('student.placement')
   const tClip = useTranslations('student.clip')
   const tBaselineSummary = useTranslations('baselineSummary')
   const tSwingSummary = useTranslations('swingSummary')
@@ -60,6 +63,10 @@ export default function StudentClipPractice() {
   const [error, setError] = useState('')
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [recordingVisibleCount, setRecordingVisibleCount] = useState(-1)
+  // Live placement guidance while recording (distance / view), fed by the
+  // same 1 Hz pose check that powers the visibility counter. Non-blocking.
+  const [recordingPlacement, setRecordingPlacement] = useState<PlacementStatus | null>(null)
+  const recentPoseRef = useRef<Landmark[][]>([])
   const [swingPhaseChecks, setSwingPhaseChecks] = useState<SwingPhaseCheck[]>([])
   const [sideBySide, setSideBySide] = useState(true)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -143,7 +150,7 @@ export default function StudentClipPractice() {
       // Setup MediaRecorder (doesn't need the video element)
       chunksRef.current = []
       const picked = pickVideoMime()
-      const recorder = new MediaRecorder(stream, picked ? { mimeType: picked } : undefined)
+      const recorder = new MediaRecorder(stream, videoRecorderOptions(picked))
       // Store the requested mime; the REAL container is resolved at stop time
       // (iOS leaves recorder.mimeType empty and produces mp4, not webm).
       mimeTypeRef.current = picked ?? ''
@@ -196,6 +203,8 @@ export default function StudentClipPractice() {
       poseCheckIntervalRef.current = null
     }
     setRecordingVisibleCount(-1)
+    setRecordingPlacement(null)
+    recentPoseRef.current = []
   }
 
   async function startVisibilityCheck() {
@@ -207,14 +216,27 @@ export default function StudentClipPractice() {
       // Lite model: fast enough to run live on an iPhone while also recording.
       const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
       pose.onResults((results: PoseResults) => {
-        if (!results.poseLandmarks) { setRecordingVisibleCount(0); return }
+        if (!results.poseLandmarks) {
+          setRecordingVisibleCount(0)
+          setRecordingPlacement(null)
+          recentPoseRef.current = []
+          return
+        }
         // Same metrics version as the eventual evaluation, so the live
         // "N/6 métricas" counter matches what will actually be scored.
-        const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle, baselineMetricsVersion(c.baseline))
+        const version = baselineMetricsVersion(c.baseline)
+        const metrics = calculateMetrics(results.poseLandmarks, c.camera_angle, version)
         const expected = c.selected_metrics?.length
           ? c.selected_metrics
           : METRICS_BY_ANGLE[c.camera_angle] ?? []
         setRecordingVisibleCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
+
+        // Placement guidance: at 1 Hz, ~8 buffered frames span the last 8s.
+        recentPoseRef.current.push(results.poseLandmarks.map(l => ({
+          x: l.x, y: l.y, z: l.z, visibility: l.visibility,
+        })))
+        if (recentPoseRef.current.length > 8) recentPoseRef.current.shift()
+        setRecordingPlacement(checkPlacement(recentPoseRef.current, c.camera_angle, expected, version))
       })
       poseCheckIntervalRef.current = setInterval(async () => {
         if (videoRef.current) {
@@ -671,19 +693,31 @@ export default function StudentClipPractice() {
                   </svg>
                 </button>
                 )}
-                {/* Visibility warning during recording */}
+                {/* Placement + visibility guidance during recording. One chip,
+                    highest-priority problem first: a wrong distance/view makes
+                    the whole attempt unusable, partial coverage only degrades it. */}
                 {recordingVisibleCount >= 0 && clip && (() => {
                   const expected = clip.selected_metrics?.length
                     ? clip.selected_metrics
                     : METRICS_BY_ANGLE[clip.camera_angle] ?? []
-                  if (expected.length > 0 && recordingVisibleCount < expected.length) return (
+                  const placementText =
+                    recordingPlacement === 'too_far' ? tp('tooFar')
+                    : recordingPlacement === 'too_close' ? tp('tooClose')
+                    : recordingPlacement === 'wrong_angle' ? tp('wrongAngle', {
+                        expected: clip.camera_angle === 'dtl' ? tp('dtl') : tp('faceOn'),
+                      })
+                    : null
+                  const text = placementText ?? (
+                    expected.length > 0 && recordingVisibleCount < expected.length
+                      ? t('showFullBody', { visible: recordingVisibleCount, total: expected.length })
+                      : null
+                  )
+                  if (!text) return null
+                  return (
                     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-full px-4 py-2 max-w-xs text-center">
-                      <span className="text-black text-sm font-medium">
-                        {t('showFullBody', { visible: recordingVisibleCount, total: expected.length })}
-                      </span>
+                      <span className="text-black text-sm font-medium">{text}</span>
                     </div>
                   )
-                  return null
                 })()}
                 {/* Angle hint */}
                 <div className="absolute bottom-4 left-4 bg-background/60 backdrop-blur text-muted-foreground text-xs px-3 py-1.5 rounded-full">

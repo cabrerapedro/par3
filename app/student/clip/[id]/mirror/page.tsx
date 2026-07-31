@@ -5,13 +5,16 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { calculateMetrics, compareToBaseline, baselineOverallStatus, baselineMetricsVersion, METRICS_BY_ANGLE } from '@/lib/baseline'
-import { loadMediaPipe, createPose, createCamera, getDrawingUtils } from '@/lib/mediapipe'
+import {
+  calculateMetrics, compareToBaseline, baselineMetricsVersion, METRICS_BY_ANGLE,
+  METRIC_ZONES, SKELETON_SEGMENTS, zoneStatuses, checkPlacement,
+} from '@/lib/baseline'
+import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { PoseInstance, CameraInstance, PoseResults } from '@/lib/mediapipe'
 import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
 import type { Clip } from '@/lib/classes'
-import type { Baseline } from '@/lib/types'
-import type { BaselineCheck } from '@/lib/baseline'
+import type { Baseline, Landmark } from '@/lib/types'
+import type { BaselineCheck, BodyZone, PlacementStatus } from '@/lib/baseline'
 import Link from 'next/link'
 
 const STATUS_COLORS = {
@@ -19,6 +22,10 @@ const STATUS_COLORS = {
   warn: '#e8b930',
   bad: '#f04848',
 }
+
+// Skeleton segments for zones we didn't measure — visible but muted, so an
+// unmeasured zone never reads as "approved green".
+const NEUTRAL_SEGMENT_COLOR = 'rgba(255, 255, 255, 0.45)'
 
 function buildActionHints(t: (key: string) => string): Record<string, { high: string; low: string }> {
   return {
@@ -43,6 +50,7 @@ export default function StudentClipMirror() {
   const params = useParams()
   const clipId = params.id as string
   const t = useTranslations('student.mirror')
+  const tp = useTranslations('student.placement')
   const ACTION_HINTS = buildActionHints(t)
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -73,6 +81,20 @@ export default function StudentClipMirror() {
   const [showSkeleton, setShowSkeleton] = useState(false)
   const showSkeletonRef = useRef(false)
   useEffect(() => { showSkeletonRef.current = showSkeleton }, [showSkeleton])
+
+  // Placement assistant: the session opens in 'setup' — a non-blocking guide
+  // to the marked range spot (distance, view, full body). It flips to 'live'
+  // automatically after ~1.5s of solid placement, or on "Empezar ya".
+  const [phase, setPhase] = useState<'setup' | 'live'>('setup')
+  const phaseRef = useRef<'setup' | 'live'>('setup')
+  const [setupStatus, setSetupStatus] = useState<PlacementStatus>('no_person')
+  const recentPoseRef = useRef<Landmark[][]>([])
+  const okStreakRef = useRef(0)
+
+  const startLive = useCallback(() => {
+    phaseRef.current = 'live'
+    setPhase('live')
+  }, [])
 
   useEffect(() => {
     // Wait for auth to hydrate before redirecting. On a hard load this effect
@@ -148,6 +170,12 @@ export default function StudentClipMirror() {
     const newFacing = facingMode === 'user' ? 'environment' : 'user'
     smoothRef.current = []
     filterStateRef.current = createOneEuroState()
+    // New camera → new framing: run the placement guide again.
+    phaseRef.current = 'setup'
+    setPhase('setup')
+    setSetupStatus('no_person')
+    recentPoseRef.current = []
+    okStreakRef.current = 0
     await startCamera(newFacing)
   }
 
@@ -164,15 +192,42 @@ export default function StudentClipMirror() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const lm = results.poseLandmarks
-    if (!lm) { setPoseDetected(false); return }
-
-    setPoseDetected(true)
-    // Compute metrics with the SAME version the baseline was built with —
-    // v2 baselines store body-normalized distances, v1 (legacy) raw ones.
-    const metrics = calculateMetrics(lm, c.camera_angle, baselineMetricsVersion(c.baseline))
     const expected = c.selected_metrics?.length
       ? c.selected_metrics
       : METRICS_BY_ANGLE[c.camera_angle] ?? []
+    const version = baselineMetricsVersion(c.baseline)
+
+    if (!lm) {
+      setPoseDetected(false)
+      if (phaseRef.current === 'setup') {
+        recentPoseRef.current = []
+        okStreakRef.current = 0
+        setSetupStatus('no_person')
+      }
+      return
+    }
+    setPoseDetected(true)
+
+    // ---- Setup phase: guide the placement, don't judge the pose yet ------
+    if (phaseRef.current === 'setup') {
+      recentPoseRef.current.push(lm.map(l => ({ x: l.x, y: l.y, z: l.z, visibility: l.visibility })))
+      if (recentPoseRef.current.length > 15) recentPoseRef.current.shift()
+      const placement = checkPlacement(recentPoseRef.current, c.camera_angle, expected, version)
+      setSetupStatus(placement)
+      if (placement === 'ok') {
+        okStreakRef.current++
+        // ~1.5s of solid placement at MediaPipe's ~12-15 fps → go live.
+        if (okStreakRef.current >= 15) startLive()
+      } else {
+        okStreakRef.current = 0
+      }
+      return
+    }
+
+    // ---- Live phase -------------------------------------------------------
+    // Compute metrics with the SAME version the baseline was built with —
+    // v2 baselines store body-normalized distances, v1 (legacy) raw ones.
+    const metrics = calculateMetrics(lm, c.camera_angle, version)
     setExpectedCount(expected.length)
     setDetectedCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
     const rawChecks = compareToBaseline(metrics, c.baseline as Baseline, c.selected_metrics)
@@ -206,20 +261,68 @@ export default function StudentClipMirror() {
 
     setChecks(smoothed)
 
-    // Filter landmarks for smooth skeleton drawing
+    // Filter landmarks for smooth drawing
     frameTimeRef.current += 1 / 15  // approximate ~15fps from MediaPipe
     const filteredLm = filterLandmarks(filterStateRef.current, lm, frameTimeRef.current)
+    const px = (i: number) => ({
+      x: filteredLm[i].x * canvas.width,
+      y: filteredLm[i].y * canvas.height,
+      v: filteredLm[i].visibility ?? 0,
+    })
+    const zones = zoneStatuses(smoothed)
+    const isTablet = canvas.width >= 768
 
-    // Draw skeleton with status colors — only when the student opted in.
-    const { drawConnectors, drawLandmarks, POSE_CONNECTIONS } = getDrawingUtils()
-    if (showSkeletonRef.current && drawConnectors && drawLandmarks && POSE_CONNECTIONS) {
-      const overall = baselineOverallStatus(smoothed)
-      const color = STATUS_COLORS[overall] ?? '#34d178'
-      const isTablet = canvas.width >= 768
-      drawConnectors(ctx, filteredLm, POSE_CONNECTIONS, { color, lineWidth: isTablet ? 5 : 3 })
-      drawLandmarks(ctx, filteredLm, { color: '#060a08', fillColor: color, lineWidth: 1, radius: isTablet ? 6 : 4 })
+    // Opt-in skeleton, colored PER ZONE: red knees + green everything else
+    // tells the student where to look. Unmeasured zones draw neutral — we
+    // never green-flag what we didn't measure.
+    if (showSkeletonRef.current) {
+      ctx.lineCap = 'round'
+      ctx.lineWidth = isTablet ? 5 : 3
+      for (const [zone, segments] of Object.entries(SKELETON_SEGMENTS) as [BodyZone, [number, number][]][]) {
+        const status = zones[zone]
+        ctx.strokeStyle = status ? STATUS_COLORS[status] : NEUTRAL_SEGMENT_COLOR
+        for (const [a, b] of segments) {
+          const pa = px(a), pb = px(b)
+          if (pa.v < 0.5 || pb.v < 0.5) continue
+          ctx.beginPath()
+          ctx.moveTo(pa.x, pa.y)
+          ctx.lineTo(pb.x, pb.y)
+          ctx.stroke()
+        }
+      }
     }
-  }, [])
+
+    // Pulsing halo on the ONE zone to fix — always drawn, independent of the
+    // skeleton toggle. This is the "una instrucción a la vez" made visible on
+    // the student's own body.
+    const primary = smoothed.find(ch => ch.status === 'bad') ?? smoothed.find(ch => ch.status === 'warn')
+    if (primary) {
+      const anchors = (METRIC_ZONES[primary.id]?.anchors ?? []).map(px).filter(p => p.v >= 0.5)
+      if (anchors.length > 0) {
+        const cx = anchors.reduce((s, p) => s + p.x, 0) / anchors.length
+        const cy = anchors.reduce((s, p) => s + p.y, 0) / anchors.length
+        // Radius scales with the on-screen torso so the halo hugs the zone at
+        // any camera distance.
+        const s11 = px(11), s12 = px(12), h23 = px(23), h24 = px(24)
+        const torsoPx = Math.hypot(
+          (s11.x + s12.x) / 2 - (h23.x + h24.x) / 2,
+          (s11.y + s12.y) / 2 - (h23.y + h24.y) / 2,
+        ) || canvas.height * 0.25
+        const pulse = 0.78 + 0.22 * Math.sin(performance.now() / 260)
+        const radius = torsoPx * 0.42 * pulse
+        const color = STATUS_COLORS[primary.status]
+        ctx.beginPath()
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+        ctx.fillStyle = color + '22'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+        ctx.strokeStyle = color
+        ctx.lineWidth = isTablet ? 6 : 4
+        ctx.stroke()
+      }
+    }
+  }, [startLive])
 
   if (error) return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
@@ -228,22 +331,26 @@ export default function StudentClipMirror() {
     </main>
   )
 
+  // Guidance line for the setup overlay, mapped from the placement status.
+  const placementMessage = (() => {
+    switch (setupStatus) {
+      case 'no_person': return tp('noPerson')
+      case 'too_far': return tp('tooFar')
+      case 'too_close': return tp('tooClose')
+      case 'wrong_angle': return tp('wrongAngle', {
+        expected: clip?.camera_angle === 'dtl' ? tp('dtl') : tp('faceOn'),
+      })
+      case 'partial': return tp('partial')
+      case 'ok': return tp('ready')
+    }
+  })()
+
   return (
     <main className="min-h-screen bg-background flex flex-col md:flex-row overflow-hidden" style={{ height: '100dvh' }}>
-      {/* Phone restriction — show message instead of camera on small screens */}
-      <div className="flex md:hidden flex-col items-center justify-center flex-1 px-6 text-center gap-4">
-        <div className="w-16 h-16 rounded-md bg-paper-2 border border-rule flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-            <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-          </svg>
-        </div>
-        <p className="text-foreground font-semibold">{t('phoneRestrictionTitle')}</p>
-        <p className="text-muted-foreground text-sm max-w-xs">{t('phoneRestrictionDesc')}</p>
-        <Link href={`/student/clip/${clipId}`} className="text-ok hover:underline text-sm mt-2">{t('backToCheckpointFull')}</Link>
-      </div>
-
-      {/* Video area — hidden on phone */}
-      <div className="relative flex-1 bg-black overflow-hidden hidden md:block" style={{ minHeight: 0 }}>
+      {/* Video area. Phones are welcome now: the range has marked spots for
+          the device, and the phone UI is the big-type overlay below ("modo
+          rango") instead of the side panel. */}
+      <div className="relative flex-1 bg-black overflow-hidden block" style={{ minHeight: 0 }}>
         <video ref={videoRef} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} playsInline muted />
         <canvas ref={canvasRef} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
 
@@ -299,15 +406,68 @@ export default function StudentClipMirror() {
           </svg>
         </button>
 
+        {/* Setup overlay — the "colócate" guide. Non-blocking: auto-advances
+            after ~1.5s of solid placement, or "Empezar ya" skips it. */}
+        {phase === 'setup' && ready && (
+          <div className="absolute inset-0 z-20 flex items-end md:items-center justify-center pb-28 md:pb-0 pointer-events-none">
+            <div className="pointer-events-auto bg-background/85 backdrop-blur border border-border rounded-md px-6 py-5 max-w-sm mx-4 flex flex-col items-center text-center gap-2.5">
+              <p className="text-foreground font-semibold text-lg">{tp('setupTitle')}</p>
+              <p className="text-muted-foreground text-sm">{tp('setupHint')}</p>
+              <p className={`text-base md:text-lg font-semibold ${setupStatus === 'ok' ? 'text-ok' : 'text-warn'}`}>
+                {placementMessage}
+              </p>
+              <button
+                onClick={startLive}
+                className="min-h-[44px] px-4 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+              >
+                {tp('skip')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Big instruction overlay — the "modo rango" readout. Always on for
+            phones (no side panel there), and on any device in kiosk mode, so
+            the student can read it from meters away. */}
+        {phase === 'live' && poseDetected && checks.length > 0 && (
+          <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 max-w-[92%] ${kiosk ? 'flex' : 'flex md:hidden'}`}>
+            {(() => {
+              const primary = checks.find(c => c.status === 'bad') ?? checks.find(c => c.status === 'warn')
+              if (!primary) {
+                return (
+                  <div className="rounded-2xl px-6 py-3.5 text-center backdrop-blur bg-black/70 border-2 border-ok flex items-center gap-3">
+                    <span className="text-ok text-3xl leading-none">✓</span>
+                    <span className="text-white font-semibold text-xl md:text-2xl">{t('allGood')}</span>
+                  </div>
+                )
+              }
+              const hint = primary.direction !== 'center' ? ACTION_HINTS[primary.id]?.[primary.direction] ?? '' : ''
+              return (
+                <div
+                  className="rounded-2xl px-6 py-3.5 text-center backdrop-blur bg-black/70"
+                  style={{ border: `2px solid ${STATUS_COLORS[primary.status]}` }}
+                >
+                  <p className="text-white font-semibold text-lg md:text-xl leading-tight">{primary.label}</p>
+                  {hint && (
+                    <p className="font-bold text-2xl md:text-3xl leading-tight" style={{ color: STATUS_COLORS[primary.status] }}>
+                      {hint}
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
         {/* Visibility warning — top center, where clip name used to be */}
-        {poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
+        {phase === 'live' && poseDetected && expectedCount > 0 && detectedCount < expectedCount && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-warn/90 backdrop-blur rounded-md px-5 py-2.5 text-center">
             <p className="text-black text-sm md:text-base font-medium">{t('showBodyTitle')}</p>
             <p className="text-black/70 text-xs md:text-sm">{t('metricsVisible', { visible: detectedCount, total: expectedCount })}</p>
           </div>
         )}
 
-        {!poseDetected && ready && (
+        {phase === 'live' && !poseDetected && ready && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-background/80 backdrop-blur border border-warn/30 rounded-full px-5 py-2.5">
             <span className="text-warn text-sm md:text-base">{t('stepIntoFrame')}</span>
           </div>

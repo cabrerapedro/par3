@@ -197,7 +197,15 @@
       "switchToSignupPrompt": "¿Primera vez?",
       "switchToLoginPrompt": "¿Ya tienes cuenta?",
       "switchToSignup": "Crear cuenta",
-      "switchToLogin": "Iniciar sesión"
+      "switchToLogin": "Iniciar sesión",
+      "codeTitle": "Entra con tu código",
+      "codeSubtitle": "El código de acceso de tu perfil, sin contraseña.",
+      "codeLabel": "Código de acceso",
+      "codePlaceholder": "ABCD2345",
+      "codeHelp": "Lo encuentras (o lo creas) en tu perfil, en «Código de acceso».",
+      "codeCta": "Entrar",
+      "switchToCode": "Entrar con código en vez de contraseña",
+      "switchToPassword": "Entrar con correo y contraseña"
     },
     "student": {
       "tabCode": "Código",
@@ -233,7 +241,8 @@
       "otpInvalid": "Código incorrecto o expirado.",
       "otpVerifyFailed": "Error al verificar el código.",
       "emailRequired": "Email requerido",
-      "emailAndCodeRequired": "Email y código requeridos"
+      "emailAndCodeRequired": "Email y código requeridos",
+      "wrongInstructorCode": "Código incorrecto. Revísalo en tu perfil o entra con correo y contraseña."
     }
   },
   "instructor": {
@@ -300,7 +309,14 @@
       "saveCta": "Guardar cambios",
       "confirmSignOutPrompt": "¿Cerrar sesión?",
       "signOut": "Cerrar sesión",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "accessCodeLabel": "Código de acceso",
+      "accessCodeEmpty": "Todavía no tienes código.",
+      "accessCodeHelp": "Con este código entras sin contraseña desde cualquier dispositivo. Trátalo como una llave: si lo regeneras, el anterior deja de valer.",
+      "accessCodeGenerate": "Crear código",
+      "accessCodeRegenerate": "Regenerar código",
+      "accessCodeGenerating": "Generando…",
+      "accessCodeError": "No se pudo guardar el código. Comprueba que la base de datos está actualizada (schema.sql) e inténtalo de nuevo."
     },
     "students": {
       "backToStudents": "Mis alumnos",
@@ -714,7 +730,15 @@
         "retryFailed": "No se pudo reprocesar",
         "retryNoBaseline": "No se pudo construir la referencia. Vuelve a grabar el clip.",
         "lowDetection": "Solo detectamos al alumno en el {pct}% del vídeo. Vuelve a grabar con mejor encuadre.",
-        "pendingHint": "Este clip quedó sin terminar. Toca Reintentar procesamiento para calcularle la referencia."
+        "pendingHint": "Este clip quedó sin terminar. Toca Reintentar procesamiento para calcularle la referencia.",
+        "legacyBaseline": "Calibración antigua",
+        "legacyBaselineHint": "Este clip se calibró con la versión anterior de la medición. Sigue funcionando, pero si lo regrabas la comparación será más precisa e independiente de dónde se coloque la cámara.",
+        "sessionsHeader": "Intentos del alumno",
+        "sessionsEmpty": "Todavía no hay intentos de práctica de este ejercicio.",
+        "sessionsFeedbackHint": "¿La evaluación refleja lo que ves? Tu voto nos ayuda a calibrar el semáforo con tu criterio.",
+        "sessionMeta": "{duration} · {score}% dentro de su referencia",
+        "feedbackAgree": "Refleja",
+        "feedbackDisagree": "No refleja"
       },
       "annotate": {
         "title": "Revisar y anotar",
@@ -738,27 +762,12 @@
         "typePosition": "Postura",
         "typeSwing": "Swing",
         "save": "Guardar clip",
-        "savingUpload": "Subiendo vídeo…",
-        "savingInsert": "Guardando clip…",
-        "savingFrames": "Procesando frames… {pct}%",
-        "savingBaseline": "Calculando tu referencia…",
         "savingTitle": "Guardando tu clip",
-        "stepSave": "Guardando el vídeo",
-        "stepAnalyze": "Analizando la postura del alumno",
-        "stepReference": "Creando la referencia personal",
-        "savingReassure": "Esto pasa una sola vez por clip. Tarda unos segundos.",
+        "savingBackgroundNote": "Un momento. El vídeo se subirá y analizará en segundo plano: puedes seguir con la clase mientras tanto.",
         "saveErrorTitle": "No se pudo guardar el clip",
         "saveErrorReason": "{reason}",
         "saveErrorFriendly": "No se pudo guardar el clip. Revisa tu conexión y vuelve a intentar.",
         "annotationsSaveWarning": "Algunas anotaciones no se guardaron. Revisa el clip.",
-        "calibProblemTitle": "Este clip no quedó como referencia",
-        "calibProblemBody": "No se detectó bien el cuerpo del alumno, así que no se pudo calibrar. Vuelve a grabar con el alumno bien encuadrado (de pies a cabeza), o ve al perfil y reinténtalo desde ahí.",
-        "calibRerecord": "Volver a grabar",
-        "calibGoProfile": "Ir al perfil",
-        "angleMismatchTitle": "El ángulo no coincide",
-        "angleMismatchBody": "Has marcado este clip como «{chosen}», pero en el vídeo el alumno parece estar grabado en «{detected}». Si el ángulo es incorrecto, la referencia no será fiable.",
-        "angleMismatchUseDetected": "Cambiar a «{detected}»",
-        "angleMismatchKeep": "Mantener «{chosen}»",
         "discard": "Descartar",
         "discardConfirmTitle": "¿Descartar este clip?",
         "discardConfirmDescription": "Vas a perder el vídeo grabado y las anotaciones.",
@@ -774,6 +783,20 @@
         "lowDetection": "Solo detectamos al alumno en el {pct}% del vídeo. Vuelve a grabarlo con mejor encuadre.",
         "defaultPlanName": "Plan de aprendizaje"
       }
+    },
+    "sync": {
+      "uploading": "Subiendo vídeo… {pct}% · {mb} MB",
+      "processing": "Analizando movimiento… {pct}%",
+      "finalizing": "Creando la referencia…",
+      "errorNetwork": "No se pudo subir. No se ha perdido nada: reintenta cuando tengas mejor conexión.",
+      "retry": "Reintentar ahora",
+      "reviewAngle": "El vídeo parece grabado {detected}. Revisa el ángulo del clip para poder calibrarlo.",
+      "reviewCalibration": "No se pudo calibrar este clip. Revísalo para regrabarlo o reintentarlo.",
+      "reviewCta": "Revisar clip",
+      "dismiss": "Cerrar",
+      "done": "Referencia de «{name}» lista",
+      "angleFaceOn": "de frente",
+      "angleDtl": "de perfil"
     }
   },
   "student": {
@@ -939,9 +962,6 @@
       "errorCamera": "Error al iniciar la cámara.",
       "backFallback": "Volver",
       "backToCheckpoint": "← Volver",
-      "backToCheckpointFull": "← Volver al ejercicio",
-      "phoneRestrictionTitle": "Apoya el teléfono para verte entero",
-      "phoneRestrictionDesc": "El espejo necesita ver tu cuerpo completo mientras practicas. Apoya el teléfono de pie (o usa un iPad) a unos pasos, así la cámara te ve de pies a cabeza.",
       "flipCameraTitle": "Cambiar cámara",
       "kioskExit": "Salir de pantalla completa",
       "kioskEnter": "Pantalla completa",
@@ -952,6 +972,19 @@
       "skeletonShow": "Ver esqueleto",
       "skeletonHide": "Ocultar esqueleto",
       "allGood": "¡Vas bien! Sigue así."
+    },
+    "placement": {
+      "setupTitle": "Colócate",
+      "setupHint": "Deja el dispositivo en su marca del range y ponte en posición.",
+      "noPerson": "Ponte frente a la cámara, que se te vea entero",
+      "tooFar": "Acércate un poco a la cámara",
+      "tooClose": "Aléjate un poco de la cámara",
+      "wrongAngle": "Esta referencia es {expected}: gírate o recoloca el dispositivo",
+      "partial": "No te veo entero: ajusta el dispositivo hasta que entre todo el cuerpo",
+      "ready": "¡Perfecto! Empezamos…",
+      "skip": "Empezar ya",
+      "faceOn": "de frente",
+      "dtl": "de perfil"
     },
     "clip": {
       "backToJourney": "Mis ejercicios",

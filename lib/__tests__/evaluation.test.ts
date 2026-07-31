@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   calculateMetrics,
   METRICS_VERSION,
+  METRICS_BY_ANGLE,
+  METRIC_ZONES,
   baselineMetricsVersion,
   baselineMetricKeys,
   selectStableFrames,
@@ -11,6 +13,8 @@ import {
   aggregatePositionChecks,
   buildClipBaseline,
   isSwingBaseline,
+  zoneStatuses,
+  checkPlacement,
 } from '../baseline'
 import type { Baseline, Landmark, SwingBaseline } from '../types'
 
@@ -304,6 +308,80 @@ describe('aggregatePositionChecks', () => {
     const frames = [{ spine_angle: 30, knee_flex: 160 }]
     const checks = aggregatePositionChecks(frames, baseline, ['knee_flex'])
     expect(checks.map(c => c.id)).toEqual(['knee_flex'])
+  })
+})
+
+// ─── Body zones + placement assistant ───────────────────────────────────────
+
+describe('zone mapping', () => {
+  it('covers every metric of both camera angles', () => {
+    for (const angle of ['face_on', 'dtl'] as const) {
+      for (const metric of METRICS_BY_ANGLE[angle]) {
+        expect(METRIC_ZONES[metric], `zone for ${metric}`).toBeDefined()
+      }
+    }
+  })
+})
+
+describe('zoneStatuses', () => {
+  it('keeps the worst status per zone and leaves unmeasured zones out', () => {
+    const zones = zoneStatuses([
+      { id: 'hip_hinge', status: 'ok' },
+      { id: 'hip_sway', status: 'bad' },   // same zone, worse → wins
+      { id: 'knee_flex', status: 'warn' },
+    ])
+    expect(zones.hips).toBe('bad')
+    expect(zones.knees).toBe('warn')
+    expect(zones.head).toBeUndefined()     // never green-flag the unmeasured
+  })
+})
+
+describe('checkPlacement', () => {
+  const expected = METRICS_BY_ANGLE.face_on
+
+  it('reports no_person without frames', () => {
+    expect(checkPlacement([], 'face_on', expected)).toBe('no_person')
+  })
+
+  it('reports too_far / too_close from the torso size', () => {
+    const far = Array.from({ length: 6 }, () => pose({ scale: 0.3 }))   // torso 0.09
+    const close = Array.from({ length: 6 }, () => pose({ scale: 1.6 })) // torso 0.48
+    expect(checkPlacement(far, 'face_on', expected)).toBe('too_far')
+    expect(checkPlacement(close, 'face_on', expected)).toBe('too_close')
+  })
+
+  it('reports wrong_angle on a confident view mismatch', () => {
+    const dtlFrames = Array.from({ length: 6 }, () => pose({ view: 'dtl' }))
+    expect(checkPlacement(dtlFrames, 'face_on', METRICS_BY_ANGLE.face_on)).toBe('wrong_angle')
+  })
+
+  it('reports partial when an expected metric is not measurable', () => {
+    const frames = Array.from({ length: 6 }, () => pose())
+    const last = frames[frames.length - 1]
+    last[13] = { ...last[13], visibility: 0.1 } // elbow lost → arm_angle missing
+    expect(checkPlacement(frames, 'face_on', expected)).toBe('partial')
+  })
+
+  it('reports ok for a well-placed full body', () => {
+    const frames = Array.from({ length: 6 }, () => pose())
+    expect(checkPlacement(frames, 'face_on', expected)).toBe('ok')
+  })
+})
+
+// ─── Frame payload compaction ───────────────────────────────────────────────
+
+describe('compactLandmarks / compactMetrics', () => {
+  it('rounds coordinates to 4 decimals and visibility to 3', async () => {
+    const { compactLandmarks, compactMetrics } = await import('../compact')
+    const [lm] = compactLandmarks([{ x: 0.123456789, y: 0.987654321, z: -0.000012345, visibility: 0.876543 }])
+    expect(lm).toEqual({ x: 0.1235, y: 0.9877, z: -0, visibility: 0.877 })
+    expect(compactMetrics({ spine_angle: 31.4159265 })).toEqual({ spine_angle: 31.4159 })
+  })
+
+  it('omits visibility when absent instead of inventing one', async () => {
+    const { compactLandmarks } = await import('../compact')
+    const [lm] = compactLandmarks([{ x: 0.5, y: 0.5, z: 0 }])
+    expect('visibility' in lm).toBe(false)
   })
 })
 

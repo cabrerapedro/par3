@@ -15,6 +15,8 @@
 // single failure rather than 50.
 
 import { supabase } from './supabase'
+import { retry, sbCall } from './net'
+import { compactLandmarks, compactMetrics } from './compact'
 import type { Landmark } from './types'
 
 const DEFAULT_BATCH_SIZE = 100
@@ -66,12 +68,21 @@ async function batchInsert(
       [parentColumn]: parentId,
       frame_index: f.frame_index,
       timestamp_ms: f.timestamp_ms,
-      landmarks: f.landmarks,
-      metrics: f.metrics ?? null,
+      landmarks: compactLandmarks(f.landmarks),
+      metrics: f.metrics ? compactMetrics(f.metrics) : null,
     }))
 
-    const { error } = await supabase.from(table).insert(slice)
-    if (error) failures.push({ batch: i / batchSize, error })
+    // Per-batch timeout + retry: on a flaky hotspot a single stalled fetch
+    // must not hang the whole save, and a transient drop shouldn't lose the
+    // batch.
+    try {
+      await retry(
+        () => sbCall(supabase.from(table).insert(slice), `insert ${table} batch`),
+        { tries: 3, baseDelayMs: 800, label: `${table} batch ${i / batchSize}` },
+      )
+    } catch (error) {
+      failures.push({ batch: i / batchSize, error })
+    }
   }
 
   if (failures.length > 0) {

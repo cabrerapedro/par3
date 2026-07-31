@@ -62,6 +62,8 @@ export interface Instructor {
   name: string
   email: string
   preferred_locale?: Locale
+  /** Passwordless login code (8 chars). Null until generated from the profile. */
+  access_code?: string | null
   created_at: string
 }
 
@@ -203,5 +205,10 @@ export interface PracticeSession {
   duration_seconds: number
   results: Record<string, MetricResult>
   overall_score: number
+  /**
+   * Instructor's verdict on this evaluation ("¿refleja lo que ves?") — the
+   * calibration label for the measurement-validation loop.
+   */
+  instructor_feedback?: 'agree' | 'disagree' | null
   created_at: string
 }

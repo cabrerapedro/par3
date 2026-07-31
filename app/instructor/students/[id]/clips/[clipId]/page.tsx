@@ -10,14 +10,14 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import type { Clip } from '@/lib/classes'
 import type { Stroke } from '@/components/AnnotationCanvas'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
-import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio } from '@/lib/baseline'
+import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio, baselineMetricsVersion } from '@/lib/baseline'
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,14 @@ interface AnnotationRow {
   snapshot_url: string | null
 }
 
+interface SessionRow {
+  id: string
+  date: string
+  duration_seconds: number
+  overall_score: number
+  instructor_feedback?: 'agree' | 'disagree' | null
+}
+
 function formatTime(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -55,8 +63,10 @@ export default function ClipDetailPage() {
   const clipId = params.clipId as string
   const { instructor, loading: authLoading } = useAuth()
 
+  const locale = useLocale()
   const [clip, setClip] = useState<Clip | null>(null)
   const [annotations, setAnnotations] = useState<AnnotationRow[]>([])
+  const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -90,13 +100,18 @@ export default function ClipDetailPage() {
   async function load() {
     setLoading(true)
     setError(null)
-    const [{ data: c, error: cErr }, { data: a }] = await Promise.all([
+    const [{ data: c, error: cErr }, { data: a }, { data: s }] = await Promise.all([
       supabase.from('clips').select('*').eq('id', clipId).single(),
       supabase
         .from('clip_annotations')
         .select('*')
         .eq('clip_id', clipId)
         .order('frame_timestamp_ms', { ascending: true }),
+      supabase
+        .from('practice_sessions')
+        .select('*')
+        .eq('clip_id', clipId)
+        .order('date', { ascending: false }),
     ])
     if (cErr || !c) {
       setError(t('loadError'))
@@ -105,7 +120,26 @@ export default function ClipDetailPage() {
     }
     setClip(c as Clip)
     setAnnotations((a ?? []) as AnnotationRow[])
+    setSessions((s ?? []) as SessionRow[])
     setLoading(false)
+  }
+
+  // The instructor's verdict on an evaluation ("¿refleja lo que ves?").
+  // Tapping the active choice again clears it. Optimistic UI with revert —
+  // the write can fail if schema.sql hasn't been re-run (missing column).
+  async function setSessionFeedback(sessionId: string, value: 'agree' | 'disagree') {
+    const prev = sessions
+    const current = prev.find((s) => s.id === sessionId)?.instructor_feedback
+    const next = current === value ? null : value
+    setSessions(prev.map((s) => (s.id === sessionId ? { ...s, instructor_feedback: next } : s)))
+    const { error: fbErr } = await supabase
+      .from('practice_sessions')
+      .update({ instructor_feedback: next })
+      .eq('id', sessionId)
+    if (fbErr) {
+      console.error('instructor_feedback update failed (schema.sql re-run needed?)', fbErr)
+      setSessions(prev)
+    }
   }
 
   function seekTo(ms: number) {
@@ -148,9 +182,14 @@ export default function ClipDetailPage() {
         return
       }
 
-      // 4. Persist frames (best-effort) + rebuild baseline.
+      // 4. Persist frames (best-effort) + rebuild baseline. A recalibration
+      // re-inserts the whole frame stream, so clear the previous one first —
+      // otherwise every retry duplicates rows in the ML corpus.
       if (frames.length > 0) {
-        try { await insertClipFrames(c.id, frames) } catch {}
+        try {
+          await supabase.from('clip_frames').delete().eq('clip_id', c.id)
+          await insertClipFrames(c.id, frames)
+        } catch {}
       }
       const selectedMetrics = c.selected_metrics?.length
         ? c.selected_metrics
@@ -312,6 +351,19 @@ export default function ClipDetailPage() {
               {t('baselineMetricsCount', { count: baselineMetricKeys.length })}
             </span>
           )}
+          {/* Calibrated before the v2 (body-normalized) metrics — still works,
+              but re-recording upgrades its precision. */}
+          {clip.status === 'calibrated' && clip.baseline != null && baselineMetricsVersion(clip.baseline) < 2 && (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-warn/10 text-warn border border-warn/30"
+              title={t('legacyBaselineHint')}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 8v4M12 16h.01" /><circle cx="12" cy="12" r="9" />
+              </svg>
+              {t('legacyBaseline')}
+            </span>
+          )}
           {typeof clip.detection_ratio === 'number' && (
             <span
               className={cn(
@@ -441,6 +493,82 @@ export default function ClipDetailPage() {
                         />
                       )}
                     </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Student practice attempts — the Saturday review surface. The 👍/👎
+            is the instructor's verdict on each evaluation; those labels are
+            what will let us calibrate the traffic light against the coach's
+            eye (measurement-validation loop). */}
+        <section>
+          <h2 className="text-sm font-semibold text-foreground mb-1">
+            {t('sessionsHeader')}
+            {sessions.length > 0 && <span className="text-muted-foreground font-normal"> ({sessions.length})</span>}
+          </h2>
+          {sessions.length > 0 && (
+            <p className="text-xs text-muted-foreground mb-3">{t('sessionsFeedbackHint')}</p>
+          )}
+
+          {sessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('sessionsEmpty')}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {sessions.map((s) => (
+                <li key={s.id} className="bg-card border border-border rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-[10rem]">
+                    <p className="text-sm text-foreground font-medium capitalize">
+                      {new Date(s.date).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES', {
+                        weekday: 'long', day: 'numeric', month: 'short',
+                      })}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t('sessionMeta', {
+                        duration: s.duration_seconds < 60
+                          ? `${s.duration_seconds}s`
+                          : `${Math.floor(s.duration_seconds / 60)}m ${s.duration_seconds % 60}s`,
+                        score: s.overall_score,
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSessionFeedback(s.id, 'agree')}
+                      aria-pressed={s.instructor_feedback === 'agree'}
+                      title={t('feedbackAgree')}
+                      className={cn(
+                        'h-10 px-3 rounded-lg border text-sm font-medium transition-colors inline-flex items-center gap-1.5',
+                        s.instructor_feedback === 'agree'
+                          ? 'bg-ok/15 text-ok border-ok/40'
+                          : 'bg-secondary text-muted-foreground border-transparent hover:text-foreground',
+                      )}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M7 10v12" /><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                      </svg>
+                      {t('feedbackAgree')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionFeedback(s.id, 'disagree')}
+                      aria-pressed={s.instructor_feedback === 'disagree'}
+                      title={t('feedbackDisagree')}
+                      className={cn(
+                        'h-10 px-3 rounded-lg border text-sm font-medium transition-colors inline-flex items-center gap-1.5',
+                        s.instructor_feedback === 'disagree'
+                          ? 'bg-bad/15 text-bad border-bad/40'
+                          : 'bg-secondary text-muted-foreground border-transparent hover:text-foreground',
+                      )}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 14V2" /><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+                      </svg>
+                      {t('feedbackDisagree')}
+                    </button>
                   </div>
                 </li>
               ))}

@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { InstructorShell } from '@/components/InstructorShell'
+import { ClipSyncIndicator } from '@/components/ClipSyncIndicator'
 
 // Top-level sections get the nav shell. The student detail page (/students/{id})
 // also gets it so the sidebar stays put — but NOT the new/import forms or the
@@ -26,6 +27,13 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
   const pathname = usePathname()
   const useShell = isStudentDetail(pathname) || SHELL_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
 
-  if (!useShell) return <>{children}</>
-  return <InstructorShell>{children}</InstructorShell>
+  // The sync pill lives at the layout level (not the shell) so background
+  // clip saves stay visible — and resumable — on every instructor screen,
+  // including the bare capture/detail pages.
+  return (
+    <>
+      {useShell ? <InstructorShell>{children}</InstructorShell> : children}
+      <ClipSyncIndicator />
+    </>
+  )
 }
