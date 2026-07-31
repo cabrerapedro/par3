@@ -76,6 +76,14 @@ export default function ClipAnnotatePage() {
   // of the student profile.
   const leavingRef = useRef(false)
 
+  // Save is resumable: if it stops halfway (annotation warning, network error)
+  // the instructor's natural move is to press "Guardar" again. Without these,
+  // that second press inserted a SECOND clip row, queued a second upload and
+  // duplicated the annotations. We remember what already landed and reuse it.
+  const createdClipRef = useRef<{ id: string; videoPath: string } | null>(null)
+  const persistedAnnotationsRef = useRef<Set<string>>(new Set())
+  const enqueuedRef = useRef(false)
+
   // ---- Guard: no recording → bounce back to /record ---------------
   // Wait for `hydrated` so we don't bounce while the layout is still reading
   // the clip back from IndexedDB after a re-mount.
@@ -382,90 +390,108 @@ export default function ClipAnnotatePage() {
     const selectedMetrics = METRICS_BY_ANGLE[angle] ?? []
 
     try {
-      // 1. Class for today (creates one if 24h since the last).
       setSaveStage('saving')
-      const cls = await withTimeout(
-        getOrCreateTodayClass(studentId, instructor.id),
-        15_000,
-        'create class',
-      )
 
-      // 2. Decide the video's storage path now — the actual upload happens in
-      // the background queue (resumable TUS), so a slow hotspot never blocks
-      // the instructor mid-lesson. Path namespaced by student + class so we
-      // don't collide and a single cascading delete cleans up.
-      const ext = recorded.mime.includes('webm') ? 'webm' : recorded.mime.includes('mp4') ? 'mp4' : 'bin'
-      const videoPath = `${studentId}/${cls.id}/${crypto.randomUUID()}.${ext}`
+      // 1-3. Create the clip row ONCE. On a retry after a partial save we
+      // reuse the row created the first time instead of inserting a duplicate.
+      let clipId: string
+      let videoPath: string
+      if (createdClipRef.current) {
+        ({ id: clipId, videoPath } = createdClipRef.current)
+      } else {
+        // 1. Class for today (creates one if 24h since the last).
+        const cls = await withTimeout(
+          getOrCreateTodayClass(studentId, instructor.id),
+          15_000,
+          'create class',
+        )
 
-      // 3. Insert the clip row (video_url arrives when the upload finishes),
-      // linked to the step it was recorded into ("abre el paso y graba"). An
-      // ad-hoc clip (no step) gets a fresh step created and linked AFTER the
-      // insert succeeds (step 3b) — so a failed save can never leave an
-      // orphan step/plan behind on retry.
-      const { data: clip, error: clipErr } = await withTimeout(
-        Promise.resolve(
-          supabase
-            .from('clips')
-            .insert({
-              class_id: cls.id,
-              journey_item_id: recorded.journeyItemId ?? null,
-              student_id: studentId,
-              instructor_id: instructor.id,
-              name: finalName,
-              camera_angle: angle,
-              clip_type: clipType,
-              video_url: null,
-              selected_metrics: selectedMetrics,
-              status: 'pending',
-            })
-            .select()
-            .single(),
-        ),
-        20_000,
-        'insert clip',
-      )
-      if (clipErr || !clip) throw clipErr ?? new Error('Failed to insert clip')
+        // 2. Decide the video's storage path now — the actual upload happens
+        // in the background queue (resumable TUS), so a slow hotspot never
+        // blocks the instructor mid-lesson. Path namespaced by student +
+        // class so we don't collide and a single cascading delete cleans up.
+        const ext = recorded.mime.includes('webm') ? 'webm' : recorded.mime.includes('mp4') ? 'mp4' : 'bin'
+        videoPath = `${studentId}/${cls.id}/${crypto.randomUUID()}.${ext}`
 
-      // 3b. Ad-hoc recording (no step chosen): now that the clip exists, append a
-      // step to the student's last plan and link it. Best-effort — a link failure
-      // leaves the clip in the Clips tab rather than blocking the save.
-      if (!recorded.journeyItemId) {
-        const stepId = await ensureAdHocStep(studentId, instructor.id, finalName, t('defaultPlanName'))
-        if (stepId) await supabase.from('clips').update({ journey_item_id: stepId }).eq('id', clip.id)
+        // 3. Insert the clip row (video_url arrives when the upload finishes),
+        // linked to the step it was recorded into ("abre el paso y graba"). An
+        // ad-hoc clip (no step) gets a fresh step created and linked AFTER the
+        // insert succeeds (step 3b) — so a failed save can never leave an
+        // orphan step/plan behind on retry.
+        const { data: clip, error: clipErr } = await withTimeout(
+          Promise.resolve(
+            supabase
+              .from('clips')
+              .insert({
+                class_id: cls.id,
+                journey_item_id: recorded.journeyItemId ?? null,
+                student_id: studentId,
+                instructor_id: instructor.id,
+                name: finalName,
+                camera_angle: angle,
+                clip_type: clipType,
+                video_url: null,
+                selected_metrics: selectedMetrics,
+                status: 'pending',
+              })
+              .select()
+              .single(),
+          ),
+          20_000,
+          'insert clip',
+        )
+        if (clipErr || !clip) throw clipErr ?? new Error('Failed to insert clip')
+        clipId = clip.id
+        createdClipRef.current = { id: clipId, videoPath }
+
+        // 3b. Ad-hoc recording (no step chosen): now that the clip exists,
+        // append a step to the student's last plan and link it. Best-effort —
+        // a link failure leaves the clip in the Clips tab rather than
+        // blocking the save.
+        if (!recorded.journeyItemId) {
+          const stepId = await ensureAdHocStep(studentId, instructor.id, finalName, t('defaultPlanName'))
+          if (stepId) await supabase.from('clips').update({ journey_item_id: stepId }).eq('id', clipId)
+        }
       }
 
-      // 4. Persist annotations one by one. Each is best-effort; we don't
-      // want a flaky single audio upload to bury the whole clip. But if any
-      // annotation's core row is lost, the instructor must be told — a clip
-      // that "saved" while dropping drawings/voice notes is worse than a warning.
+      // 4. Persist annotations one by one, skipping any that already landed on
+      // a previous attempt. Each is best-effort; we don't want a flaky single
+      // audio upload to bury the whole clip. But if any annotation's core row
+      // is lost, the instructor must be told — a clip that "saved" while
+      // dropping drawings/voice notes is worse than a warning.
       let annotationsFailed = false
       for (const a of allAnnotations) {
+        if (persistedAnnotationsRef.current.has(a.id)) continue
         try {
-          const ok = await persistAnnotation(clip.id, a)
-          if (!ok) annotationsFailed = true
+          const ok = await persistAnnotation(clipId, a)
+          if (ok) persistedAnnotationsRef.current.add(a.id)
+          else annotationsFailed = true
         } catch {
           annotationsFailed = true
         }
       }
 
       // 5. Hand the heavy work (resumable video upload, MediaPipe analysis,
-      // baseline) to the background queue. The blob is persisted in IndexedDB
-      // by the queue, so it survives a relaunch; the sync pill in the
-      // instructor layout shows progress and surfaces anything that needs
-      // review (angle mismatch, failed calibration).
-      await enqueueClipSave({
-        clipId: clip.id,
-        studentId,
-        clipName: finalName,
-        blob: recorded.blob,
-        mime: recorded.mime,
-        durationMs: recorded.durationMs,
-        cameraAngle: angle,
-        clipType,
-        selectedMetrics,
-        videoPath,
-        createdAt: Date.now(),
-      })
+      // baseline) to the background queue — but only once. The blob is
+      // persisted in IndexedDB by the queue, so it survives a relaunch; the
+      // sync pill in the instructor layout shows progress and surfaces
+      // anything that needs review (angle mismatch, failed calibration).
+      if (!enqueuedRef.current) {
+        await enqueueClipSave({
+          clipId,
+          studentId,
+          clipName: finalName,
+          blob: recorded.blob,
+          mime: recorded.mime,
+          durationMs: recorded.durationMs,
+          cameraAngle: angle,
+          clipType,
+          selectedMetrics,
+          videoPath,
+          createdAt: Date.now(),
+        })
+        enqueuedRef.current = true
+      }
 
       // 6. If any annotation was lost, don't slip away silently — the clip is
       // saved, but the instructor's drawings/voice notes may be incomplete.

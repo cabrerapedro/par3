@@ -180,8 +180,15 @@ export default function StudentJourney() {
           <h1 className="font-display font-semibold text-2xl md:text-[40px] leading-tight">{t('title')}</h1>
         </div>
 
-        {/* Optional email — save your access so you can sign in without the code */}
-        {((!student.email && !emailDismissed) || emailDone) && (
+        {/* Optional email capture — HIDDEN for the pilot.
+            It promised "sign in by email instead of the code", but the whole
+            email path is currently broken end to end: `students` has no anon
+            UPDATE policy (so saving always errored, in the student's face, on
+            their home screen) and /api/student/send-otp builds its client with
+            the anon key, so it never finds the student and silently claims to
+            have sent a code. Re-enable together with that fix — see ROADMAP.
+            The 6-char code login is unaffected and remains the way in. */}
+        {false && ((!student?.email && !emailDismissed) || emailDone) && (
           <div className="mb-8 border border-rule bg-paper-2/40 p-4 md:p-5">
             {emailDone ? (
               <p className="text-sm text-ok flex items-center gap-2">

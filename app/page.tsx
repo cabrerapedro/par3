@@ -714,9 +714,8 @@ function Footer() {
       <div className="mx-auto max-w-[1180px] px-6 md:px-8 flex flex-col md:flex-row justify-between items-start md:items-baseline gap-6">
         <Wordmark size="sm" />
         <div className="flex gap-8">
-          <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Contacto</a>
-          <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Privacidad</a>
-          <a href="#" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Términos</a>
+          <a href="mailto:hola@forat.golf" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Contacto</a>
+          <Link href="/privacidad" className="text-xs text-ink-mute hover:text-ink-soft transition-colors">Privacidad</Link>
         </div>
         <span className="small-caps font-mono text-[11px] text-ink-mute inline-flex items-center gap-2">
           <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden className="shrink-0">

@@ -132,9 +132,17 @@ export default function ClipDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-3">
-                <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
-                  {t('statusCalibrated')}
-                </Badge>
+                {/* Tell the truth: a clip still uploading/being analyzed used
+                    to announce itself as "Calibrado" to the student. */}
+                {clip.status === 'calibrated' ? (
+                  <Badge variant="outline" className="text-ok border-ok/20 bg-ok/10 text-xs">
+                    {t('statusCalibrated')}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-warn border-warn/20 bg-warn/10 text-xs">
+                    {t('statusPreparing')}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-muted-foreground border-border text-xs">
                   {clip.camera_angle === 'face_on' ? t('angleFaceOn') : t('angleDtl')}
                 </Badge>
@@ -170,6 +178,15 @@ export default function ClipDetail() {
             )}
           </div>
         </div>
+
+        {/* Video still uploading from the instructor's iPad — explain the
+            blank instead of rendering nothing. */}
+        {!clip.video_url && (
+          <div className="mb-6 bg-paper-2 border border-rule rounded-md px-4 py-4">
+            <p className="text-foreground text-sm font-medium">{t('videoPreparingTitle')}</p>
+            <p className="text-muted-foreground text-xs mt-1">{t('videoPreparingHint')}</p>
+          </div>
+        )}
 
         {/* Reference video — full width */}
         {clip.video_url && (

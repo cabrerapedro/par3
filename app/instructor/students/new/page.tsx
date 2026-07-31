@@ -22,6 +22,7 @@ export default function NewStudent() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [consent, setConsent] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -97,6 +98,25 @@ export default function NewStudent() {
                 <p className="text-muted-foreground/70 text-xs">{t('emailOptionalHint')}</p>
               </div>
 
+              {/* Recording consent. The app films students — sometimes minors —
+                  so the instructor confirms they have permission BEFORE the
+                  profile exists. Deliberately a blocking checkbox, not fine
+                  print: it's the instructor who obtains the consent in person. */}
+              <label className="flex items-start gap-3 rounded-md border border-rule bg-paper-2/50 px-3.5 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={e => setConsent(e.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                />
+                <span className="text-xs text-ink-soft leading-snug">
+                  {t('consentLabel')}{' '}
+                  <Link href="/privacidad" target="_blank" className="text-primary hover:underline underline-offset-2">
+                    {t('consentPrivacyLink')}
+                  </Link>
+                </span>
+              </label>
+
               {error && (
                 <div className="text-bad text-sm bg-bad/10 border border-bad/20 rounded-xl px-4 py-3 leading-snug">
                   {error}
@@ -105,7 +125,7 @@ export default function NewStudent() {
 
               <button
                 type="submit"
-                disabled={loading || !name.trim() || (email.trim() !== '' && !email.includes('@'))}
+                disabled={loading || !consent || !name.trim() || (email.trim() !== '' && !email.includes('@'))}
                 className="h-12 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-85 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
               >
                 {loading ? t('creating') : t('createCta')}

@@ -325,7 +325,7 @@
       "namePlaceholder": "Nombre del alumno",
       "emailLabel": "Correo",
       "emailOptional": "(opcional)",
-      "emailOptionalHint": "Opcional. Con un correo, el alumno puede entrar sin el código. También puede añadirlo él mismo más tarde.",
+      "emailOptionalHint": "Opcional. Sirve para que puedas contactar con el alumno; para entrar en la app usa siempre su código.",
       "emailPlaceholder": "alumno@correo.com",
       "accessTitle": "Tu acceso",
       "accessStepWeb": "Entra en esta página web",
@@ -420,7 +420,9 @@
       "waReady": "Con WhatsApp",
       "tabPlan": "Plan de aprendizaje",
       "tabClips": "Clips",
-      "recordCta": "Grabar"
+      "recordCta": "Grabar",
+      "consentLabel": "Confirmo que tengo permiso del alumno (o de su padre, madre o tutor si es menor de 14 años) para grabarle y tratar sus datos.",
+      "consentPrivacyLink": "Ver aviso de privacidad"
     },
     "contacts": {
       "importLink": "Importar",
@@ -737,7 +739,9 @@
         "sessionsFeedbackHint": "¿La evaluación refleja lo que ves? Tu voto nos ayuda a calibrar el semáforo con tu criterio.",
         "sessionMeta": "{duration} · {score}% dentro de su referencia",
         "feedbackAgree": "Refleja",
-        "feedbackDisagree": "No refleja"
+        "feedbackDisagree": "No refleja",
+        "awaitingUploadTitle": "El vídeo aún se está subiendo",
+        "awaitingUploadHint": "La grabación está guardada en el iPad donde la hiciste y se subirá sola cuando haya conexión. Abre la app en ese iPad para que continúe."
       },
       "annotate": {
         "title": "Revisar y anotar",
@@ -795,7 +799,8 @@
       "dismiss": "Cerrar",
       "done": "Referencia de «{name}» lista",
       "angleFaceOn": "de frente",
-      "angleDtl": "de perfil"
+      "angleDtl": "de perfil",
+      "stuckHint": "No se pudo subir tras varios intentos. El vídeo sigue guardado en este iPad; los demás clips continúan subiendo."
     }
   },
   "student": {
@@ -935,7 +940,8 @@
       "recordAgain": "Volver a grabar",
       "viewCheckpoint": "Ver ejercicio",
       "saveFailed": "No se pudo guardar tu práctica. Vuelve a intentar.",
-      "mediaPipeStuck": "MediaPipe se quedó atascado. Recarga la página e intenta de nuevo."
+      "mediaPipeStuck": "MediaPipe se quedó atascado. Recarga la página e intenta de nuevo.",
+      "saveFailedKeepResults": "Tus resultados de abajo son correctos, pero no se han podido guardar en tu historial. Puedes volver a grabar cuando tengas mejor conexión."
     },
     "mirror": {
       "statusOk": "Postura correcta",
@@ -1017,7 +1023,10 @@
       "snapshotAlt": "Foto con la marca de tu instructor",
       "annotationsCount": "{count, plural, one {# nota} other {# notas}}",
       "hideReference": "Ocultar referencia",
-      "showReference": "Mostrar referencia"
+      "showReference": "Mostrar referencia",
+      "statusPreparing": "Preparando",
+      "videoPreparingTitle": "Tu instructor aún está subiendo este vídeo",
+      "videoPreparingHint": "Aparecerá aquí en cuanto termine. Puedes volver en un rato."
     },
     "clipHistory": {
       "loadingError": "Sin sesiones todavía",

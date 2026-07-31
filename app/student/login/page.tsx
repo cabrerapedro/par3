@@ -8,6 +8,10 @@ import { useAuth } from '@/lib/auth'
 import { Input } from '@/components/ui/input'
 import { Wordmark } from '@/components/Wordmark'
 
+// Kill switch for the email/OTP sign-in path. See the comment on the tab bar
+// below: the server route is broken and silently lies about sending the code.
+const EMAIL_LOGIN_ENABLED = false
+
 export default function StudentLoginPage() {
   return (
     <Suspense fallback={
@@ -159,20 +163,27 @@ function StudentLogin() {
       </div>
 
       <div className="w-full max-w-sm border border-rule bg-paper-2">
-        <div className="flex border-b border-rule">
-          <button
-            onClick={() => switchTab('code')}
-            className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'code' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
-          >
-            {t('tabCode')}
-          </button>
-          <button
-            onClick={() => switchTab('email')}
-            className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'email' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
-          >
-            {t('tabEmail')}
-          </button>
-        </div>
+        {/* The email tab is HIDDEN for the pilot: /api/student/send-otp builds
+            its Supabase client with the anon key, so since the July RLS
+            hardening it never finds the student and answers "sent" for a mail
+            that was never sent (the student then waits for a code forever).
+            Restore the tabs when that route is fixed — see ROADMAP. */}
+        {EMAIL_LOGIN_ENABLED && (
+          <div className="flex border-b border-rule">
+            <button
+              onClick={() => switchTab('code')}
+              className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'code' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
+            >
+              {t('tabCode')}
+            </button>
+            <button
+              onClick={() => switchTab('email')}
+              className={`flex-1 py-3.5 text-sm font-medium small-caps transition-colors ${tab === 'email' ? 'text-ink border-b-2 border-primary -mb-px' : 'text-ink-mute hover:text-ink'}`}
+            >
+              {t('tabEmail')}
+            </button>
+          </div>
+        )}
 
         <div className="px-7 py-6">
           {tab === 'code' ? (

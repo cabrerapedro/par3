@@ -382,6 +382,16 @@ export default function ClipDetailPage() {
           )}
         </div>
 
+        {/* Clip whose video never finished uploading. The recording is NOT
+            lost — it waits in the device's upload queue — but without this the
+            clip looks silently dead (no video, no banner, no action). */}
+        {clip.status === 'pending' && !clip.video_url && (
+          <div className="bg-warn/10 border border-warn/30 rounded-xl px-4 py-3">
+            <p className="text-sm font-medium text-foreground">{t('awaitingUploadTitle')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('awaitingUploadHint')}</p>
+          </div>
+        )}
+
         {/* Pending-state recovery banner — H7 fix. Shown when a clip's save
             was interrupted (no baseline yet) but the video did upload. */}
         {clip.status === 'pending' && clip.video_url && (

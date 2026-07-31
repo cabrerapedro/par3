@@ -50,7 +50,16 @@ export interface QueuedClipSave {
   /** Step checkpoint: video confirmed in storage + clip row updated. */
   videoUploaded?: boolean
   createdAt: number
+  /** Consecutive failures for this job. Drives the head-of-line release. */
+  attempts?: number
 }
+
+// After this many consecutive failures a job stops holding up the queue: it
+// goes to the BACK so the rest of the class still uploads. Without this, one
+// deterministically-broken clip (corrupt blob, MediaPipe choking on that one
+// video) blocks every later clip of the same lesson — the instructor loses a
+// whole session's recordings without being told.
+const MAX_ATTEMPTS_BEFORE_DEFER = 3
 
 export type ReviewReason = 'angle_mismatch' | 'calibration_failed'
 
@@ -78,10 +87,16 @@ export interface ClipQueueState {
   } | null
   /** Last finished clip — brief "listo ✓" flash, self-clears. */
   done: { clipName: string } | null
+  /**
+   * Jobs that failed repeatedly and were moved to the back of the queue. They
+   * are NOT lost (the video still sits in IndexedDB) but they need attention,
+   * so the pill keeps saying so instead of failing silently.
+   */
+  stuck: { clipId: string; studentId: string; clipName: string }[]
 }
 
 const INITIAL_STATE: ClipQueueState = {
-  active: null, pendingCount: 0, error: null, review: null, done: null,
+  active: null, pendingCount: 0, error: null, review: null, done: null, stuck: [],
 }
 
 // ---------- Tiny external store (for useSyncExternalStore) ----------
@@ -109,6 +124,11 @@ export function getClipQueueServerState(): ClipQueueState {
 
 export function dismissClipQueueNotice() {
   setState({ review: null, done: null, error: state.error })
+}
+
+/** Dismiss one stuck-job notice (the job itself stays queued in IndexedDB). */
+export function dismissStuckClip(clipId: string) {
+  setState({ stuck: state.stuck.filter((s) => s.clipId !== clipId) })
 }
 
 // ---------- IndexedDB persistence ----------
@@ -191,32 +211,65 @@ export function resumeClipQueue(): void {
   void processQueue()
 }
 
-/** Manual retry after a network failure. */
+/** Manual retry after a network failure — also un-sticks deferred jobs. */
 export function retryClipQueue(): void {
   setState({ error: null })
-  void processQueue()
+  void processQueue({ resetAttempts: true })
 }
 
-async function processQueue(): Promise<void> {
+async function processQueue(opts: { resetAttempts?: boolean } = {}): Promise<void> {
   if (running) return
   running = true
   try {
+    if (opts.resetAttempts) {
+      // A manual retry (usually "the network is back now") gives every
+      // deferred job a fresh set of attempts.
+      for (const job of await idbAll()) {
+        if (job.attempts) await idbPut({ ...job, attempts: 0 })
+      }
+      setState({ stuck: [] })
+    }
+
+    // Jobs deferred during THIS pass — skipped so we don't spin on them.
+    const deferred = new Set<string>()
+
     for (;;) {
       const items = await idbAll()
-      setState({ pendingCount: Math.max(0, items.length - 1) })
-      const item = items[0]
+      const queue = items.filter((i) => !deferred.has(i.clipId))
+      setState({ pendingCount: Math.max(0, queue.length - 1) })
+      const item = queue[0]
       if (!item) break
 
       try {
         await processItem(item)
         await idbDelete(item.clipId)
       } catch (e) {
-        console.error('[clip-queue] job failed, will retry', item.clipId, e)
+        const attempts = (item.attempts ?? 0) + 1
+        console.error(`[clip-queue] job failed (attempt ${attempts})`, item.clipId, e)
+        // Keep the video: only the attempt counter changes.
+        await idbPut({ ...item, attempts })
+
+        if (attempts >= MAX_ATTEMPTS_BEFORE_DEFER) {
+          // Stop holding up the rest of the class. The job stays in IndexedDB
+          // (nothing is lost) and is surfaced as "stuck" so the instructor
+          // knows this clip needs attention.
+          deferred.add(item.clipId)
+          setState({
+            active: null,
+            error: null,
+            stuck: [
+              ...state.stuck.filter((s) => s.clipId !== item.clipId),
+              { clipId: item.clipId, studentId: item.studentId, clipName: item.clipName },
+            ],
+          })
+          continue // move on to the next clip
+        }
+
         setState({
           active: null,
           error: { clipId: item.clipId, studentId: item.studentId, clipName: item.clipName },
         })
-        return // stop the loop; retry button / next resume re-enters
+        return // transient failure: wait for the retry button / next resume
       }
     }
     setState({ active: null, pendingCount: 0 })

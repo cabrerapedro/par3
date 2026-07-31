@@ -1096,3 +1096,74 @@ drop policy if exists "journey_images_public_read" on storage.objects;
 create policy "journey_images_public_read"
   on storage.objects for select to anon, authenticated
   using (bucket_id = 'journey-images');
+
+-- ============================================================================
+-- Pilot hardening (julio 2026) — run this file again to apply.
+-- ============================================================================
+
+-- 1. student_otps was readable AND writable by anyone holding the anon key
+-- (which ships in the browser bundle): any visitor could list every live OTP
+-- with its student_id, or insert one and verify it — an account-takeover
+-- primitive. The OTP routes must run with the service role (which bypasses
+-- RLS), so anon needs no policy at all here.
+drop policy if exists "student_otps_anon_all" on student_otps;
+
+-- 2. Storage read policies granted anon a blanket SELECT over whole buckets,
+-- so the anon key could enumerate every object of every student
+-- (storage.objects SELECT is what powers .list()). Public buckets still serve
+-- their files through the public URL, which is what the app actually uses —
+-- no code path calls .list(), so dropping anon SELECT costs us nothing and
+-- removes the enumeration. Instructors keep listing rights for their own
+-- students' folders.
+drop policy if exists "clip_videos_public_read" on storage.objects;
+create policy "clip_videos_instructor_list"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'clip-videos'
+    and (storage.foldername(name))[1]::uuid in (
+      select id from public.students where instructor_id = auth.uid()
+    )
+  );
+
+drop policy if exists "clip_annotations_audio_read" on storage.objects;
+create policy "clip_annotations_audio_instructor_list"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'clip-annotations-audio');
+
+drop policy if exists "practice_videos_anon_read" on storage.objects;
+create policy "practice_videos_instructor_list"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'practice-videos');
+
+drop policy if exists "calibration_videos_public_read" on storage.objects;
+drop policy if exists "instructor_notes_public_read" on storage.objects;
+drop policy if exists "journey_images_public_read" on storage.objects;
+create policy "journey_images_instructor_list"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'journey-images');
+
+-- 3. student-avatars bucket existed only in the live project (pre-rebrand
+-- leftover), so provisioning a fresh Supabase from this file produced an app
+-- with a broken avatar upload.
+insert into storage.buckets (id, name, public)
+values ('student-avatars', 'student-avatars', true)
+on conflict (id) do nothing;
+
+-- 4. The student role could not update its own row (no anon UPDATE policy),
+-- so the profile screen and the e-mail capture failed every single time. The
+-- policy is scoped to the student's own row, and the column grant keeps them
+-- away from instructor-owned fields (instructor_id, access_code, notes, ...).
+revoke update on students from anon;
+grant update (name, email, avatar_url, handicap, dominant_hand, years_playing,
+              home_course, bio, preferred_locale) on students to anon;
+
+drop policy if exists "students_anon_update" on students;
+create policy "students_anon_update"
+  on students for update
+  to anon
+  using (id = public.current_student_id())
+  with check (id = public.current_student_id());

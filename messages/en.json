@@ -325,7 +325,7 @@
       "namePlaceholder": "Student name",
       "emailLabel": "Email",
       "emailOptional": "(optional)",
-      "emailOptionalHint": "Optional. With an email, the student can sign in without the code. They can also add it themselves later.",
+      "emailOptionalHint": "Optional. Useful so you can contact the student; to sign in they always use their code.",
       "emailPlaceholder": "student@email.com",
       "accessTitle": "Your access",
       "accessStepWeb": "Open this web page",
@@ -420,7 +420,9 @@
       "waReady": "On WhatsApp",
       "tabPlan": "Learning plan",
       "tabClips": "Clips",
-      "recordCta": "Record"
+      "recordCta": "Record",
+      "consentLabel": "I confirm I have permission from the student (or their parent or guardian if under 14) to record them and process their data.",
+      "consentPrivacyLink": "Read the privacy notice"
     },
     "contacts": {
       "importLink": "Import",
@@ -737,7 +739,9 @@
         "sessionsFeedbackHint": "Does the evaluation match what you see? Your vote helps us calibrate the traffic light to your judgment.",
         "sessionMeta": "{duration} · {score}% within their reference",
         "feedbackAgree": "Matches",
-        "feedbackDisagree": "Doesn't match"
+        "feedbackDisagree": "Doesn't match",
+        "awaitingUploadTitle": "The video is still uploading",
+        "awaitingUploadHint": "The recording is saved on the iPad you filmed it with and will upload on its own once there is a connection. Open the app on that iPad to let it continue."
       },
       "annotate": {
         "title": "Review and annotate",
@@ -795,7 +799,8 @@
       "dismiss": "Dismiss",
       "done": "Reference for “{name}” is ready",
       "angleFaceOn": "face-on",
-      "angleDtl": "down-the-line"
+      "angleDtl": "down-the-line",
+      "stuckHint": "Couldn't upload after several attempts. The video is still saved on this iPad; your other clips keep uploading."
     }
   },
   "student": {
@@ -935,7 +940,8 @@
       "recordAgain": "Record again",
       "viewCheckpoint": "View exercise",
       "saveFailed": "Couldn't save your practice. Try again.",
-      "mediaPipeStuck": "MediaPipe got stuck. Reload the page and try again."
+      "mediaPipeStuck": "MediaPipe got stuck. Reload the page and try again.",
+      "saveFailedKeepResults": "Your results below are correct, but they couldn't be saved to your history. You can record again when you have a better connection."
     },
     "mirror": {
       "statusOk": "Posture correct",
@@ -1017,7 +1023,10 @@
       "snapshotAlt": "Photo with your coach's drawing",
       "annotationsCount": "{count, plural, one {# note} other {# notes}}",
       "hideReference": "Hide reference",
-      "showReference": "Show reference"
+      "showReference": "Show reference",
+      "statusPreparing": "Preparing",
+      "videoPreparingTitle": "Your instructor is still uploading this video",
+      "videoPreparingHint": "It will show up here as soon as it finishes. Check back in a bit."
     },
     "clipHistory": {
       "loadingError": "No sessions yet",

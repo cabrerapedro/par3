@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   subscribeClipQueue, getClipQueueState, getClipQueueServerState,
-  resumeClipQueue, retryClipQueue, dismissClipQueueNotice,
+  resumeClipQueue, retryClipQueue, dismissClipQueueNotice, dismissStuckClip,
 } from '@/lib/clipSaveQueue'
 
 export function ClipSyncIndicator() {
@@ -21,8 +21,8 @@ export function ClipSyncIndicator() {
   // instructor screen mounts.
   useEffect(() => { resumeClipQueue() }, [])
 
-  const { active, pendingCount, error, review, done } = state
-  if (!active && !error && !review && !done) return null
+  const { active, pendingCount, error, review, done, stuck } = state
+  if (!active && !error && !review && !done && stuck.length === 0) return null
 
   return (
     <div className="fixed z-40 bottom-20 right-4 md:bottom-6 md:right-6 max-w-[calc(100vw-2rem)] w-80 flex flex-col gap-2">
@@ -66,6 +66,30 @@ export function ClipSyncIndicator() {
           </button>
         </div>
       )}
+
+      {/* Jobs that failed repeatedly and were moved to the back of the queue.
+          Nothing is lost — the video is still on the device — but they need
+          attention, so they stay visible instead of failing silently. */}
+      {stuck.map((s) => (
+        <div key={s.clipId} className="bg-card border border-warn/40 rounded-md shadow-lg px-4 py-3">
+          <p className="text-sm font-medium text-foreground">{s.clipName}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('stuckHint')}</p>
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={retryClipQueue}
+              className="h-9 px-3 rounded-lg bg-warn/15 text-warn text-sm font-semibold hover:bg-warn/25 transition-colors"
+            >
+              {t('retry')}
+            </button>
+            <button
+              onClick={() => dismissStuckClip(s.clipId)}
+              className="h-9 px-3 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('dismiss')}
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Needs the instructor's review — tap through to the clip */}
       {review && (

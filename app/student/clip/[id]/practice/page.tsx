@@ -31,6 +31,7 @@ export default function StudentClipPractice() {
   const clipId = params.id as string
   const t = useTranslations('student.practice')
   const tp = useTranslations('student.placement')
+  const tCommon = useTranslations('common')
   const tClip = useTranslations('student.clip')
   const tBaselineSummary = useTranslations('baselineSummary')
   const tSwingSummary = useTranslations('swingSummary')
@@ -583,10 +584,14 @@ export default function StudentClipPractice() {
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
-  if (error) return (
+  // A full-screen error would throw away results the student already earned:
+  // the analysis takes 30-60 s on a phone, and a save hiccup at the very end
+  // must not wipe the screen. Once we have results, the error is shown as a
+  // banner INSIDE them instead.
+  if (error && stage !== 'results') return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-5 gap-4 text-center">
       <p className="text-muted-foreground">{error}</p>
-      <Link href={`/student/clip/${clipId}`} className="text-ok hover:underline text-sm">← Volver</Link>
+      <Link href={`/student/clip/${clipId}`} className="text-ok hover:underline text-sm">{tCommon('back')}</Link>
     </main>
   )
 
@@ -821,6 +826,15 @@ export default function StudentClipPractice() {
             </div>
 
             <div className="flex-1">
+              {/* Save failed but the evaluation is intact — say so without
+                  throwing the results away. */}
+              {error && (
+                <div className="bg-warn/10 border border-warn/20 rounded-xl px-4 py-3 mb-4">
+                  <p className="text-warn text-sm font-medium">{error}</p>
+                  <p className="text-muted-foreground text-xs mt-1">{t('saveFailedKeepResults')}</p>
+                </div>
+              )}
+
               {/* Camera-angle mismatch — the comparison is unreliable, say so */}
               {detectedAngle && (
                 <div className="bg-warn/10 border border-warn/20 rounded-xl px-4 py-3 mb-4">
