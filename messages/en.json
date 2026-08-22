@@ -132,7 +132,7 @@
     "annotationCanvas": {
       "canvasAria": "Annotation canvas",
       "annotatingLabel": "Annotating",
-      "lineHint": "Drag your finger or pencil to draw a line.",
+      "lineHint": "Drag with your finger or the Pencil to draw a line.",
       "toolArrow": "Arrow",
       "toolLine": "Line",
       "toolCircle": "Circle",
@@ -153,7 +153,15 @@
       "micStartFailed": "Couldn't start the microphone",
       "notePlaceholder": "Optional note…",
       "cancel": "Cancel",
-      "save": "Save annotation"
+      "save": "Save annotation",
+      "toolAngle": "Angle",
+      "toolFreehand": "Freehand",
+      "toolRect": "Box",
+      "hintShape": "Drag to draw the shape.",
+      "hintAngle": "Drag from the vertex to the first arm; lift and drag the second.",
+      "hintAngleSecond": "Now drag the second arm of the angle.",
+      "hintFreehand": "Draw freely. With the Pencil, pressure changes the thickness.",
+      "pencilActive": "Pencil"
     }
   },
   "userMenu": {
@@ -741,7 +749,9 @@
         "feedbackAgree": "Matches",
         "feedbackDisagree": "Doesn't match",
         "awaitingUploadTitle": "The video is still uploading",
-        "awaitingUploadHint": "The recording is saved on the iPad you filmed it with and will upload on its own once there is a connection. Open the app on that iPad to let it continue."
+        "awaitingUploadHint": "The recording is saved on the iPad you filmed it with and will upload on its own once there is a connection. Open the app on that iPad to let it continue.",
+        "showDegrees": "Show degrees",
+        "hideDegrees": "Hide degrees"
       },
       "annotate": {
         "title": "Review and annotate",
@@ -941,7 +951,14 @@
       "viewCheckpoint": "View exercise",
       "saveFailed": "Couldn't save your practice. Try again.",
       "mediaPipeStuck": "MediaPipe got stuck. Reload the page and try again.",
-      "saveFailedKeepResults": "Your results below are correct, but they couldn't be saved to your history. You can record again when you have a better connection."
+      "saveFailedKeepResults": "Your results below are correct, but they couldn't be saved to your history. You can record again when you have a better connection.",
+      "lowDetectionError": "We couldn't see you well in the video, so a result wouldn't be fair. Check the phone placement and try again.",
+      "confidenceSingleRep": "We only detected one swing, so this result is orientative. With 2-3 swings per video the evaluation is much more reliable.",
+      "confidenceShortHold": "You held the position only briefly, so this result is orientative. Try holding the posture for 3-4 seconds.",
+      "confidenceFewMetrics": "We could only measure part of your body, so this result is orientative. Make sure your whole body is visible.",
+      "consistencyHigh": "your swings were very similar to each other",
+      "consistencyMedium": "your swings varied a little between them",
+      "consistencyLow": "your swings were quite different from each other"
     },
     "mirror": {
       "statusOk": "Posture correct",
@@ -1026,7 +1043,9 @@
       "showReference": "Show reference",
       "statusPreparing": "Preparing",
       "videoPreparingTitle": "Your instructor is still uploading this video",
-      "videoPreparingHint": "It will show up here as soon as it finishes. Check back in a bit."
+      "videoPreparingHint": "It will show up here as soon as it finishes. Check back in a bit.",
+      "showDegrees": "Show degrees",
+      "hideDegrees": "Hide degrees"
     },
     "clipHistory": {
       "loadingError": "No sessions yet",

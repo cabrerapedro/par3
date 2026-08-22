@@ -23,7 +23,7 @@ function formatMetricLine(key: string, val: BaselineMetric): string {
 
 export async function POST(req: Request) {
   try {
-    const { baseline, cameraAngle, checkpointName, instructorNote, selectedMetrics, marksCount, checkpointType, checkpointId } = await req.json()
+    const { baseline, cameraAngle, checkpointName, instructorNote, selectedMetrics, marksCount, checkpointType, checkpointId, locale } = await req.json()
 
     if (!baseline || !cameraAngle) {
       return NextResponse.json({ error: 'Missing baseline or cameraAngle' }, { status: 400 })
@@ -66,6 +66,12 @@ export async function POST(req: Request) {
       ? '\n4. Describe brevemente qué buscar en cada fase del swing (address, top, impacto, finish) según los datos'
       : ''
 
+    // Student-facing text: write it in the STUDENT's language (castellano
+    // peninsular for es — the product's Spanish, never voseo).
+    const lang = locale === 'en'
+      ? 'English'
+      : 'español de España (tuteo: "inclínate", "recuerda"; nunca voseo)'
+
     const prompt = `Eres el copiloto de práctica de golf de un estudiante. Tu instructor calibró ${isSwing ? 'su swing ideal' : 'su postura ideal'}.
 
 ${contextParts}
@@ -73,14 +79,14 @@ ${contextParts}
 Métricas de referencia personal (promedio ± variación):
 ${metricLines}
 
-Genera un resumen breve en español para el estudiante explicando:
+Genera un resumen breve, escrito en ${lang}, para el estudiante explicando:
 1. Cómo es ${isSwing ? 'su swing ideal calibrado' : 'su postura ideal calibrada'}, en lenguaje simple y concreto
 2. Qué puntos clave debe recordar antes de cada swing
 3. Integra la nota del instructor si existe, dándole prioridad — es lo más importante${swingExtra}
 
 Reglas:
 - Tono positivo y directo, como un coach
-- NO uses números, grados ni valores técnicos — traducí todo a lenguaje corporal ("inclinado desde las caderas", "rodillas apenas flexionadas", etc.)
+- NO uses números, grados ni valores técnicos — traduce todo a lenguaje corporal ("inclinado desde las caderas", "rodillas apenas flexionadas", etc.)
 - NO uses bullet points, listas, títulos, negritas ni formato markdown — solo texto corrido plano
 - NO empieces con "Tu postura ideal es..." ni fórmulas repetitivas
 - Sé específico para ESTE ejercicio, no genérico

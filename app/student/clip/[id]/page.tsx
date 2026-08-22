@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { AnnotationSnapshot } from '@/components/AnnotationSnapshot'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Clip } from '@/lib/classes'
@@ -36,6 +37,7 @@ export default function ClipDetail() {
   const params = useParams()
   const clipId = params.id as string
   const t = useTranslations('student.clip')
+  const locale = useLocale()
 
   const [clip, setClip] = useState<Clip | null>(null)
   const [annotations, setAnnotations] = useState<ClipAnnotation[]>([])
@@ -43,6 +45,16 @@ export default function ClipDetail() {
   // Practice cards generated on demand (focus + checklist), keyed by annotation
   // id, for annotations that don't have one persisted yet.
   const [cards, setCards] = useState<Record<string, PracticeCard | null>>({})
+  // Angle degrees drawn by the instructor are shown by default; the student
+  // can hide them (their choice, remembered on this device).
+  const [showDegrees, setShowDegrees] = useState(true)
+  useEffect(() => {
+    try { setShowDegrees(localStorage.getItem('forat_show_degrees') !== '0') } catch {}
+  }, [])
+  useEffect(() => {
+    try { localStorage.setItem('forat_show_degrees', showDegrees ? '1' : '0') } catch {}
+  }, [showDegrees])
+  const hasDegrees = annotations.some((a) => Array.isArray(a.strokes) && a.strokes.some((s) => s?.type === 'angle' && typeof s.degrees === 'number'))
 
   useEffect(() => {
     // Wait for auth to hydrate from localStorage before deciding. On a hard
@@ -85,6 +97,7 @@ export default function ClipDetail() {
           cameraAngle: clip.camera_angle,
           clipType: clip.clip_type,
           annotationId: ann.id,
+          locale,
         }),
       })
         .then((r) => (r.ok ? r.json() : null))
@@ -208,6 +221,15 @@ export default function ClipDetail() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('annotationsTitle')}</p>
+            {hasDegrees && (
+              <button
+                type="button"
+                onClick={() => setShowDegrees((v) => !v)}
+                className="text-xs font-medium text-primary hover:underline underline-offset-2"
+              >
+                {showDegrees ? t('hideDegrees') : t('showDegrees')}
+              </button>
+            )}
             {annotations.length > 0 && (
               <p className="text-xs text-muted-foreground">
                 {t('annotationsCount', { count: annotations.length })}
@@ -226,12 +248,12 @@ export default function ClipDetail() {
                 <div key={ann.id} className="bg-card border border-border rounded-xl p-3">
                   <div className="flex flex-col sm:flex-row gap-4">
                     {ann.snapshot_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <AnnotationSnapshot
                         src={ann.snapshot_url}
                         alt={t('snapshotAlt')}
-                        className="w-full sm:w-72 shrink-0 self-start rounded-lg border border-border"
-                        loading="lazy"
+                        strokes={ann.strokes}
+                        showDegrees={showDegrees}
+                        className="w-full sm:w-72 shrink-0 self-start"
                       />
                     )}
                     <div className="flex-1 min-w-0 flex flex-col gap-2">

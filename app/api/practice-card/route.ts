@@ -30,7 +30,7 @@ export interface PracticeCard {
 
 export async function POST(req: Request) {
   try {
-    const { transcript, textNote, clipName, cameraAngle, clipType, annotationId } = await req.json()
+    const { transcript, textNote, clipName, cameraAngle, clipType, annotationId, locale } = await req.json()
 
     const coachText = [transcript, textNote]
       .filter((s) => typeof s === 'string' && s.trim())
@@ -40,20 +40,25 @@ export async function POST(req: Request) {
     // Nothing the coach said → no card. Never invent.
     if (!coachText) return NextResponse.json({ card: null })
 
+    // The card is student-facing: write it in the STUDENT's language
+    // (castellano peninsular for es — the product's Spanish).
+    const lang = locale === 'en'
+      ? 'English'
+      : 'español de España (tuteo: "inclínate", "nota", nunca voseo)'
     const angleLabel = cameraAngle === 'face_on' ? 'de frente' : 'de perfil'
-    const prompt = `Sos el copiloto de práctica de Forat Golf. El instructor marcó un momento de un ejercicio${clipName ? ` ("${clipName}")` : ''} (vista ${angleLabel}${clipType === 'swing' ? ', swing' : ''}) y dejó esta explicación (voz/nota):
+    const prompt = `Eres el copiloto de práctica de Forat Golf. El instructor marcó un momento de un ejercicio${clipName ? ` ("${clipName}")` : ''} (vista ${angleLabel}${clipType === 'swing' ? ', swing' : ''}) y dejó esta explicación (voz/nota):
 
 """
 ${coachText}
 """
 
-Tu ÚNICA tarea es REFORMULAR lo que dijo el instructor en una guía corta para el alumno. Reglas estrictas:
-- NO inventes técnica ni agregues nada que el instructor no haya dicho.
-- Español claro y en positivo, sin jerga, sin grados ni números.
-- Si la explicación no tiene una indicación accionable, devolvé "focus" como cadena vacía.
+Tu ÚNICA tarea es REFORMULAR lo que dijo el instructor en una guía corta para el alumno, escrita en ${lang}. Reglas estrictas:
+- NO inventes técnica ni añadas nada que el instructor no haya dicho.
+- Lenguaje claro y en positivo, sin jerga, sin grados ni números.
+- Si la explicación no tiene una indicación accionable, devuelve "focus" como cadena vacía.
 
-Devolvé SOLO un JSON válido, sin texto extra, con esta forma exacta:
-{"focus": "una frase corta con la corrección principal, en positivo", "checklist": ["2 o 3 cosas concretas para sentir o chequear, derivadas SOLO de lo que dijo el instructor"]}`
+Devuelve SOLO un JSON válido, sin texto extra, con esta forma exacta:
+{"focus": "una frase corta con la corrección principal, en positivo", "checklist": ["2 o 3 cosas concretas para sentir o comprobar, derivadas SOLO de lo que dijo el instructor"]}`
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',

@@ -13,10 +13,16 @@
 // it's live, with a control to drop the audio for this annotation. The blob is
 // finalized on save. If mic permission is denied, drawing + note still work.
 //
-// Drawing model (lines only): tap once to drop the start point, tap again to
-// set the end — like the line tool in golf-coaching apps. Each line gets a dot
-// at both ends. Arrows/circles were removed from authoring; SVGAnnotationOverlay
-// still renders legacy arrow/circle strokes for clips saved before this change.
+// Drawing model — the common core of V1 Golf / OnForm / Hudl / CoachNow:
+// line, arrow, circle, rectangle (press-drag-release), angle ("la V": drag
+// vertex→arm 1, lift, drag arm 2 — the degrees follow the Pencil live), and
+// freehand (pressure-sensitive with a Pencil). Stroke shapes and rendering
+// live in lib/strokes.ts, shared with the snapshot and the viewers.
+//
+// Apple Pencil: pointer events already deliver it; what makes it feel like a
+// Pencil is (1) palm rejection — finger touches are ignored while the pen is
+// down or just lifted, so a resting hand doesn't draw — (2) pressure → stroke
+// width in freehand, (3) a hover ring when the tip approaches the glass.
 //
 // All coordinates are normalized 0..1 against the canvas (which equals the
 // video display size), so saved strokes anchor correctly on student playback.
@@ -26,20 +32,13 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { reencodeAudioToWav } from '@/lib/media'
 import { pickAudioMime, resolveRecordedMime, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
+import { drawStrokes, drawStroke, angleDegrees, STROKE_COLOR_HEX } from '@/lib/strokes'
+import type { Stroke, StrokeColor, StrokeKind } from '@/lib/strokes'
 
 // ---------- Public shape ----------
-
-export type StrokeKind = 'arrow' | 'line' | 'circle'
-export type StrokeColor = 'red' | 'yellow' | 'green' | 'white'
-
-export interface Stroke {
-  type: StrokeKind
-  color: StrokeColor
-  // Normalized coordinates (0..1).
-  //   arrow/line: [start, end]
-  //   circle:     [center, pointOnRadius] — radius derived as distance.
-  points: [[number, number], [number, number]]
-}
+// The stroke model is defined in lib/strokes.ts; re-exported for existing
+// importers.
+export type { Stroke, StrokeColor, StrokeKind } from '@/lib/strokes'
 
 export interface AnnotationDraft {
   strokes: Stroke[]
@@ -71,16 +70,18 @@ export interface AnnotationCanvasHandle {
 
 type MicState = 'recording' | 'off' | 'denied'
 
-const COLOR_HEX: Record<StrokeColor, string> = {
-  red: '#f04848',
-  yellow: '#e8b930',
-  green: '#34d178',
-  white: '#ffffff',
-}
+const TOOLS: StrokeKind[] = ['line', 'arrow', 'circle', 'angle', 'freehand', 'rect']
+const MIN_LINE_DIST_SQ = 0.0006 // normalized; throws away accidental zero-length strokes
+const FREEHAND_MIN_STEP_SQ = 0.00002 // normalized; drop sub-pixel jitter points
+// After the pen lifts, finger touches stay ignored this long — the palm
+// usually lands just before/after the tip.
+const PALM_GRACE_MS = 1500
 
-const STROKE_WIDTH_PX = 4
-const ENDPOINT_RADIUS_PX = 6
-const MIN_LINE_DIST_SQ = 0.0006 // normalized; throws away accidental zero-length lines
+const dist2 = (a: [number, number], b: [number, number]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+// Pen pressure → 0.15..1 (a Pencil reports real pressure; fingers report a
+// constant 0.5, which we don't treat as pressure at all).
+const pressureOf = (evt: React.PointerEvent) =>
+  evt.pointerType === 'pen' ? Math.min(1, Math.max(0.15, evt.pressure || 0.5)) : 0.5
 
 function fmt(ms: number): string {
   const s = Math.floor(ms / 1000)
@@ -95,11 +96,26 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Drawing state ----------------------------------------------------------
+  const [tool, setTool] = useState<StrokeKind>('line')
   const [color, setColor] = useState<StrokeColor>('red')
   const [strokes, setStrokes] = useState<Stroke[]>([])
-  // Tap-tap: `start` holds the first point until the second tap commits the line.
+  // In-progress gesture: first point of a drag (line/arrow/circle/rect, or
+  // the vertex of an angle's first arm) + the live pointer position.
   const [start, setStart] = useState<[number, number] | null>(null)
   const [preview, setPreview] = useState<[number, number] | null>(null)
+  // Angle ("la V"): vertex + first arm committed, waiting for the second arm.
+  const [pendingAngle, setPendingAngle] = useState<{ vertex: [number, number]; arm1: [number, number] } | null>(null)
+  // Freehand path being drawn (mutable for per-move perf; tick re-renders).
+  const freehandRef = useRef<{ points: [number, number][]; widths: number[]; pen: boolean } | null>(null)
+  const [freehandTick, setFreehandTick] = useState(0)
+  // Pointer bookkeeping: which pointer owns the gesture; Pencil palm rejection.
+  const activePointerRef = useRef<number | null>(null)
+  const activePointerTypeRef = useRef<string>('')
+  const penDownRef = useRef(false)
+  const lastPenAtRef = useRef(0)
+  const [penSeen, setPenSeen] = useState(false)
+  const [hover, setHover] = useState<[number, number] | null>(null)
+  const aspect = height > 0 ? width / height : 16 / 9
   // Optional typed note (voice is primary, but sometimes a word is easier).
   const [note, setNote] = useState('')
 
@@ -117,22 +133,54 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
   // Resolver used by handleSave to await the final blob after recorder.stop().
   const stopResolverRef = useRef<((v: { blob: Blob; mime?: string } | null) => void) | null>(null)
 
-  // The live preview line (start → current pointer), drawn while waiting for
-  // the second tap.
-  const draftLine = useMemo<Stroke | null>(
-    () => (start && preview ? { type: 'line', color, points: [start, preview] } : null),
-    [start, preview, color],
-  )
+  // The live preview of the gesture in progress.
+  const draft = useMemo<Stroke | null>(() => {
+    if (tool === 'freehand') {
+      const f = freehandRef.current
+      return f && f.points.length > 1
+        ? { type: 'freehand', color, points: f.points, widths: f.pen ? f.widths : undefined }
+        : null
+    }
+    if (tool === 'angle') {
+      if (pendingAngle) {
+        // Between the two drags only the first arm exists — no third point,
+        // no degrees (a degenerate "0°" is not feedback).
+        if (!preview) return { type: 'angle', color, points: [pendingAngle.vertex, pendingAngle.arm1] }
+        return {
+          type: 'angle', color,
+          points: [pendingAngle.vertex, pendingAngle.arm1, preview],
+          degrees: angleDegrees(pendingAngle.vertex, pendingAngle.arm1, preview, aspect),
+        }
+      }
+      return start && preview ? { type: 'angle', color, points: [start, preview] } : null
+    }
+    return start && preview ? { type: tool, color, points: [start, preview] } : null
+    // freehandTick forces re-evaluation while the mutable path grows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool, color, start, preview, pendingAngle, freehandTick, aspect])
 
-  // ---------- Render the canvas whenever strokes / draft change ----------
+  // ---------- Render the canvas whenever strokes / draft / hover change ----------
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    drawAll(ctx, canvas.width, canvas.height, strokes, draftLine)
-  }, [strokes, draftLine, width, height])
+    const w = canvas.width, h = canvas.height
+    ctx.clearRect(0, 0, w, h)
+    drawStrokes(ctx, w, h, strokes, { labels: true })
+    if (draft) drawStroke(ctx, w, h, draft, { draft: true, labels: true })
+    // Hover ring whenever no gesture is in progress (a pending angle's first
+    // arm is a draft too, but the Pencil is free — the ring must still guide it).
+    if (hover && activePointerRef.current === null) {
+      // Pencil hover ring: shows where the tip will land before it touches.
+      ctx.save()
+      ctx.strokeStyle = STROKE_COLOR_HEX[color]
+      ctx.lineWidth = 2
+      ctx.beginPath(); ctx.arc(hover[0] * w, hover[1] * h, 9, 0, Math.PI * 2); ctx.stroke()
+      ctx.restore()
+    }
+  }, [strokes, draft, hover, color, width, height])
 
   // ---------- Audio: start the mic automatically on open ----------
 
@@ -244,49 +292,168 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     return [clamp01(x), clamp01(y)]
   }, [])
 
-  // Drag to draw a straight line: press = start, drag = rubber-band preview,
-  // release = commit. One continuous gesture, like a pen.
+  // Palm rejection: while a Pencil is down (or just lifted), finger touches
+  // on the canvas are the resting hand, not a drawing.
+  const isPalm = (evt: React.PointerEvent) =>
+    evt.pointerType === 'touch' && (penDownRef.current || Date.now() - lastPenAtRef.current < PALM_GRACE_MS)
+  const notePen = (evt: React.PointerEvent) => {
+    if (evt.pointerType !== 'pen') return
+    // Hovering (iPad shows the tip before contact) must not arm palm
+    // rejection: an instructor holding the Pencil while drawing with a
+    // finger would get their finger ignored.
+    if (evt.type === 'pointermove' && evt.buttons === 0) return
+    lastPenAtRef.current = Date.now()
+    if (!penSeen) setPenSeen(true)
+  }
+
+  const resetGesture = () => {
+    setStart(null)
+    setPreview(null)
+    freehandRef.current = null
+    activePointerRef.current = null
+    activePointerTypeRef.current = ''
+  }
+
   const onPointerDown = (evt: React.PointerEvent<HTMLCanvasElement>) => {
+    notePen(evt)
+    if (isPalm(evt)) return
+    if (activePointerRef.current !== null) {
+      // The palm often lands BEFORE the tip. If a finger owns the gesture and
+      // the Pencil arrives, the Pencil wins: drop the palm's gesture.
+      if (evt.pointerType === 'pen' && activePointerTypeRef.current === 'touch') {
+        try { canvasRef.current?.releasePointerCapture(activePointerRef.current) } catch { /* ignore */ }
+        resetGesture()
+      } else {
+        return
+      }
+    }
     evt.preventDefault()
+    if (evt.pointerType === 'pen') penDownRef.current = true
+    setHover(null)
+    activePointerRef.current = evt.pointerId
+    activePointerTypeRef.current = evt.pointerType
+    try { canvasRef.current?.setPointerCapture(evt.pointerId) } catch { /* ignore */ }
     const p = toNormalized(evt)
+
+    if (tool === 'freehand') {
+      freehandRef.current = { points: [p], widths: [pressureOf(evt)], pen: evt.pointerType === 'pen' }
+      setFreehandTick((n) => n + 1)
+      return
+    }
+    if (tool === 'angle' && pendingAngle) {
+      // Second arm grows from the vertex; where the press lands is irrelevant.
+      setPreview(p)
+      return
+    }
     setStart(p)
     setPreview(p)
-    try { canvasRef.current?.setPointerCapture(evt.pointerId) } catch { /* ignore */ }
   }
 
   const onPointerMove = (evt: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!start) return
+    notePen(evt)
+    if (isPalm(evt)) return
+    const p = toNormalized(evt)
+    if (activePointerRef.current === null) {
+      // Pencil hovering above the glass (iPad shows the tip before contact).
+      if (evt.pointerType === 'pen') setHover(p)
+      return
+    }
+    if (activePointerRef.current !== evt.pointerId) return
     evt.preventDefault()
-    setPreview(toNormalized(evt))
+    if (tool === 'freehand' && freehandRef.current) {
+      const f = freehandRef.current
+      if (dist2(f.points[f.points.length - 1], p) > FREEHAND_MIN_STEP_SQ) {
+        f.points.push(p)
+        f.widths.push(pressureOf(evt))
+        setFreehandTick((n) => n + 1)
+      }
+      return
+    }
+    setPreview(p)
   }
 
   const onPointerUp = (evt: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!start) return
+    notePen(evt)
+    if (evt.pointerType === 'pen') penDownRef.current = false
+    if (activePointerRef.current !== evt.pointerId) return
     evt.preventDefault()
     try { canvasRef.current?.releasePointerCapture(evt.pointerId) } catch { /* ignore */ }
     const p = toNormalized(evt)
-    const distSq = (start[0] - p[0]) ** 2 + (start[1] - p[1]) ** 2
-    if (distSq > MIN_LINE_DIST_SQ) {
-      setStrokes((prev) => [...prev, { type: 'line', color, points: [start, p] }])
+
+    if (tool === 'freehand') {
+      const f = freehandRef.current
+      if (f && f.points.length > 2) {
+        setStrokes((prev) => [...prev, { type: 'freehand', color, points: f.points, widths: f.pen ? f.widths : undefined }])
+      }
+      resetGesture()
+      setFreehandTick((n) => n + 1)
+      return
     }
-    setStart(null)
-    setPreview(null)
+
+    if (tool === 'angle') {
+      if (pendingAngle) {
+        // Too short = an accidental touch near the vertex: keep waiting for
+        // the real second arm instead of throwing the first one away.
+        if (dist2(pendingAngle.vertex, p) > MIN_LINE_DIST_SQ) {
+          setStrokes((prev) => [...prev, {
+            type: 'angle', color,
+            points: [pendingAngle.vertex, pendingAngle.arm1, p],
+            degrees: angleDegrees(pendingAngle.vertex, pendingAngle.arm1, p, aspect),
+          }])
+          setPendingAngle(null)
+        }
+      } else if (start && dist2(start, p) > MIN_LINE_DIST_SQ) {
+        setPendingAngle({ vertex: start, arm1: p })
+      }
+      resetGesture()
+      return
+    }
+
+    if (start && dist2(start, p) > MIN_LINE_DIST_SQ) {
+      setStrokes((prev) => [...prev, { type: tool, color, points: [start, p] }])
+    }
+    resetGesture()
+  }
+
+  const onPointerCancel = (evt: React.PointerEvent<HTMLCanvasElement>) => {
+    notePen(evt)
+    if (evt.pointerType === 'pen') penDownRef.current = false
+    if (activePointerRef.current !== evt.pointerId) return
+    try { canvasRef.current?.releasePointerCapture(evt.pointerId) } catch { /* ignore */ }
+    // The system cut the gesture short — nothing the instructor decided.
+    resetGesture()
+    setFreehandTick((n) => n + 1)
+  }
+
+  const onPointerLeave = () => setHover(null)
+
+  const selectTool = (next: StrokeKind) => {
+    setTool(next)
+    setPendingAngle(null)
+    resetGesture()
   }
 
   const undo = () => {
+    if (pendingAngle) { setPendingAngle(null); resetGesture(); return }
+    if (start || freehandRef.current) { resetGesture(); return }
     setStrokes((prev) => prev.slice(0, -1))
   }
 
   const clearAll = () => {
     setStrokes([])
-    setStart(null)
-    setPreview(null)
+    setPendingAngle(null)
+    resetGesture()
   }
 
   // ---------- Save / cancel ----------
 
+  // A half-drawn angle is visible on the canvas; on save it must not vanish
+  // silently — it persists as the line the instructor actually drew.
+  const effectiveStrokes: Stroke[] = pendingAngle
+    ? [...strokes, { type: 'line', color, points: [pendingAngle.vertex, pendingAngle.arm1] }]
+    : strokes
   const canSave =
-    strokes.length > 0 ||
+    effectiveStrokes.length > 0 ||
     audioBlob !== null ||
     note.trim().length > 0 ||
     (micState === 'recording' && audioMs > 1000)
@@ -298,7 +465,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     const audio = await finalizeAudio()
     if (!hasContent) return null
     return {
-      strokes,
+      strokes: effectiveStrokes,
       audio_blob: audio?.blob,
       audio_mime: audio?.mime,
       text_note: note.trim() || undefined,
@@ -316,7 +483,6 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     else onCancel()
   }
 
-  const showHint = strokes.length === 0 && !start
 
   // ---------- Render ----------
 
@@ -329,7 +495,8 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onPointerLeave={onPointerLeave}
       aria-label={t('canvasAria')}
     />
   )
@@ -394,11 +561,44 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           </div>
         )}
 
-        {showHint && (
-          <p className="text-sm text-muted-foreground leading-snug">{t('lineHint')}</p>
-        )}
+        {/* Tool selector — one row, ≥48px targets for a fingertip or a Pencil */}
+        <div className="grid grid-cols-6 gap-1.5">
+          {TOOLS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => selectTool(k)}
+              aria-pressed={tool === k}
+              aria-label={t(TOOL_LABEL_KEY[k])}
+              className={`flex flex-col items-center justify-center gap-1 h-14 rounded-md border text-[11px] font-medium transition-colors ${
+                tool === k
+                  ? 'bg-ok/15 text-ok border-ok/40'
+                  : 'bg-secondary text-muted-foreground border-transparent hover:text-foreground'
+              }`}
+            >
+              <ToolIcon kind={k} />
+              <span className="leading-none">{t(TOOL_LABEL_KEY[k])}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Draw tools — colors sized for a fingertip / Pencil tap (>=48px) */}
+        {/* One-line hint for the current gesture (+ the Pencil badge once a
+            Pencil has been seen — palm rejection is on) */}
+        <div className="flex items-center gap-2 min-h-[20px]">
+          <p className="text-sm text-muted-foreground leading-snug flex-1">
+            {pendingAngle ? t('hintAngleSecond') : t(TOOL_HINT_KEY[tool])}
+            {pendingAngle && draft?.degrees !== undefined && (
+              <span className="ml-2 font-mono text-foreground">{draft.degrees}°</span>
+            )}
+          </p>
+          {penSeen && (
+            <span className="shrink-0 small-caps font-mono text-[10px] px-2 py-0.5 rounded-full bg-ok/10 text-ok border border-ok/20">
+              {t('pencilActive')}
+            </span>
+          )}
+        </div>
+
+        {/* Colors — sized for a fingertip / Pencil tap (>=48px) */}
         <div className="flex items-center justify-center gap-3">
           {(['red', 'yellow', 'green', 'white'] as StrokeColor[]).map((c) => (
             <button
@@ -410,7 +610,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
               className={`size-12 rounded-full border-[3px] transition-transform ${
                 color === c ? 'border-foreground scale-110' : 'border-border hover:scale-105'
               }`}
-              style={{ background: COLOR_HEX[c] }}
+              style={{ background: STROKE_COLOR_HEX[c] }}
             />
           ))}
         </div>
@@ -420,7 +620,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           <button
             type="button"
             onClick={undo}
-            disabled={strokes.length === 0 && !start}
+            disabled={strokes.length === 0 && !start && !pendingAngle}
             className="flex-1 h-12 rounded-md text-sm font-medium text-foreground bg-secondary hover:bg-secondary/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {t('undo')}
@@ -428,7 +628,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
           <button
             type="button"
             onClick={clearAll}
-            disabled={strokes.length === 0 && !start}
+            disabled={strokes.length === 0 && !start && !pendingAngle}
             className="flex-1 h-12 rounded-md text-sm font-medium text-bad/90 bg-bad/10 hover:bg-bad/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {t('clearAll')}
@@ -459,75 +659,28 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
 })
 
 // ---------------------------------------------------------------------------
-// Drawing primitives
+// Tool chrome
 // ---------------------------------------------------------------------------
 
-function drawAll(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  strokes: Stroke[],
-  draft: Stroke | null,
-) {
-  ctx.clearRect(0, 0, w, h)
-  for (const s of strokes) drawStroke(ctx, w, h, s)
-  if (draft) drawStroke(ctx, w, h, draft, true)
+const TOOL_LABEL_KEY: Record<StrokeKind, string> = {
+  line: 'toolLine', arrow: 'toolArrow', circle: 'toolCircle',
+  angle: 'toolAngle', freehand: 'toolFreehand', rect: 'toolRect',
+}
+const TOOL_HINT_KEY: Record<StrokeKind, string> = {
+  line: 'lineHint', arrow: 'hintShape', circle: 'hintShape',
+  angle: 'hintAngle', freehand: 'hintFreehand', rect: 'hintShape',
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, w: number, h: number, s: Stroke, isDraft = false) {
-  ctx.strokeStyle = COLOR_HEX[s.color]
-  ctx.fillStyle = COLOR_HEX[s.color]
-  ctx.lineWidth = STROKE_WIDTH_PX
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-
-  const [a, b] = s.points
-  const ax = a[0] * w, ay = a[1] * h
-  const bx = b[0] * w, by = b[1] * h
-
-  if (s.type === 'line' || s.type === 'arrow') {
-    if (isDraft) ctx.setLineDash([8, 6])
-    ctx.beginPath()
-    ctx.moveTo(ax, ay)
-    ctx.lineTo(bx, by)
-    ctx.stroke()
-    ctx.setLineDash([])
-
-    if (s.type === 'arrow') {
-      drawArrowHead(ctx, ax, ay, bx, by)
-    } else {
-      drawDot(ctx, ax, ay)
-      drawDot(ctx, bx, by)
-    }
-    return
+function ToolIcon({ kind }: { kind: StrokeKind }) {
+  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  switch (kind) {
+    case 'line': return <svg {...common}><line x1="5" y1="19" x2="19" y2="5" /></svg>
+    case 'arrow': return <svg {...common}><line x1="5" y1="19" x2="19" y2="5" /><polyline points="11 5 19 5 19 13" /></svg>
+    case 'circle': return <svg {...common}><circle cx="12" cy="12" r="8" /></svg>
+    case 'angle': return <svg {...common}><polyline points="19 6 6 18 20 18" /><path d="M10 18a4 4 0 0 0-1.2-2.8" /></svg>
+    case 'freehand': return <svg {...common}><path d="M4 17c3-6 5 4 8-2s4 6 8-2" /></svg>
+    case 'rect': return <svg {...common}><rect x="4" y="6" width="16" height="12" rx="1.5" /></svg>
   }
-
-  if (s.type === 'circle') {
-    const radius = Math.hypot(bx - ax, by - ay)
-    ctx.beginPath()
-    ctx.arc(ax, ay, radius, 0, Math.PI * 2)
-    ctx.stroke()
-    return
-  }
-}
-
-function drawDot(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.beginPath()
-  ctx.arc(x, y, ENDPOINT_RADIUS_PX, 0, Math.PI * 2)
-  ctx.fill()
-}
-
-function drawArrowHead(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx: number, by: number) {
-  const angle = Math.atan2(by - ay, bx - ax)
-  const head = 14
-  const left = angle + Math.PI - Math.PI / 7
-  const right = angle + Math.PI + Math.PI / 7
-  ctx.beginPath()
-  ctx.moveTo(bx, by)
-  ctx.lineTo(bx + head * Math.cos(left), by + head * Math.sin(left))
-  ctx.lineTo(bx + head * Math.cos(right), by + head * Math.sin(right))
-  ctx.closePath()
-  ctx.fill()
 }
 
 function clamp01(n: number) {

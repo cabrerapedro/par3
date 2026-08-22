@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { AnnotationCanvas, type AnnotationDraft, type AnnotationCanvasHandle, type Stroke, type StrokeColor } from '@/components/AnnotationCanvas'
+import { AnnotationCanvas, type AnnotationDraft, type AnnotationCanvasHandle, type Stroke } from '@/components/AnnotationCanvas'
+import { drawStrokes } from '@/lib/strokes'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { getOrCreateTodayClass } from '@/lib/classes'
@@ -863,13 +864,6 @@ function Badge({ children }: { children: React.ReactNode }) {
 // export a JPEG. The source video is a same-origin blob URL, so the canvas is
 // not tainted and toBlob() works.
 
-const SNAPSHOT_COLOR_HEX: Record<StrokeColor, string> = {
-  red: '#f04848',
-  yellow: '#e8b930',
-  green: '#34d178',
-  white: '#ffffff',
-}
-
 async function captureSnapshot(
   video: HTMLVideoElement,
   strokes: Stroke[],
@@ -886,48 +880,9 @@ async function captureSnapshot(
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
     ctx.drawImage(video, 0, 0, w, h)
-
-    const lineW = Math.max(3, Math.round(w / 200))
-    const dotR = Math.max(4, Math.round(w / 130))
-    for (const s of strokes) {
-      const hex = SNAPSHOT_COLOR_HEX[s.color] ?? '#f04848'
-      ctx.strokeStyle = hex
-      ctx.fillStyle = hex
-      ctx.lineWidth = lineW
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      const [a, b] = s.points
-      const ax = a[0] * w, ay = a[1] * h
-      const bx = b[0] * w, by = b[1] * h
-      if (s.type === 'circle') {
-        ctx.beginPath()
-        ctx.arc(ax, ay, Math.hypot(bx - ax, by - ay), 0, Math.PI * 2)
-        ctx.stroke()
-        continue
-      }
-      ctx.beginPath()
-      ctx.moveTo(ax, ay)
-      ctx.lineTo(bx, by)
-      ctx.stroke()
-      if (s.type === 'arrow') {
-        const angle = Math.atan2(by - ay, bx - ax)
-        const head = lineW * 3.5
-        const left = angle + Math.PI - Math.PI / 7
-        const right = angle + Math.PI + Math.PI / 7
-        ctx.beginPath()
-        ctx.moveTo(bx, by)
-        ctx.lineTo(bx + head * Math.cos(left), by + head * Math.sin(left))
-        ctx.lineTo(bx + head * Math.cos(right), by + head * Math.sin(right))
-        ctx.closePath()
-        ctx.fill()
-      } else {
-        for (const [px, py] of [[ax, ay], [bx, by]]) {
-          ctx.beginPath()
-          ctx.arc(px, py, dotR, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-    }
+    // Strokes rendered by the shared lib — WITHOUT degree labels: the viewers
+    // overlay those as a separate, toggleable layer (AnnotationSnapshot).
+    drawStrokes(ctx, w, h, strokes, { labels: false, lineWidth: Math.max(3, Math.round(w / 200)) })
 
     return await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85),

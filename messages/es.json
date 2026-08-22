@@ -132,7 +132,7 @@
     "annotationCanvas": {
       "canvasAria": "Lienzo de anotación",
       "annotatingLabel": "Anotando",
-      "lineHint": "Arrastra el dedo o el lápiz para trazar una línea.",
+      "lineHint": "Arrastra con el dedo o el Pencil para trazar una línea.",
       "toolArrow": "Flecha",
       "toolLine": "Línea",
       "toolCircle": "Círculo",
@@ -153,7 +153,15 @@
       "micStartFailed": "No se pudo iniciar el micrófono",
       "notePlaceholder": "Nota opcional…",
       "cancel": "Cancelar",
-      "save": "Guardar anotación"
+      "save": "Guardar anotación",
+      "toolAngle": "Ángulo",
+      "toolFreehand": "Mano alzada",
+      "toolRect": "Recuadro",
+      "hintShape": "Arrastra para dibujar la forma.",
+      "hintAngle": "Arrastra desde el vértice hasta el primer brazo; levanta y arrastra el segundo.",
+      "hintAngleSecond": "Ahora arrastra el segundo brazo del ángulo.",
+      "hintFreehand": "Dibuja libremente. Con el Pencil, la presión cambia el grosor.",
+      "pencilActive": "Pencil"
     }
   },
   "userMenu": {
@@ -741,7 +749,9 @@
         "feedbackAgree": "Refleja",
         "feedbackDisagree": "No refleja",
         "awaitingUploadTitle": "El vídeo aún se está subiendo",
-        "awaitingUploadHint": "La grabación está guardada en el iPad donde la hiciste y se subirá sola cuando haya conexión. Abre la app en ese iPad para que continúe."
+        "awaitingUploadHint": "La grabación está guardada en el iPad donde la hiciste y se subirá sola cuando haya conexión. Abre la app en ese iPad para que continúe.",
+        "showDegrees": "Ver grados",
+        "hideDegrees": "Ocultar grados"
       },
       "annotate": {
         "title": "Revisar y anotar",
@@ -941,7 +951,14 @@
       "viewCheckpoint": "Ver ejercicio",
       "saveFailed": "No se pudo guardar tu práctica. Vuelve a intentar.",
       "mediaPipeStuck": "MediaPipe se quedó atascado. Recarga la página e intenta de nuevo.",
-      "saveFailedKeepResults": "Tus resultados de abajo son correctos, pero no se han podido guardar en tu historial. Puedes volver a grabar cuando tengas mejor conexión."
+      "saveFailedKeepResults": "Tus resultados de abajo son correctos, pero no se han podido guardar en tu historial. Puedes volver a grabar cuando tengas mejor conexión.",
+      "lowDetectionError": "No pudimos verte bien en el vídeo, así que no sería justo darte un resultado. Comprueba la colocación del móvil e inténtalo otra vez.",
+      "confidenceSingleRep": "Solo detectamos un swing: el resultado es orientativo. Con 2-3 swings por vídeo la evaluación es mucho más fiable.",
+      "confidenceShortHold": "Estuviste poco tiempo quieto en la posición, así que el resultado es orientativo. Intenta mantener la postura 3-4 segundos.",
+      "confidenceFewMetrics": "Solo pudimos medir una parte de tu cuerpo, así que el resultado es orientativo. Comprueba que se te vea entero.",
+      "consistencyHigh": "tus swings fueron muy parecidos entre sí",
+      "consistencyMedium": "tus swings variaron un poco entre sí",
+      "consistencyLow": "tus swings fueron bastante distintos entre sí"
     },
     "mirror": {
       "statusOk": "Postura correcta",
@@ -1026,7 +1043,9 @@
       "showReference": "Mostrar referencia",
       "statusPreparing": "Preparando",
       "videoPreparingTitle": "Tu instructor aún está subiendo este vídeo",
-      "videoPreparingHint": "Aparecerá aquí en cuanto termine. Puedes volver en un rato."
+      "videoPreparingHint": "Aparecerá aquí en cuanto termine. Puedes volver en un rato.",
+      "showDegrees": "Ver grados",
+      "hideDegrees": "Ocultar grados"
     },
     "clipHistory": {
       "loadingError": "Sin sesiones todavía",

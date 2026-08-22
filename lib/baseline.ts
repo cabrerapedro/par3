@@ -1,4 +1,9 @@
-import type { Landmark, Baseline, CalibrationMark, CameraAngle, SwingPhaseName, SwingPhase, SwingBaseline } from './types'
+import type { Landmark, Baseline, BaselineMetric, CalibrationMark, CameraAngle, SwingPhaseName, SwingPhase, SwingBaseline } from './types'
+
+// Re-export for consumers that work with detected phases (e.g. the two-pass
+// swing refinement in lib/processClip).
+export type { SwingPhase } from './types'
+import { strokeAnchor } from './strokes'
 
 // Local shape — matches lib/processClip's ProcessedFrame but defined here to
 // avoid the cycle (processClip imports calculateMetrics from this file).
@@ -125,6 +130,79 @@ export function baselineMetricKeys(baseline: Record<string, unknown>): string[] 
   return Object.keys(baseline).filter(k => !k.startsWith('_'))
 }
 
+// ─── Band intelligence: noise floors, instructor scale, annotation focus ────
+//
+// The traffic light compares |deviation| against ±1σ/±2σ of the baseline. Two
+// stored knobs refine that without touching the `_v` contract:
+//   `_k`     — per-clip band scale learned from the instructor's 👍/👎 labels
+//              (absent = 1.0). Applied as a multiplier on σ.
+//   `_focus` — metric ids the instructor's annotations point at (strokes on
+//              the body → zone → metrics), used to pick THE one instruction.
+//
+// And a per-metric noise floor fixes a statistical bug: the build-time floor
+// is 5% of |mean|, which collapses to ~0 for metrics whose natural mean is ≈0
+// (shoulder_level, hip_sway…). A "green" band of ±0.001 torso units ≈ ±0.5 mm
+// is narrower than MediaPipe's own jitter — the student sees red without
+// having moved. These floors are the measured-noise scale of a still body.
+
+// Floors in each metric's natural units. 'deg' and 'ratio' are version-
+// independent; 'torso' floors only apply to v2 baselines (v1 stores raw
+// frame units, a different scale).
+const METRIC_STD_FLOORS: Record<string, { floor: number; unit: 'deg' | 'torso' | 'ratio' }> = {
+  spine_angle:    { floor: 2.0, unit: 'deg' },
+  knee_flex:      { floor: 3.0, unit: 'deg' },
+  hip_hinge:      { floor: 2.5, unit: 'deg' },
+  arm_angle:      { floor: 3.0, unit: 'deg' },
+  trail_arm:      { floor: 3.0, unit: 'deg' },
+  head_lateral:   { floor: 0.03,  unit: 'torso' },
+  shoulder_level: { floor: 0.025, unit: 'torso' },
+  hip_sway:       { floor: 0.03,  unit: 'torso' },
+  weight_shift:   { floor: 0.04,  unit: 'torso' },
+  head_forward:   { floor: 0.03,  unit: 'torso' },
+  head_height:    { floor: 0.03,  unit: 'torso' },
+  stance_width:   { floor: 0.05,  unit: 'ratio' },
+}
+
+/**
+ * The σ actually used for banding: stored std, raised to the metric's noise
+ * floor, scaled by the instructor-calibrated `_k`.
+ */
+export function effectiveStd(
+  key: string,
+  metric: BaselineMetric,
+  version: number,
+  bandScale: number = 1,
+): number {
+  const f = METRIC_STD_FLOORS[key]
+  const floor = f && (f.unit !== 'torso' || version >= 2) ? f.floor : 0
+  return Math.max(metric.std, floor) * bandScale
+}
+
+/** Instructor-calibrated band scale stored on the baseline (absent = 1). */
+export function baselineBandScale(baseline: unknown): number {
+  const k = (baseline as Record<string, unknown> | null)?._k
+  return typeof k === 'number' && k > 0 ? k : 1
+}
+
+/** Metric ids the instructor's annotations emphasized (absent = none). */
+export function baselineFocusMetrics(baseline: unknown): string[] {
+  const f = (baseline as Record<string, unknown> | null)?._focus
+  return Array.isArray(f) ? f.filter((x): x is string => typeof x === 'string') : []
+}
+
+export interface MetricOpts {
+  /**
+   * Which arm is the trail arm (the rear arm: the right arm for a
+   * right-handed golfer). When known — students carry `dominant_hand` on
+   * their profile — trail_arm is measured on that arm consistently. Without
+   * it we fall back to the shoulder-x heuristic, which in the down-the-line
+   * view (where trail_arm lives) is nearly noise: the shoulders overlap in x
+   * by definition of that view, so the measured arm could alternate between
+   * frames.
+   */
+  trailSide?: 'left' | 'right'
+}
+
 // Raw metric values from landmarks (no thresholds)
 // Only includes metrics where the required landmarks are sufficiently visible.
 // `version` controls body-scale normalization (see METRICS_VERSION above);
@@ -133,6 +211,7 @@ export function calculateMetrics(
   lm: LM[],
   cameraAngle: CameraAngle,
   version: number = METRICS_VERSION,
+  opts: MetricOpts = {},
 ): Record<string, number> {
   const metrics: Record<string, number> = {}
 
@@ -188,7 +267,11 @@ export function calculateMetrics(
       metrics.hip_hinge = angleBetween(sMid, hMid, kMid)
     }
     if (visible(lShoulder, rShoulder, lElbow, rElbow, lWrist, rWrist)) {
-      const trailIsLeft = lShoulder.x > rShoulder.x
+      // Prefer the student's known handedness (right-handed → right arm is the
+      // trail arm); the shoulder-x heuristic is the legacy fallback.
+      const trailIsLeft = opts.trailSide
+        ? opts.trailSide === 'left'
+        : lShoulder.x > rShoulder.x
       const trailShoulder = trailIsLeft ? lShoulder : rShoulder
       const trailElbow = trailIsLeft ? lElbow : rElbow
       const trailWrist = trailIsLeft ? lWrist : rWrist
@@ -485,14 +568,22 @@ export interface BaselineCheck {
   label: string
   status: 'ok' | 'warn' | 'bad'
   direction: 'high' | 'low' | 'center'
+  /** Signed deviation in effective-σ units (present on newly computed checks). */
+  deviation?: number
 }
 
-// Compare current metrics against a personal baseline
+// Compare current metrics against a personal baseline.
+// Banding uses effectiveStd (noise floors + `_k` scale). `opts` lets swing
+// callers thread the version/scale of the PARENT SwingBaseline down to the
+// per-phase baselines, which carry no `_v`/`_k` of their own.
 export function compareToBaseline(
   metrics: Record<string, number>,
   baseline: Baseline,
-  selectedMetrics?: string[]
+  selectedMetrics?: string[],
+  opts?: { version?: number; bandScale?: number },
 ): BaselineCheck[] {
+  const version = opts?.version ?? baselineMetricsVersion(baseline)
+  const bandScale = opts?.bandScale ?? baselineBandScale(baseline)
   const entries = selectedMetrics?.length
     ? Object.entries(metrics).filter(([key]) => selectedMetrics.includes(key))
     : Object.entries(metrics)
@@ -506,17 +597,47 @@ export function compareToBaseline(
     const b = baseline[key]
     if (!b) return []
 
-    const deviation = Math.abs(value - b.mean)
-    const status: 'ok' | 'warn' | 'bad' = deviation <= b.std ? 'ok' : deviation <= 2 * b.std ? 'warn' : 'bad'
+    const std = effectiveStd(key, b, version, bandScale)
+    const distance = Math.abs(value - b.mean)
+    const status: 'ok' | 'warn' | 'bad' = distance <= std ? 'ok' : distance <= 2 * std ? 'warn' : 'bad'
     const direction: 'high' | 'low' | 'center' = status === 'ok' ? 'center' : value > b.mean ? 'high' : 'low'
+    // `deviation` is reported in UNSCALED σ (floors applied, `_k` NOT
+    // applied). It gets persisted and later fed to calibrateBandScale, which
+    // must see a fixed unit — if `_k` were baked in, every re-fit would
+    // shrink/grow the stored deviations and the calibration would chase
+    // its own tail instead of converging.
+    const rawStd = effectiveStd(key, b, version, 1)
 
     return [{
       id: key,
       label: METRIC_LABELS[key] || key,
       status,
       direction,
+      deviation: rawStd > 0 ? (value - b.mean) / rawStd : 0,
     }]
   })
+}
+
+/**
+ * The ONE thing to fix right now: worst status first, then metrics the
+ * instructor's annotations point at, then the largest deviation. Before this,
+ * ties were broken by array position — i.e. by the insertion order of a JS
+ * object, which is no way to decide what a student hears.
+ */
+export function pickPrimaryCheck<T extends BaselineCheck>(
+  checks: T[],
+  focus?: string[],
+): T | null {
+  const rank = { bad: 2, warn: 1, ok: 0 } as const
+  const candidates = checks.filter(c => c.status !== 'ok')
+  if (candidates.length === 0) return null
+  const inFocus = (c: T) => (focus?.includes(c.id) ? 1 : 0)
+  return [...candidates].sort(
+    (a, b) =>
+      rank[b.status] - rank[a.status] ||
+      inFocus(b) - inFocus(a) ||
+      Math.abs(b.deviation ?? 0) - Math.abs(a.deviation ?? 0),
+  )[0]
 }
 
 // Overall status from baseline checks
@@ -535,7 +656,11 @@ type Translator = (key: string, values?: Record<string, string | number>) => str
 // Generate summary for practice results (template-based, no AI).
 // `t` should be bound to the `baselineSummary` namespace, e.g.
 // `useTranslations('baselineSummary')`.
-export function generateBaselineSummary(checks: BaselineCheck[], t: Translator): string {
+export function generateBaselineSummary(
+  checks: BaselineCheck[],
+  t: Translator,
+  focus?: string[],
+): string {
   const good = checks.filter(c => c.status === 'ok')
   const issues = checks.filter(c => c.status !== 'ok')
 
@@ -549,7 +674,7 @@ export function generateBaselineSummary(checks: BaselineCheck[], t: Translator):
       labels: good.map(c => c.label).join(', '),
     }))
   }
-  const worst = issues.find(c => c.status === 'bad') || issues[0]
+  const worst = pickPrimaryCheck(checks, focus) ?? issues[0]
   parts.push(t('focusOn', { label: worst.label.toLowerCase() }))
 
   return parts.join(' ')
@@ -592,6 +717,7 @@ export function detectSwingReps(
   frames: LM[][],
   cameraAngle: CameraAngle,
   version: number = METRICS_VERSION,
+  metricOpts: MetricOpts = {},
 ): SwingPhase[][] | null {
   if (frames.length < 10) return null
 
@@ -697,7 +823,7 @@ export function detectSwingReps(
     reps.push(phaseNames.map((phase, i) => ({
       phase,
       landmarks: frames[indices[i]],
-      metrics: calculateMetrics(frames[indices[i]], cameraAngle, version),
+      metrics: calculateMetrics(frames[indices[i]], cameraAngle, version, metricOpts),
       frame_index: indices[i],
     })))
     prevImpact = impactIdx
@@ -752,6 +878,45 @@ export function averageSwingReps(reps: SwingPhase[][]): SwingPhase[] {
   return out
 }
 
+/**
+ * Rep-to-rep consistency of a swing attempt — the signal an instructor
+ * watches first and the averaged comparison throws away. `spread` is the
+ * median, across phase-metrics measured in ≥2 reps, of the reps' own std in
+ * effective-σ units of the baseline: <0.75 → the reps are tighter than the
+ * calibrated band ('high'), >1.5 → they differ more than the band itself
+ * ('low'). Null with fewer than 2 reps (nothing to compare).
+ */
+export function swingRepConsistency(
+  reps: SwingPhase[][],
+  baseline: SwingBaseline,
+): { level: 'high' | 'medium' | 'low'; spread: number } | null {
+  if (reps.length < 2) return null
+  const version = baselineMetricsVersion(baseline)
+  const bandScale = baselineBandScale(baseline)
+
+  const spreads: number[] = []
+  for (const [phaseName, phaseBaseline] of Object.entries(baseline.phases)) {
+    if (!phaseBaseline) continue
+    for (const key of baselineMetricKeys(phaseBaseline)) {
+      const b = phaseBaseline[key]
+      if (!b) continue
+      const values = reps
+        .map((rep) => rep.find((p) => p.phase === phaseName)?.metrics[key])
+        .filter((v): v is number => typeof v === 'number')
+      if (values.length < 2) continue
+      const mean = values.reduce((a, v) => a + v, 0) / values.length
+      const std = Math.sqrt(values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length)
+      const eff = effectiveStd(key, b, version, bandScale)
+      if (eff > 0) spreads.push(std / eff)
+    }
+  }
+  if (spreads.length === 0) return null
+  spreads.sort((a, b) => a - b)
+  const spread = spreads[Math.floor(spreads.length / 2)]
+  const level = spread < 0.75 ? 'high' : spread <= 1.5 ? 'medium' : 'low'
+  return { level, spread }
+}
+
 /** Calculate per-phase baseline from swing calibration marks */
 export function calculateSwingBaseline(marks: CalibrationMark[], selectedMetrics?: string[]): SwingBaseline {
   const phaseNames: SwingPhaseName[] = ['address', 'top', 'impact', 'finish']
@@ -785,12 +950,18 @@ export function compareSwingToBaseline(
   baseline: SwingBaseline,
   selectedMetrics?: string[]
 ): SwingPhaseCheck[] {
+  // Version/scale live on the PARENT swing baseline; the per-phase baselines
+  // carry no `_v`/`_k` of their own — thread them down explicitly.
+  const opts = {
+    version: baselineMetricsVersion(baseline),
+    bandScale: baselineBandScale(baseline),
+  }
   return phases
     .filter(p => baseline.phases[p.phase])
     .map(phase => ({
       phase: phase.phase,
       phaseLabel: PHASE_LABELS[phase.phase],
-      checks: compareToBaseline(phase.metrics, baseline.phases[phase.phase]!, selectedMetrics),
+      checks: compareToBaseline(phase.metrics, baseline.phases[phase.phase]!, selectedMetrics, opts),
     }))
 }
 
@@ -837,6 +1008,7 @@ export function buildClipBaseline(
   clipType: 'position' | 'swing',
   cameraAngle: CameraAngle,
   selectedMetrics: string[],
+  metricOpts: MetricOpts = {},
 ): Baseline | SwingBaseline | null {
   if (frames.length === 0) return null
 
@@ -857,10 +1029,26 @@ export function buildClipBaseline(
   }
 
   // Swing: one CalibrationMark per detected repetition, so the per-phase
-  // stats carry the real variance across the student's 2-3 reps.
-  const reps = detectSwingReps(frames.map((f) => f.landmarks), cameraAngle)
+  // stats carry the real variance across the student's 2-3 reps. The phase
+  // metrics are recomputed from landmarks here, so the same MetricOpts the
+  // caller used (trail arm) must come through — otherwise a DTL swing
+  // baseline measures trail_arm on the heuristic arm while practice
+  // compares on the dominant one.
+  const reps = detectSwingReps(frames.map((f) => f.landmarks), cameraAngle, METRICS_VERSION, metricOpts)
   if (!reps) return null
+  return buildSwingBaselineFromReps(reps, selectedMetrics)
+}
 
+/**
+ * Build a swing baseline from already-detected (possibly two-pass refined)
+ * repetitions. Split out of buildClipBaseline so the calibration queue can
+ * refine top/impact at a higher sample rate before the stats are computed.
+ */
+export function buildSwingBaselineFromReps(
+  reps: SwingPhase[][],
+  selectedMetrics: string[],
+): SwingBaseline | null {
+  if (reps.length === 0) return null
   const swingMarks: CalibrationMark[] = reps.map((phases, i) => ({
     timestamp_ms: i,
     landmarks: phases[0].landmarks,
@@ -912,6 +1100,10 @@ export function aggregatePositionChecks(
   const total = frameMetrics.length
   if (total === 0) return []
 
+  // Banding uses effectiveStd: per-metric noise floors + the `_k` scale the
+  // instructor's labels calibrated for this clip.
+  const version = baselineMetricsVersion(baseline)
+  const bandScale = baselineBandScale(baseline)
   const keys = baselineMetricKeys(baseline)
     .filter(k => !selectedMetrics?.length || selectedMetrics.includes(k))
 
@@ -925,11 +1117,12 @@ export function aggregatePositionChecks(
     const presence = values.length / total
     if (values.length === 0 || presence < AGGREGATE_MIN_PRESENCE) continue
 
+    const std = effectiveStd(key, b, version, bandScale)
     let ok = 0, warn = 0, bad = 0
     for (const v of values) {
       const dev = Math.abs(v - b.mean)
-      if (dev <= b.std) ok++
-      else if (dev <= 2 * b.std) warn++
+      if (dev <= std) ok++
+      else if (dev <= 2 * std) warn++
       else bad++
     }
     const okPct = ok / values.length
@@ -938,9 +1131,12 @@ export function aggregatePositionChecks(
     const status: 'ok' | 'warn' | 'bad' = badPct > 0.4 ? 'bad' : okPct > 0.6 ? 'ok' : 'warn'
 
     const mean = values.reduce((a, v) => a + v, 0) / values.length
-    const deviation = b.std > 0 ? (mean - b.mean) / b.std : 0
+    // Unscaled σ (no `_k`) — same reasoning as compareToBaseline: the stored
+    // deviation must keep a fixed unit for the band calibration to converge.
+    const rawStd = effectiveStd(key, b, version, 1)
+    const deviation = rawStd > 0 ? (mean - b.mean) / rawStd : 0
     const direction: 'high' | 'low' | 'center' =
-      Math.abs(deviation) <= 1 ? 'center' : deviation > 0 ? 'high' : 'low'
+      status === 'ok' ? 'center' : deviation > 0 ? 'high' : 'low'
 
     out.push({
       id: key,
@@ -972,4 +1168,166 @@ export function clipDetectionRatio(
 ): number {
   const expected = Math.max(1, Math.floor(durationSeconds * fps))
   return Math.min(1, frameCount / expected)
+}
+
+// ============================================================
+// Annotation focus — the instructor's drawings as signal
+// ============================================================
+
+// A stroke centroid must land within this many torso-lengths of a zone's
+// anchor landmark to count as pointing at that zone. Generous on purpose:
+// instructors circle AROUND a body part, not on the joint pixel.
+const FOCUS_MAX_ANCHOR_DISTANCE = 0.6
+// Only pair an annotation with a frame captured within this window of the
+// paused timestamp.
+const FOCUS_MAX_FRAME_GAP_MS = 1200
+
+interface FocusStroke {
+  type: string
+  points?: number[][]
+  center?: number[]
+}
+
+/**
+ * Which metrics the instructor's annotations point at. Every stroke's
+ * centroid is matched to the nearest zone-anchor landmark of the annotated
+ * frame; the zone's metrics (restricted to the clip's camera angle) get a
+ * vote. Returns metric ids ordered by votes — the raw material for `_focus`.
+ *
+ * This is the product's core asset made operational: "pausó en el frame 2.3 y
+ * dibujó un círculo en la cadera" becomes "prioriza hip_hinge/hip_sway".
+ */
+export function annotationFocusMetrics(
+  annotations: { frame_timestamp_ms: number; strokes: FocusStroke[] }[],
+  frames: { timestamp_ms: number; landmarks: Landmark[] }[],
+  cameraAngle: CameraAngle,
+): string[] {
+  if (annotations.length === 0 || frames.length === 0) return []
+  const angleMetrics = new Set(METRICS_BY_ANGLE[cameraAngle] ?? [])
+  const votes: Record<string, number> = {}
+
+  for (const ann of annotations) {
+    // Nearest processed frame to the paused timestamp.
+    let frame = frames[0]
+    let bestGap = Math.abs(frame.timestamp_ms - ann.frame_timestamp_ms)
+    for (const f of frames) {
+      const gap = Math.abs(f.timestamp_ms - ann.frame_timestamp_ms)
+      if (gap < bestGap) { frame = f; bestGap = gap }
+    }
+    if (bestGap > FOCUS_MAX_FRAME_GAP_MS) continue
+    const torso = torsoLength(frame.landmarks)
+    if (!torso) continue
+
+    for (const stroke of ann.strokes ?? []) {
+      // Per-type anchor (angle vertex, circle/rect center, path centroid) —
+      // see lib/strokes.ts, the single source of truth for the stroke model.
+      const centroid = strokeAnchor(stroke)
+      if (!centroid) continue
+
+      // Nearest visible anchor across every zone.
+      let bestMetricKeys: string[] | null = null
+      let bestDist = Infinity
+      for (const [metricKey, { anchors }] of Object.entries(METRIC_ZONES)) {
+        if (!angleMetrics.has(metricKey)) continue
+        for (const idx of anchors) {
+          const p = frame.landmarks[idx]
+          if (!p || (p.visibility ?? 0) < 0.5) continue
+          const dist = Math.hypot(p.x - centroid[0], p.y - centroid[1]) / torso
+          if (dist < bestDist) {
+            bestDist = dist
+            bestMetricKeys = [metricKey]
+          } else if (dist === bestDist && bestMetricKeys) {
+            bestMetricKeys.push(metricKey)
+          }
+        }
+      }
+      if (!bestMetricKeys || bestDist > FOCUS_MAX_ANCHOR_DISTANCE) continue
+      // Every metric anchored on the winning zone votes (e.g. a circle on the
+      // hips votes hip_hinge AND hip_sway — same anchors, same zone).
+      const zone = METRIC_ZONES[bestMetricKeys[0]].zone
+      for (const [metricKey, info] of Object.entries(METRIC_ZONES)) {
+        if (info.zone === zone && angleMetrics.has(metricKey)) {
+          votes[metricKey] = (votes[metricKey] ?? 0) + 1
+        }
+      }
+    }
+  }
+
+  return Object.entries(votes)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k]) => k)
+}
+
+// ============================================================
+// Band-scale calibration from the instructor's 👍/👎 labels
+// ============================================================
+
+// Candidate multipliers for the σ bands. With few labels, the extreme values
+// are off the table (see calibrateBandScale).
+export const BAND_SCALE_CANDIDATES = [0.75, 1, 1.25, 1.5, 2]
+export const MIN_CALIBRATION_LABELS = 10
+
+export interface LabeledSession {
+  results: Record<string, { deviation?: number; status?: string }>
+  instructor_feedback: 'agree' | 'disagree'
+}
+
+/**
+ * Learn a per-clip band scale `_k` from session-level agree/disagree labels.
+ *
+ * The label is per SESSION, not per metric, so this deliberately does NOT try
+ * to calibrate individual thresholds — it fits one severity multiplier: for
+ * each candidate k, every stored metric deviation (already in σ units) is
+ * re-classified with bands ±k/±2k, the session is predicted "agree" when ≥60%
+ * of its metrics land ok, and the k with the best balanced accuracy against
+ * the instructor's actual labels wins. Pure arithmetic over stored data — no
+ * video reprocessing.
+ *
+ * Returns null (leave `_k` untouched) when the data can't support a fit:
+ * fewer than MIN_CALIBRATION_LABELS labeled sessions with real deviations, or
+ * fewer than 2 examples of either class (nothing to balance against).
+ */
+export function calibrateBandScale(sessions: LabeledSession[]): { k: number; n: number } | null {
+  const usable = sessions.filter((s) => {
+    const devs = Object.entries(s.results ?? {})
+      .filter(([key]) => !key.startsWith('_'))
+      .map(([, r]) => r?.deviation)
+      .filter((d): d is number => typeof d === 'number')
+    // Legacy sessions stored zero placeholders — those carry no signal.
+    return devs.length > 0 && devs.some((d) => d !== 0)
+  })
+  if (usable.length < MIN_CALIBRATION_LABELS) return null
+  const agrees = usable.filter((s) => s.instructor_feedback === 'agree')
+  const disagrees = usable.filter((s) => s.instructor_feedback === 'disagree')
+  if (agrees.length < 2 || disagrees.length < 2) return null
+
+  // With modest data, keep k conservative.
+  const candidates = usable.length >= 30
+    ? BAND_SCALE_CANDIDATES
+    : BAND_SCALE_CANDIDATES.filter((k) => k >= 0.75 && k <= 1.5)
+
+  const predictedAgree = (s: LabeledSession, k: number): boolean => {
+    const devs = Object.entries(s.results)
+      .filter(([key]) => !key.startsWith('_'))
+      .map(([, r]) => r?.deviation)
+      .filter((d): d is number => typeof d === 'number')
+    const ok = devs.filter((d) => Math.abs(d) <= k).length
+    return ok / devs.length >= 0.6
+  }
+
+  let best: { k: number; score: number } | null = null
+  for (const k of candidates) {
+    const tpr = agrees.filter((s) => predictedAgree(s, k)).length / agrees.length
+    const tnr = disagrees.filter((s) => !predictedAgree(s, k)).length / disagrees.length
+    const score = (tpr + tnr) / 2
+    if (
+      !best ||
+      score > best.score ||
+      // Tie → the k closest to neutral wins (least surprising bands).
+      (score === best.score && Math.abs(k - 1) < Math.abs(best.k - 1))
+    ) {
+      best = { k, score }
+    }
+  }
+  return best ? { k: best.k, n: usable.length } : null
 }

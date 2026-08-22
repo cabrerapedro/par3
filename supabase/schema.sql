@@ -1198,3 +1198,63 @@ create policy "students_anon_update"
   to anon
   using (id = public.current_student_id())
   with check (id = public.current_student_id());
+
+-- ============================================================================
+-- Engine telemetry (agosto 2026) — run this file again to apply.
+-- ============================================================================
+-- One row per meaningful analysis step (upload, MediaPipe pass, refinement,
+-- calibration, evaluation, errors) with its duration and a small non-PII
+-- detail payload. Written fire-and-forget from lib/telemetry.ts. Lets us
+-- diagnose the engine on Steve's iPad from anywhere instead of waiting for a
+-- complaint. Clients can only INSERT; reading is for the instructor (own rows)
+-- and for us via the SQL editor.
+create table if not exists analysis_events (
+  id            uuid primary key default gen_random_uuid(),
+  created_at    timestamptz not null default now(),
+  instructor_id uuid references instructors(id) on delete cascade,
+  student_id    uuid references students(id) on delete cascade,
+  clip_id       uuid references clips(id) on delete set null,
+  session_id    uuid references practice_sessions(id) on delete set null,
+  source        text not null,
+  step          text not null,
+  status        text not null default 'ok' check (status in ('ok', 'error', 'info')),
+  duration_ms   integer,
+  detail        jsonb,
+  ua            text
+);
+create index if not exists analysis_events_created_idx on analysis_events (created_at desc);
+create index if not exists analysis_events_clip_idx on analysis_events (clip_id);
+
+alter table analysis_events enable row level security;
+
+-- Instructor: insert own events, read own events.
+drop policy if exists "analysis_events_instructor_insert" on analysis_events;
+create policy "analysis_events_instructor_insert"
+  on analysis_events for insert
+  to authenticated
+  with check (instructor_id = auth.uid());
+
+drop policy if exists "analysis_events_instructor_select" on analysis_events;
+create policy "analysis_events_instructor_select"
+  on analysis_events for select
+  to authenticated
+  using (
+    instructor_id = auth.uid()
+    or student_id in (select id from public.students where instructor_id = auth.uid())
+  );
+
+-- Student (anon + access-code header): insert only, scoped to themselves.
+drop policy if exists "analysis_events_anon_insert" on analysis_events;
+create policy "analysis_events_anon_insert"
+  on analysis_events for insert
+  to anon
+  with check (student_id = public.current_student_id() and instructor_id is null);
+
+-- ---------------------------------------------------------------------------
+-- 3D world landmarks capture (agosto 2026). MediaPipe returns hip-origin
+-- metric-space landmarks alongside the 2D ones; we never stored them, which
+-- made any future 3D-angle metric impossible to validate retroactively.
+-- Captured from now on (additive column, "capturar todo"); not yet used by
+-- any metric.
+alter table clip_frames    add column if not exists world_landmarks jsonb;
+alter table session_frames add column if not exists world_landmarks jsonb;

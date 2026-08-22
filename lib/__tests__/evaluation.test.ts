@@ -385,6 +385,216 @@ describe('compactLandmarks / compactMetrics', () => {
   })
 })
 
+// ─── Band intelligence: floors, _k, primary pick, calibration ───────────────
+
+describe('effective std floors', () => {
+  it('rescues near-zero-mean metrics from the collapsed 5% floor (v2)', async () => {
+    const { compareToBaseline } = await import('../baseline')
+    // A good shoulder_level baseline: mean ≈ 0.02 torsos, build-time floor
+    // collapsed std to ~0.001. Pure MediaPipe jitter (±0.01) must stay green.
+    const baseline = {
+      _v: 2,
+      shoulder_level: { mean: 0.02, std: 0.001, min: 0.019, max: 0.021 },
+    } as unknown as Baseline
+    const checks = compareToBaseline({ shoulder_level: 0.035 }, baseline)
+    expect(checks[0].status).toBe('ok') // |0.015| ≤ floor 0.025
+  })
+
+  it('does not apply torso-unit floors to v1 baselines (different scale)', async () => {
+    const { compareToBaseline } = await import('../baseline')
+    const baseline = {
+      shoulder_level: { mean: 0.02, std: 0.001, min: 0.019, max: 0.021 },
+    } as unknown as Baseline // no _v → v1
+    const checks = compareToBaseline({ shoulder_level: 0.035 }, baseline)
+    expect(checks[0].status).toBe('bad') // v1 keeps the stored (tiny) std
+  })
+
+  it('reports deviation in UNSCALED σ so the _k calibration cannot chase its own tail', async () => {
+    const { compareToBaseline } = await import('../baseline')
+    const plain = { _v: 2, spine_angle: { mean: 30, std: 2, min: 28, max: 32 } } as unknown as Baseline
+    const scaled = { _v: 2, _k: 2, spine_angle: { mean: 30, std: 2, min: 28, max: 32 } } as unknown as Baseline
+    const a = compareToBaseline({ spine_angle: 35 }, plain)[0]
+    const b = compareToBaseline({ spine_angle: 35 }, scaled)[0]
+    expect(a.deviation).toBeCloseTo(2.5) // (35-30)/2
+    expect(b.deviation).toBeCloseTo(2.5) // same unit regardless of _k …
+    expect(a.status).toBe('bad')         // … even though the verdicts differ:
+    expect(b.status).toBe('warn')        //     5 > 2·2 vs 5 ≤ 2·(2·2)
+  })
+
+  it('widens bands with the instructor-calibrated _k', async () => {
+    const { compareToBaseline } = await import('../baseline')
+    const tight = { _v: 2, spine_angle: { mean: 30, std: 2, min: 28, max: 32 } } as unknown as Baseline
+    const scaled = { _v: 2, _k: 2, spine_angle: { mean: 30, std: 2, min: 28, max: 32 } } as unknown as Baseline
+    expect(compareToBaseline({ spine_angle: 33 }, tight)[0].status).toBe('warn')
+    expect(compareToBaseline({ spine_angle: 33 }, scaled)[0].status).toBe('ok') // band 2σ·k=4
+  })
+})
+
+describe('pickPrimaryCheck', () => {
+  const mk = (id: string, status: 'ok' | 'warn' | 'bad', deviation: number) => ({
+    id, label: id, status, direction: 'high' as const, deviation,
+  })
+
+  it('worst status wins regardless of deviation', async () => {
+    const { pickPrimaryCheck } = await import('../baseline')
+    const primary = pickPrimaryCheck([mk('a', 'warn', 9), mk('b', 'bad', 1.5)])
+    expect(primary?.id).toBe('b')
+  })
+
+  it('instructor focus breaks status ties before deviation does', async () => {
+    const { pickPrimaryCheck } = await import('../baseline')
+    const checks = [mk('spine_angle', 'bad', 5), mk('knee_flex', 'bad', 3)]
+    expect(pickPrimaryCheck(checks)?.id).toBe('spine_angle') // by |deviation|
+    expect(pickPrimaryCheck(checks, ['knee_flex'])?.id).toBe('knee_flex') // by focus
+  })
+
+  it('returns null when everything is ok', async () => {
+    const { pickPrimaryCheck } = await import('../baseline')
+    expect(pickPrimaryCheck([mk('a', 'ok', 0)])).toBeNull()
+  })
+})
+
+describe('calibrateBandScale', () => {
+  const session = (devs: number[], fb: 'agree' | 'disagree') => ({
+    results: Object.fromEntries(devs.map((d, i) => [`m${i}`, { deviation: d, status: 'ok' }])),
+    instructor_feedback: fb,
+  })
+
+  it('returns null below the label minimum', async () => {
+    const { calibrateBandScale } = await import('../baseline')
+    expect(calibrateBandScale([session([0.5], 'agree')])).toBeNull()
+  })
+
+  it('returns null when one class is missing', async () => {
+    const { calibrateBandScale } = await import('../baseline')
+    const sessions = Array.from({ length: 12 }, () => session([0.5, 0.6], 'agree'))
+    expect(calibrateBandScale(sessions)).toBeNull()
+  })
+
+  it('finds a wider k when the instructor agrees with sessions the bands called bad', async () => {
+    const { calibrateBandScale } = await import('../baseline')
+    // Instructor agrees with sessions at ~1.3σ (bands too strict at k=1) and
+    // disagrees with sessions at ~3σ.
+    const sessions = [
+      ...Array.from({ length: 7 }, () => session([1.3, 1.2, 1.4], 'agree')),
+      ...Array.from({ length: 5 }, () => session([3.2, 2.9, 3.4], 'disagree')),
+    ]
+    const fit = calibrateBandScale(sessions)
+    expect(fit).not.toBeNull()
+    expect(fit!.k).toBe(1.5) // 1.3σ ≤ 1.5 ✓ ok · 3σ > 1.5 ✓ still bad
+    expect(fit!.n).toBe(12)
+  })
+
+  it('ignores legacy zero-placeholder sessions', async () => {
+    const { calibrateBandScale } = await import('../baseline')
+    const legacy = Array.from({ length: 20 }, () => session([0, 0], 'agree'))
+    expect(calibrateBandScale(legacy)).toBeNull()
+  })
+})
+
+// ─── Annotation focus ───────────────────────────────────────────────────────
+
+describe('annotationFocusMetrics', () => {
+  it('maps a circle on the hips to the hip metrics of that view', async () => {
+    const { annotationFocusMetrics } = await import('../baseline')
+    const frame = { timestamp_ms: 2000, landmarks: pose() }
+    // Real AnnotationCanvas shape: a circle is points [center, pointOnRadius].
+    // The radius point sits up by the shoulders — the CENTER must win.
+    const focus = annotationFocusMetrics(
+      [{ frame_timestamp_ms: 2100, strokes: [{ type: 'circle', points: [[0.5, 0.5], [0.5, 0.22]] }] }],
+      [frame],
+      'face_on',
+    )
+    // face_on hip-zone metrics: hip_sway + weight_shift (hip_hinge is dtl).
+    expect(focus).toContain('hip_sway')
+    expect(focus).toContain('weight_shift')
+    expect(focus).not.toContain('knee_flex')
+  })
+
+  it('maps a stroke near the knees to knee_flex in the dtl view', async () => {
+    const { annotationFocusMetrics } = await import('../baseline')
+    const lm = pose({ view: 'dtl' })
+    const knee = lm[25]
+    const focus = annotationFocusMetrics(
+      [{ frame_timestamp_ms: 0, strokes: [{ type: 'line', points: [[knee.x, knee.y], [knee.x + 0.02, knee.y]] }] }],
+      [{ timestamp_ms: 0, landmarks: lm }],
+      'dtl',
+    )
+    expect(focus).toContain('knee_flex')
+  })
+
+  it('ignores annotations with no nearby frame', async () => {
+    const { annotationFocusMetrics } = await import('../baseline')
+    const focus = annotationFocusMetrics(
+      [{ frame_timestamp_ms: 30_000, strokes: [{ type: 'circle', points: [[0.5, 0.5], [0.55, 0.5]] }] }],
+      [{ timestamp_ms: 0, landmarks: pose() }],
+      'face_on',
+    )
+    expect(focus).toEqual([])
+  })
+})
+
+// ─── Swing rep consistency ──────────────────────────────────────────────────
+
+describe('swingRepConsistency', () => {
+  const swingBase = (std = 2) => ({
+    _type: 'swing', _v: 2,
+    phases: { top: { arm_angle: { mean: 100, std, min: 95, max: 105 } } },
+  } as unknown as SwingBaseline)
+  const rep = (v: number) => [{ phase: 'top' as const, landmarks: pose(), metrics: { arm_angle: v }, frame_index: 0 }]
+
+  it('is null with a single rep', async () => {
+    const { swingRepConsistency } = await import('../baseline')
+    expect(swingRepConsistency([rep(100)], swingBase())).toBeNull()
+  })
+
+  it('reports high for near-identical reps and low for scattered ones', async () => {
+    const { swingRepConsistency } = await import('../baseline')
+    const tight = swingRepConsistency([rep(100), rep(101), rep(100.5)], swingBase())
+    expect(tight?.level).toBe('high')
+    const wild = swingRepConsistency([rep(90), rep(110), rep(100)], swingBase())
+    expect(wild?.level).toBe('low')
+  })
+})
+
+// ─── Stroke model (lib/strokes) ─────────────────────────────────────────────
+
+describe('strokes: angle + anchors', () => {
+  it('measures angles in pixel space (aspect-corrected)', async () => {
+    const { angleDegrees } = await import('../strokes')
+    // Vertex at center; arms straight up and straight right → 90° on any aspect.
+    expect(angleDegrees([0.5, 0.5], [0.5, 0.2], [0.8, 0.5], 16 / 9)).toBe(90)
+    // A 45° diagonal in PIXEL space on a 16:9 frame is NOT 45° in normalized
+    // coords — the aspect correction must recover it.
+    const dx = 0.2, dy = dx * (16 / 9) // equal pixel run and rise
+    expect(angleDegrees([0.5, 0.5], [0.5 + dx, 0.5], [0.5 + dx, 0.5 + dy], 16 / 9)).toBe(45)
+    expect(angleDegrees([0.5, 0.5], [0.5, 0.5], [0.8, 0.5], 1)).toBe(0) // degenerate arm
+  })
+
+  it('anchors each stroke type where it points', async () => {
+    const { strokeAnchor } = await import('../strokes')
+    expect(strokeAnchor({ type: 'angle', points: [[0.4, 0.6], [0.1, 0.1], [0.9, 0.1]] })).toEqual([0.4, 0.6])
+    expect(strokeAnchor({ type: 'circle', points: [[0.5, 0.5], [0.6, 0.5]] })).toEqual([0.5, 0.5])
+    const rect = strokeAnchor({ type: 'rect', points: [[0.2, 0.2], [0.6, 0.4]] })!
+    expect(rect[0]).toBeCloseTo(0.4)
+    expect(rect[1]).toBeCloseTo(0.3)
+    expect(strokeAnchor({ type: 'freehand', points: [[0, 0], [1, 0], [1, 1], [0, 1]] })).toEqual([0.5, 0.5])
+    expect(strokeAnchor({ type: 'line', points: [] })).toBeNull()
+  })
+
+  it('an angle drawn at the knees focuses knee_flex (dtl)', async () => {
+    const { annotationFocusMetrics } = await import('../baseline')
+    const lm = pose({ view: 'dtl' })
+    const knee = lm[25]
+    const focus = annotationFocusMetrics(
+      [{ frame_timestamp_ms: 0, strokes: [{ type: 'angle', points: [[knee.x, knee.y], [knee.x, knee.y - 0.2], [knee.x + 0.05, knee.y + 0.2]] }] }],
+      [{ timestamp_ms: 0, landmarks: lm }],
+      'dtl',
+    )
+    expect(focus).toContain('knee_flex')
+  })
+})
+
 // ─── buildClipBaseline integration ──────────────────────────────────────────
 
 describe('buildClipBaseline (v2)', () => {

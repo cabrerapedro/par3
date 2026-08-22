@@ -15,8 +15,10 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import type { Clip } from '@/lib/classes'
 import type { Stroke } from '@/components/AnnotationCanvas'
+import { AnnotationSnapshot } from '@/components/AnnotationSnapshot'
 import { processClip } from '@/lib/processClip'
 import { insertClipFrames } from '@/lib/frames'
+import { recalibrateClipBands } from '@/lib/baselineMaintenance'
 import { METRICS_BY_ANGLE, buildClipBaseline, clipDetectionRatio, baselineMetricsVersion } from '@/lib/baseline'
 import {
   Dialog,
@@ -86,6 +88,7 @@ export default function ClipDetailPage() {
   const [retryError, setRetryError] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [showDegrees, setShowDegrees] = useState(true)
 
   useEffect(() => {
     if (authLoading) return
@@ -139,7 +142,11 @@ export default function ClipDetailPage() {
     if (fbErr) {
       console.error('instructor_feedback update failed (schema.sql re-run needed?)', fbErr)
       setSessions(prev)
+      return
     }
+    // Every label refines the clip's band scale `_k` (needs ≥10 labels to
+    // move; see calibrateBandScale). Fire-and-forget.
+    void recalibrateClipBands(clipId)
   }
 
   function seekTo(ms: number) {
@@ -162,14 +169,23 @@ export default function ClipDetailPage() {
       if (!res.ok) throw new Error(`Couldn't fetch video (HTTP ${res.status})`)
       const blob = await res.blob()
 
-      // 2. Run MediaPipe over the frames (lite model, posture sampled lower for
-      // speed). processClip's per-frame timeout cap means a stuck WASM session
-      // throws instead of looping for minutes.
+      // 2. Run MediaPipe over the frames (full model — batch analysis, see
+      // processClip; posture sampled lower for speed). processClip's per-frame
+      // timeout cap means a stuck WASM session throws instead of looping for
+      // minutes. The student's handedness pins trail_arm to the same arm the
+      // practice flow will compare on.
       const fps = c.clip_type === 'swing' ? 10 : 5
+      const { data: studentRow } = await supabase
+        .from('students').select('dominant_hand').eq('id', studentId).single()
+      const metricOpts =
+        studentRow?.dominant_hand === 'left' || studentRow?.dominant_hand === 'right'
+          ? { trailSide: studentRow.dominant_hand }
+          : {}
       const frames = await processClip({
         videoBlob: blob,
         cameraAngle: c.camera_angle,
         fps,
+        metricOpts,
         onProgress: (p) => setRetryPct(Math.round(p * 100)),
       })
 
@@ -194,7 +210,7 @@ export default function ClipDetailPage() {
       const selectedMetrics = c.selected_metrics?.length
         ? c.selected_metrics
         : METRICS_BY_ANGLE[c.camera_angle] ?? []
-      const baseline = buildClipBaseline(frames, c.clip_type, c.camera_angle, selectedMetrics)
+      const baseline = buildClipBaseline(frames, c.clip_type, c.camera_angle, selectedMetrics, metricOpts)
 
       if (!baseline) {
         setRetryError(t('retryNoBaseline'))
@@ -439,10 +455,21 @@ export default function ClipDetailPage() {
 
         {/* Annotations list */}
         <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">
-            {t('annotationsHeader')}
-            {annotations.length > 0 && <span className="text-muted-foreground font-normal"> ({annotations.length})</span>}
-          </h2>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-sm font-semibold text-foreground">
+              {t('annotationsHeader')}
+              {annotations.length > 0 && <span className="text-muted-foreground font-normal"> ({annotations.length})</span>}
+            </h2>
+            {annotations.some((a) => Array.isArray(a.strokes) && a.strokes.some((s) => s?.type === 'angle' && typeof s.degrees === 'number')) && (
+              <button
+                type="button"
+                onClick={() => setShowDegrees((v) => !v)}
+                className="text-xs font-medium text-primary hover:underline underline-offset-2"
+              >
+                {showDegrees ? t('hideDegrees') : t('showDegrees')}
+              </button>
+            )}
+          </div>
 
           {annotations.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('annotationsEmpty')}</p>
@@ -452,20 +479,14 @@ export default function ClipDetailPage() {
                 <li key={a.id} className="bg-card border border-border rounded-xl p-3">
                   <div className="flex flex-col sm:flex-row gap-4">
                     {a.snapshot_url && (
-                      <button
-                        type="button"
+                      <AnnotationSnapshot
+                        src={a.snapshot_url}
+                        alt={t('snapshotAlt')}
+                        strokes={a.strokes}
+                        showDegrees={showDegrees}
                         onClick={() => seekTo(a.frame_timestamp_ms)}
-                        className="shrink-0 self-start"
-                        aria-label={t('snapshotAlt')}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={a.snapshot_url}
-                          alt={t('snapshotAlt')}
-                          className="w-full sm:w-72 rounded-lg border border-border"
-                          loading="lazy"
-                        />
-                      </button>
+                        className="w-full sm:w-72 shrink-0 self-start"
+                      />
                     )}
 
                     <div className="flex-1 min-w-0 flex flex-col gap-2">

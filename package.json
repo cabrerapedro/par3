@@ -8,10 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "node scripts/copy-mediapipe.mjs",
+    "copy-mediapipe": "node scripts/copy-mediapipe.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/pose": "^0.5.1675469404",
     "@supabase/supabase-js": "^2.98.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

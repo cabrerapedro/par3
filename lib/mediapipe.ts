@@ -1,15 +1,27 @@
 import type { Landmark } from './types'
 
+// The pose engine is SELF-HOSTED: scripts/copy-mediapipe.mjs copies the
+// pinned @mediapipe packages into public/mediapipe on install, so the WASM,
+// the models and the helpers are static assets of our own origin — cacheable
+// by the service worker and available offline on a range with no signal.
+// The CDN URLs remain as a fallback if the local files are missing (e.g. a
+// deploy where postinstall didn't run).
+export const MP_LOCAL_POSE    = '/mediapipe/pose'
+export const MP_LOCAL_DRAWING = '/mediapipe/drawing_utils'
+export const MP_LOCAL_CAMERA  = '/mediapipe/camera_utils'
 // Pose is pinned to avoid WASM re-init errors on HMR.
 // camera_utils / drawing_utils have no WASM — use latest to avoid 404s.
-export const MP_POSE    = 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404'
-export const MP_DRAWING = 'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils'
-export const MP_CAMERA  = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils'
+export const MP_CDN_POSE    = 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404'
+export const MP_CDN_DRAWING = 'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils'
+export const MP_CDN_CAMERA  = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils'
 
 // Minimal structural types for the MediaPipe globals (loaded from the CDN, no
 // @types package). We only type what we actually use.
 export interface PoseResults {
   poseLandmarks?: Landmark[]
+  /** Hip-origin metric-space (meters) landmarks — captured for the corpus,
+   *  not yet used by any metric (see ROADMAP: 3D angles need validation). */
+  poseWorldLandmarks?: Landmark[]
   image?: CanvasImageSource
 }
 
@@ -49,6 +61,9 @@ type CameraConstructor = new (
 // Shape of the singleton state we stash on `window` (see note below).
 interface MediaPipeWindow {
   __mp_loaded?: boolean
+  /** Base URL pose.js was actually loaded from — the WASM/model files must
+   *  come from the same place (local or CDN), so locateFile reads this. */
+  __mp_pose_base?: string
   __mp_pose?: PoseInstance
   __mp_pose_initializing?: Promise<void> | null
   Pose?: PoseConstructor
@@ -93,33 +108,78 @@ function loadScript(src: string): Promise<void> {
     s.onerror = () => reject(new Error(`Failed to load ${src}`))
     document.head.appendChild(s)
   })
+  // A rejected load must NOT stay cached: offline at the range → first try
+  // fails → the student walks into coverage and taps "Practicar" again → we
+  // must hit the network again instead of replaying the cached rejection.
+  // The dead <script> tag goes too, or the `existing` branch above would
+  // wait forever on an element whose error already fired.
+  p.catch(() => {
+    _scriptCache.delete(src)
+    document.querySelector(`script[src="${src}"]`)?.remove()
+  })
   _scriptCache.set(src, p)
   return p
+}
+
+// Load a script from our origin first, falling back to the CDN. Returns the
+// base that worked so dependent asset URLs (WASM, models) stay consistent.
+async function loadWithFallback(local: string, cdn: string, file: string): Promise<string> {
+  try {
+    await loadScript(`${local}/${file}`)
+    return local
+  } catch {
+    console.warn(`[mediapipe] local ${file} unavailable, falling back to CDN`)
+    await loadScript(`${cdn}/${file}`)
+    return cdn
+  }
 }
 
 // Call once — safe to call multiple times (idempotent)
 export async function loadMediaPipe(): Promise<void> {
   if (W.__mp_loaded) return
-  await loadScript(`${MP_POSE}/pose.js`)
-  await loadScript(`${MP_DRAWING}/drawing_utils.js`)
-  await loadScript(`${MP_CAMERA}/camera_utils.js`)
+  W.__mp_pose_base = await loadWithFallback(MP_LOCAL_POSE, MP_CDN_POSE, 'pose.js')
+  await loadWithFallback(MP_LOCAL_DRAWING, MP_CDN_DRAWING, 'drawing_utils.js')
+  await loadWithFallback(MP_LOCAL_CAMERA, MP_CDN_CAMERA, 'camera_utils.js')
   W.__mp_loaded = true
 }
 
-// Options for the underlying Pose model. Defaults match the live mirror
-// (accurate). The batch processor passes a lighter config (modelComplexity 0,
-// no smoothing) so frame-by-frame analysis is fast on an iPad.
+// Options for the underlying Pose model. Live flows pass modelComplexity 0
+// (real-time on a phone); batch flows (post-save analysis, post-recording
+// evaluation) pass 1 — their latency budget is seconds, and the full model
+// visibly reduces landmark jitter and motion-blur misses.
 export interface PoseOptions {
   modelComplexity?: 0 | 1 | 2
   smoothLandmarks?: boolean
 }
 
+// Track the last-applied options so a reuse with DIFFERENT options can call
+// setOptions on the singleton. MediaPipe supports changing modelComplexity at
+// runtime (it reloads the model graph on the next send, ~1-2 s) — only the
+// WASM module itself is init-once. Without this, whichever flow reached the
+// singleton first silently fixed the complexity for every later flow on the
+// same page load.
+let lastOptionsKey = ''
+
+function applyOptions(pose: PoseInstance, options?: PoseOptions) {
+  const resolved = {
+    modelComplexity: options?.modelComplexity ?? 1,
+    smoothLandmarks: options?.smoothLandmarks ?? true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  }
+  const key = JSON.stringify(resolved)
+  if (key === lastOptionsKey) return
+  pose.setOptions(resolved)
+  lastOptionsKey = key
+}
+
 // Returns a singleton Pose instance. Only `new Pose()` is called once ever;
-// subsequent calls just update the onResults callback. `options` only take
-// effect on first creation (the WASM module can't be re-initialized).
+// subsequent calls update the onResults callback and re-apply `options` when
+// they differ from the current ones (model reload happens on the next send).
 // Async because WASM initialization must complete before first send().
 export async function createPose(onResults: (r: PoseResults) => void, options?: PoseOptions) {
   if (W.__mp_pose) {
+    applyOptions(W.__mp_pose, options)
     W.__mp_pose.onResults(onResults)
     return W.__mp_pose
   }
@@ -131,6 +191,7 @@ export async function createPose(onResults: (r: PoseResults) => void, options?: 
     await W.__mp_pose_initializing
     const ready = W.__mp_pose as PoseInstance | undefined
     if (ready) {
+      applyOptions(ready, options)
       ready.onResults(onResults)
       return ready
     }
@@ -138,13 +199,9 @@ export async function createPose(onResults: (r: PoseResults) => void, options?: 
   const Pose = W.Pose
   if (!Pose) throw new Error('MediaPipe Pose not loaded')
   try {
-    const pose = new Pose({ locateFile: (f: string) => `${MP_POSE}/${f}` })
-    pose.setOptions({
-      modelComplexity: options?.modelComplexity ?? 1,
-      smoothLandmarks: options?.smoothLandmarks ?? true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    })
+    const base = W.__mp_pose_base ?? MP_CDN_POSE
+    const pose = new Pose({ locateFile: (f: string) => `${base}/${f}` })
+    applyOptions(pose, options)
     pose.onResults(onResults)
     // Eagerly initialize WASM — must complete before first send()
     W.__mp_pose_initializing = pose.initialize()

@@ -134,3 +134,55 @@ alumno y existe `/privacidad`. Queda lo estructural:
 - El chequeo de detección del reintento (`clips/[clipId]`) deriva la duración
   del propio número de frames, así que el umbral nunca dispara.
 - Pestaña "plan" del alumno en blanco si tiene clips pero ningún plan.
+
+## 8. Auditoría de inteligencia del análisis (ago 2026) — lo aplazado
+
+Implementado en el release "análisis más inteligente": suelos de ruido por
+métrica + puertas de confianza (`_meta` en results), anotaciones como
+prioridad (`_focus`), modelo completo en batch, two-pass de impacto + señal
+per-rep en swing, upgrade v1→v2 desde `clip_frames`, calibración `_k` con los
+👍/👎, trail_arm por mano dominante, prompts con locale y sin voseo.
+
+Evaluado y aplazado a propósito:
+
+- **Landmarks 3D (`poseWorldLandmarks`)**: empezar a GUARDARLOS ya en
+  clip_frames/session_frames (columna aditiva, filosofía "capturar todo") y
+  migrar los ángulos a `_v3` SOLO si los datos demuestran menos varianza
+  inter-sesión — la z monocular es lo más ruidoso de MediaPipe. Sin captura
+  previa no hay upgrade retroactivo posible.
+- **Inteligencia temporal en posición**: duración de mantenimiento ("aguantaste
+  la posición 6 s"), reps de posición (los tramos estables SON las
+  repeticiones; hoy `selectStableFrames` aplana los runs) y tendencia
+  intra-sesión con ≥3 tramos. Traducido a lenguaje, nunca más números.
+- **Bandas asimétricas**: la baseline guarda `min/max` y nadie los usa; con la
+  dirección de la corrección del instructor (extraíble de `_focus` +
+  transcript) una banda [μ−1σ, μ+2σ] orientada es implementable.
+- **Tempo del swing**: ya se captura en `results._meta.tempo` (two-pass), pero
+  NO se muestra al alumno hasta validarlo contra vídeo a cámara lenta
+  (CLAUDE.md lo prohíbe con razón hasta entonces).
+- **Espejo**: filtrar los VALORES de métrica (no solo el skeleton y los
+  estados) para transiciones menos nerviosas cerca del borde de banda.
+- **Transcripción retroactiva**: cuando OPENAI_API_KEY esté en Vercel, las
+  anotaciones antiguas con audio y sin transcript se pueden backfillear (y
+  regenerar `_focus`/resúmenes con la voz incluida).
+- **Retry del detalle de clip**: la recalibración manual no aplica `_focus` ni
+  el two-pass de swing (usa el camino coarse). Unificarla con la cola.
+
+## 9. Solidez del motor (ago 2026) — hecho y pendiente
+
+Hecho: motor autoalojado (`public/mediapipe`, copiado en `postinstall`, con
+fallback a CDN) y precacheado por el service worker → funciona sin red tras
+el primer uso; telemetría `analysis_events` en cola, práctica, upgrade y
+calibración; captura de `world_landmarks` (3D) en ambas tablas de frames;
+suite de tests con fixtures reales lista para activarse.
+
+Pendiente, y requiere la tarde de validación (`docs/VALIDACION-MOTOR.md`):
+- **Fixtures reales**: los clips almacenados hoy son pruebas de escritorio sin
+  piernas en plano (visibilidad de cadera/rodilla/tobillo ≈ 0). En cuanto haya
+  clips de cuerpo entero: `node scripts/export-fixtures.mjs` y la suite
+  `realFixtures.test.ts` se activa sola.
+- **Constantes medidas en vez de elegidas**: suelos de ruido, umbral de
+  quietud, bandas del detector de swings, ventana del segundo pase.
+- Re-ejecutar `supabase/schema.sql` (tabla `analysis_events` + columnas
+  `world_landmarks`). Sin ello: la telemetría falla en silencio (por diseño) y
+  los frames se guardan solo en 2D (fallback automático).

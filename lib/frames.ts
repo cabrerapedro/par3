@@ -26,7 +26,14 @@ export interface FrameRow {
   timestamp_ms: number
   landmarks: Landmark[]
   metrics?: Record<string, number>
+  /** 3D world landmarks (meters, hip origin) — captured for the corpus. */
+  world_landmarks?: Landmark[]
 }
+
+// Set once the database tells us the world_landmarks column doesn't exist
+// yet (schema.sql not re-run). We then drop the field instead of losing the
+// whole frame stream — the 2D corpus is the one that matters today.
+let worldColumnMissing = false
 
 /**
  * Insert a clip's full frame stream into clip_frames in batches.
@@ -64,20 +71,38 @@ async function batchInsert(
   const failures: { batch: number; error: unknown }[] = []
 
   for (let i = 0; i < frames.length; i += batchSize) {
-    const slice = frames.slice(i, i + batchSize).map((f) => ({
-      [parentColumn]: parentId,
-      frame_index: f.frame_index,
-      timestamp_ms: f.timestamp_ms,
-      landmarks: compactLandmarks(f.landmarks),
-      metrics: f.metrics ? compactMetrics(f.metrics) : null,
-    }))
+    const buildSlice = (withWorld: boolean) =>
+      frames.slice(i, i + batchSize).map((f) => ({
+        [parentColumn]: parentId,
+        frame_index: f.frame_index,
+        timestamp_ms: f.timestamp_ms,
+        landmarks: compactLandmarks(f.landmarks),
+        metrics: f.metrics ? compactMetrics(f.metrics) : null,
+        ...(withWorld && f.world_landmarks
+          ? { world_landmarks: compactLandmarks(f.world_landmarks) }
+          : {}),
+      }))
 
     // Per-batch timeout + retry: on a flaky hotspot a single stalled fetch
     // must not hang the whole save, and a transient drop shouldn't lose the
     // batch.
     try {
       await retry(
-        () => sbCall(supabase.from(table).insert(slice), `insert ${table} batch`),
+        async () => {
+          try {
+            await sbCall(supabase.from(table).insert(buildSlice(!worldColumnMissing)), `insert ${table} batch`)
+          } catch (e) {
+            // Column not migrated yet → degrade gracefully to the 2D row.
+            const msg = e instanceof Error ? e.message : String(e)
+            if (!worldColumnMissing && msg.includes('world_landmarks')) {
+              worldColumnMissing = true
+              console.warn('[frames] world_landmarks column missing — storing 2D only (re-run schema.sql)')
+              await sbCall(supabase.from(table).insert(buildSlice(false)), `insert ${table} batch (2D)`)
+              return
+            }
+            throw e
+          }
+        },
         { tries: 3, baseDelayMs: 800, label: `${table} batch ${i / batchSize}` },
       )
     } catch (error) {

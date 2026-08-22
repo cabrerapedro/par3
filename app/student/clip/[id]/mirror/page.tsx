@@ -8,13 +8,14 @@ import { supabase } from '@/lib/supabase'
 import {
   calculateMetrics, compareToBaseline, baselineMetricsVersion, METRICS_BY_ANGLE,
   METRIC_ZONES, SKELETON_SEGMENTS, zoneStatuses, checkPlacement,
+  pickPrimaryCheck, baselineFocusMetrics,
 } from '@/lib/baseline'
 import { loadMediaPipe, createPose, createCamera } from '@/lib/mediapipe'
 import type { PoseInstance, CameraInstance, PoseResults } from '@/lib/mediapipe'
 import { createOneEuroState, filterLandmarks } from '@/lib/oneEuroFilter'
 import type { Clip } from '@/lib/classes'
 import type { Baseline, Landmark } from '@/lib/types'
-import type { BaselineCheck, BodyZone, PlacementStatus } from '@/lib/baseline'
+import type { BaselineCheck, BodyZone, PlacementStatus, MetricOpts } from '@/lib/baseline'
 import Link from 'next/link'
 
 const STATUS_COLORS = {
@@ -58,6 +59,11 @@ export default function StudentClipMirror() {
   const poseRef = useRef<PoseInstance | null>(null)
   const cameraRef = useRef<CameraInstance | null>(null)
   const clipRef = useRef<Clip | null>(null)
+  // Metrics the instructor's annotations point at — the one-instruction
+  // priority. Loaded once with the clip (stable [] callback reads the ref).
+  const focusRef = useRef<string[]>([])
+  // Student's handedness pins trail_arm to the correct arm.
+  const metricOptsRef = useRef<MetricOpts>({})
   // Smoothing buffer for baseline checks — keyed by metric id, NOT array
   // position: the set of detectable metrics changes frame to frame (a landmark
   // dips below the visibility threshold), so positional indexing would mix
@@ -81,6 +87,12 @@ export default function StudentClipMirror() {
   const [showSkeleton, setShowSkeleton] = useState(false)
   const showSkeletonRef = useRef(false)
   useEffect(() => { showSkeletonRef.current = showSkeleton }, [showSkeleton])
+  useEffect(() => {
+    metricOptsRef.current =
+      student?.dominant_hand === 'left' || student?.dominant_hand === 'right'
+        ? { trailSide: student.dominant_hand }
+        : {}
+  }, [student])
 
   // Placement assistant: the session opens in 'setup' — a non-blocking guide
   // to the marked range spot (distance, view, full body). It flips to 'live'
@@ -122,7 +134,17 @@ export default function StudentClipMirror() {
     // `_`-prefixed keys are internal (metrics-version stamp), not metrics.
     if (!data.baseline || Object.keys(data.baseline).filter(k => !k.startsWith('_')).length === 0) { setError(t('errorNoBaseline')); return }
     setClip(data as Clip)
+    focusRef.current = baselineFocusMetrics(data.baseline)
     clipRef.current = data as Clip
+    // Handedness fresh from the DB (the cached student can lag behind an
+    // instructor edit; the effect above seeds the cached value as fallback).
+    if (student) {
+      const { data: s } = await supabase
+        .from('students').select('dominant_hand').eq('id', student.id).single()
+      if (s?.dominant_hand === 'left' || s?.dominant_hand === 'right') {
+        metricOptsRef.current = { trailSide: s.dominant_hand }
+      }
+    }
     // Front camera so the student sees themselves — it's a mirror, not the
     // rear-facing view.
     await startCamera('user')
@@ -227,7 +249,7 @@ export default function StudentClipMirror() {
     // ---- Live phase -------------------------------------------------------
     // Compute metrics with the SAME version the baseline was built with —
     // v2 baselines store body-normalized distances, v1 (legacy) raw ones.
-    const metrics = calculateMetrics(lm, c.camera_angle, version)
+    const metrics = calculateMetrics(lm, c.camera_angle, version, metricOptsRef.current)
     setExpectedCount(expected.length)
     setDetectedCount(Object.keys(metrics).filter(k => expected.includes(k)).length)
     const rawChecks = compareToBaseline(metrics, c.baseline as Baseline, c.selected_metrics)
@@ -295,7 +317,7 @@ export default function StudentClipMirror() {
     // Pulsing halo on the ONE zone to fix — always drawn, independent of the
     // skeleton toggle. This is the "una instrucción a la vez" made visible on
     // the student's own body.
-    const primary = smoothed.find(ch => ch.status === 'bad') ?? smoothed.find(ch => ch.status === 'warn')
+    const primary = pickPrimaryCheck(smoothed, focusRef.current)
     if (primary) {
       const anchors = (METRIC_ZONES[primary.id]?.anchors ?? []).map(px).filter(p => p.v >= 0.5)
       if (anchors.length > 0) {
@@ -432,7 +454,7 @@ export default function StudentClipMirror() {
         {phase === 'live' && poseDetected && checks.length > 0 && (
           <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 max-w-[92%] ${kiosk ? 'flex' : 'flex md:hidden'}`}>
             {(() => {
-              const primary = checks.find(c => c.status === 'bad') ?? checks.find(c => c.status === 'warn')
+              const primary = pickPrimaryCheck(checks, focusRef.current)
               if (!primary) {
                 return (
                   <div className="rounded-2xl px-6 py-3.5 text-center backdrop-blur bg-black/70 border-2 border-ok flex items-center gap-3">
@@ -489,7 +511,7 @@ export default function StudentClipMirror() {
             ) : (() => {
               // One instruction at a time: the single most urgent thing to fix
               // (a red first, then a yellow). If nothing's off, celebrate.
-              const primary = checks.find(c => c.status === 'bad') ?? checks.find(c => c.status === 'warn')
+              const primary = pickPrimaryCheck(checks, focusRef.current)
               if (!primary) {
                 return (
                   <div className="flex flex-col items-center text-center gap-3">

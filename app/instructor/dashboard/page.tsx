@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import type { Student, LifecycleStage } from '@/lib/types'
 import { canMessageWhatsapp, isDormantAt, dormantCutoffISO } from '@/lib/contacts'
+import { upgradeLegacyBaselines } from '@/lib/baselineMaintenance'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -46,6 +47,13 @@ export default function InstructorDashboard() {
     load(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instructor, loading, debounced, stage])
+
+  // Silent, once per session: rebuild pre-v2 baselines from their stored
+  // frames so legacy clips get camera-invariant comparison without
+  // re-recording. Best-effort; logs to console only.
+  useEffect(() => {
+    if (!loading && instructor) void upgradeLegacyBaselines(instructor.id)
+  }, [instructor, loading])
 
   // q is a Supabase filter builder; its type narrows awkwardly, so we cast.
   /* eslint-disable @typescript-eslint/no-explicit-any */

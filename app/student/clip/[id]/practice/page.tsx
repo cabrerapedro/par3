@@ -9,9 +9,11 @@ import {
   calculateMetrics, generateBaselineSummary, METRICS_BY_ANGLE, isSwingBaseline,
   detectSwingReps, averageSwingReps, compareSwingToBaseline, generateSwingSummary,
   selectStableFrames, aggregatePositionChecks, baselineMetricsVersion, estimateCameraAngle,
-  checkPlacement,
+  checkPlacement, baselineFocusMetrics, swingRepConsistency,
 } from '@/lib/baseline'
-import type { PlacementStatus } from '@/lib/baseline'
+import { refineSwingReps } from '@/lib/processClip'
+import { logAnalysisEvent } from '@/lib/telemetry'
+import type { PlacementStatus, MetricOpts } from '@/lib/baseline'
 import { loadMediaPipe, createPose } from '@/lib/mediapipe'
 import type { PoseResults } from '@/lib/mediapipe'
 import { pickVideoMime, resolveRecordedMime, videoRecorderOptions, RECORDER_TIMESLICE_MS } from '@/lib/recorder'
@@ -57,6 +59,11 @@ export default function StudentClipPractice() {
   // Set when the video's geometry clearly doesn't match the clip's configured
   // camera angle — the comparison is then unreliable and we say so.
   const [detectedAngle, setDetectedAngle] = useState<CameraAngle | null>(null)
+  // Low-confidence explanations shown WITH the results ("mejor sin feedback
+  // que feedback erróneo" — and when we do give it, we say how solid it is).
+  const [confidenceNotes, setConfidenceNotes] = useState<string[]>([])
+  // Rep-to-rep consistency for swing attempts (null = not applicable).
+  const [consistencyLevel, setConsistencyLevel] = useState<'high' | 'medium' | 'low' | null>(null)
   const [summary, setSummary] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -78,6 +85,7 @@ export default function StudentClipPractice() {
   const recordingSecondsRef = useRef(0)
   const poseCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const clipRef = useRef<Clip | null>(null)
+  const trailSideRef = useRef<'left' | 'right' | undefined>(undefined)
 
   useWakeLock(stage === 'recording')
 
@@ -116,6 +124,15 @@ export default function StudentClipPractice() {
     if (!data?.baseline) { setError(t('noBaseline')); return }
     setClip(data as Clip)
     clipRef.current = data as Clip
+    // Handedness fresh from the DB: the cached student in localStorage can
+    // lag behind an edit the instructor made on their profile, and a stale
+    // trail arm would compare against a baseline built with the other one.
+    if (student) {
+      const { data: s } = await supabase
+        .from('students').select('dominant_hand').eq('id', student.id).single()
+      const hand = s?.dominant_hand ?? student.dominant_hand
+      trailSideRef.current = hand === 'left' || hand === 'right' ? hand : undefined
+    }
   }
 
   async function startRecording(facing: 'user' | 'environment' = 'environment') {
@@ -326,8 +343,11 @@ export default function StudentClipPractice() {
     setPositionChecks([])
     setRepsCount(0)
     setDetectedAngle(null)
+    setConfidenceNotes([])
+    setConsistencyLevel(null)
 
     const isSwingMode = clip.clip_type === 'swing' || isSwingBaseline(clip.baseline)
+    const tAnalysis = performance.now()
 
     const url = URL.createObjectURL(blob)
     const video = document.createElement('video')
@@ -347,8 +367,14 @@ export default function StudentClipPractice() {
     const totalFrames = Math.min(Math.floor(duration * fps), 600)
 
     await loadMediaPipe()
-    // Lite model: the medium model is far too slow on an iPhone.
-    const pose = await createPose(() => {}, { modelComplexity: 0, smoothLandmarks: false })
+    // Full model: this runs AFTER recording with a progress bar — the latency
+    // budget is seconds, and the model-1 landmarks are visibly less jittery
+    // (which matters double in swing, where phases are scored on few frames).
+    const pose = await createPose(() => {}, { modelComplexity: 1, smoothLandmarks: false })
+
+    // The student's handedness pins trail_arm to the correct arm (fetched
+    // fresh in loadClip; falls back to the cached profile).
+    const metricOpts: MetricOpts = trailSideRef.current ? { trailSide: trailSideRef.current } : {}
 
     // Frame rows captured for session_frames batch insert (ML training corpus).
     // All evaluation happens AFTER the loop, from these rows — that's what lets
@@ -362,18 +388,24 @@ export default function StudentClipPractice() {
 
     let resolveFrame: (() => void) | null = null
     let frameLandmarks: Landmark[] | null = null
+    let frameWorld: Landmark[] | undefined = undefined
     let frameMetrics: Record<string, number> | undefined = undefined
     pose.onResults((r: PoseResults) => {
       frameLandmarks = null
+      frameWorld = undefined
       frameMetrics = undefined
       if (r.poseLandmarks) {
         frameLandmarks = r.poseLandmarks.map((lm) => ({
           x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
         }))
+        // 3D world landmarks: captured for the corpus (not used by any metric yet).
+        frameWorld = r.poseWorldLandmarks?.map((lm) => ({
+          x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
+        }))
         // Stored metrics are always current-version (canonical for the ML
         // corpus); comparison metrics are computed separately below with the
         // baseline's own version.
-        frameMetrics = calculateMetrics(r.poseLandmarks, clip.camera_angle)
+        frameMetrics = calculateMetrics(r.poseLandmarks, clip.camera_angle, undefined, metricOpts)
       }
       resolveFrame?.()
       resolveFrame = null
@@ -400,6 +432,7 @@ export default function StudentClipPractice() {
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       frameLandmarks = null
+      frameWorld = undefined
       frameMetrics = undefined
 
       // Race pose.send() against a 1.5s timeout. timedOut tracks whether the
@@ -430,6 +463,7 @@ export default function StudentClipPractice() {
           timestamp_ms: Math.round(i * step * 1000),
           landmarks: frameLandmarks,
           metrics: frameMetrics,
+          world_landmarks: frameWorld,
         })
       }
 
@@ -446,14 +480,31 @@ export default function StudentClipPractice() {
     // We still show results (the instructor's clip config is authority) but
     // warn loudly so a bad score isn't read as bad technique.
     const estimated = estimateCameraAngle(frameRows.map((r) => r.landmarks))
-    if (estimated && estimated !== clip.camera_angle) {
-      setDetectedAngle(estimated)
+    const angleMismatch = Boolean(estimated && estimated !== clip.camera_angle)
+    if (angleMismatch) setDetectedAngle(estimated)
+
+    // Confidence gate: MediaPipe found a person in under 30% of the sampled
+    // frames → any verdict would be built on scraps. Better no feedback than
+    // wrong feedback.
+    if (frameRows.length / totalFrames < 0.3) {
+      logAnalysisEvent({
+        source: 'practice', step: 'rejected', status: 'info', clip_id: clip.id, student_id: student?.id ?? null,
+        duration_ms: performance.now() - tAnalysis,
+        detail: { reason: 'low_detection', detected: frameRows.length, sampled: totalFrames, fps },
+      })
+      setError(t('lowDetectionError'))
+      URL.revokeObjectURL(url)
+      return
     }
 
     // Comparison metrics must match the baseline's metrics version (v1 clips
     // were calibrated with camera-dependent distances; v2 with body-normalized
     // ones).
     const compareVersion = baselineMetricsVersion(clip.baseline)
+    // Metrics the instructor's annotations point at — drives what we tell the
+    // student to fix first.
+    const focus = baselineFocusMetrics(clip.baseline)
+    const notes: string[] = []
 
     if (isSwingMode) {
       // Swing mode: segment every repetition, average them, compare per phase
@@ -464,11 +515,31 @@ export default function StudentClipPractice() {
         return
       }
 
-      const reps = detectSwingReps(allLandmarks, clip.camera_angle, compareVersion)
+      let reps = detectSwingReps(allLandmarks, clip.camera_angle, compareVersion, metricOpts)
       if (!reps) {
         setError(t('swingNotDetected'))
         URL.revokeObjectURL(url)
         return
+      }
+
+      // Two-pass: re-sample each rep's top→impact window at 30 fps so the
+      // fastest part of the swing isn't judged from a ±50 ms frame. Falls
+      // back to the coarse reps on any failure.
+      let tempo: { backswingMs: number; downswingMs: number }[] = []
+      try {
+        const refined = await refineSwingReps({
+          videoBlob: blob,
+          cameraAngle: clip.camera_angle,
+          coarseReps: reps,
+          coarseTimestampsMs: frameRows.map((r) => r.timestamp_ms),
+          durationMs: duration * 1000,
+          version: compareVersion,
+          metricOpts,
+        })
+        reps = refined.reps
+        tempo = refined.tempo
+      } catch (e) {
+        console.warn('[practice] swing refinement failed, using coarse pass', e)
       }
 
       const swingBaseline = clip.baseline as SwingBaseline
@@ -476,30 +547,56 @@ export default function StudentClipPractice() {
       // with how the baseline itself is built (stats across reps).
       const avgPhases = averageSwingReps(reps)
       const phaseChecks = compareSwingToBaseline(avgPhases, swingBaseline, clip.selected_metrics)
+      const consistency = swingRepConsistency(reps, swingBaseline)
+
+      if (reps.length === 1) notes.push(t('confidenceSingleRep'))
 
       setPreviewUrl(url)
       setRepsCount(reps.length)
       setSwingPhaseChecks(phaseChecks)
+      setConsistencyLevel(consistency?.level ?? null)
+      setConfidenceNotes(notes)
       setSummary(generateSwingSummary(phaseChecks, tSwingSummary))
+      logAnalysisEvent({
+        source: 'practice', step: 'analyzed', clip_id: clip.id, student_id: student?.id ?? null,
+        duration_ms: performance.now() - tAnalysis,
+        detail: {
+          clip_type: 'swing', frames: frameRows.length, sampled: totalFrames, fps, model_complexity: 1,
+          reps: reps.length, refined: tempo.length > 0, consistency: consistency?.level ?? null,
+          compare_version: compareVersion, angle_mismatch: angleMismatch, focus: focus.length ? focus : null,
+          score_ok: phaseChecks.flatMap(pc => pc.checks).filter(c => c.status === 'ok').length,
+          score_total: phaseChecks.flatMap(pc => pc.checks).length,
+        },
+      })
 
       if (student && clip) {
         const allChecks = phaseChecks.flatMap(pc => pc.checks)
         const overall_score = allChecks.length > 0
           ? Math.round(allChecks.filter(c => c.status === 'ok').length / allChecks.length * 100)
           : 0
-        // Persist the real measured value + signed deviation (in std units)
-        // per phase/metric — the Saturday review and any trend analysis need
-        // more than a traffic-light status.
-        const resultsMap = Object.fromEntries(
+        // Persist the real measured value + signed deviation (in effective-σ
+        // units) per phase/metric — the Saturday review and any trend
+        // analysis need more than a traffic-light status.
+        const resultsMap: Record<string, unknown> = Object.fromEntries(
           phaseChecks.flatMap(pc =>
             pc.checks.map(c => {
               const value = avgPhases.find(p => p.phase === pc.phase)?.metrics[c.id]
-              const b = swingBaseline.phases[pc.phase]?.[c.id]
-              const deviation = value !== undefined && b && b.std > 0 ? (value - b.mean) / b.std : 0
-              return [`${pc.phase}__${c.id}`, { value: value ?? 0, deviation, status: c.status }]
+              return [`${pc.phase}__${c.id}`, { value: value ?? 0, deviation: c.deviation ?? 0, status: c.status }]
             })
           )
         )
+        // Session metadata under `_meta` (readers skip `_`-prefixed keys).
+        // `tempo` is captured for future validation only — never shown to the
+        // student until it's validated against slow-motion ground truth.
+        resultsMap._meta = {
+          reps: reps.length,
+          consistency: consistency?.level ?? null,
+          consistency_spread: consistency ? Number(consistency.spread.toFixed(2)) : null,
+          tempo,
+          confidence: reps.length === 1 || angleMismatch ? 'low' : 'normal',
+          unreliable_reason: angleMismatch ? 'angle_mismatch' : null,
+          metrics_evaluated: allChecks.length,
+        }
         const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
           clip_id: clip.id,
@@ -513,6 +610,10 @@ export default function StudentClipPractice() {
 
         if (insErr) {
           console.error('practice_sessions insert failed', insErr)
+          logAnalysisEvent({
+            source: 'practice', step: 'save_failed', status: 'error', clip_id: clip.id, student_id: student.id,
+            detail: { error: insErr.message?.slice(0, 300) ?? 'unknown' },
+          })
           setError(t('saveFailed'))
         } else if (sessionRow?.id && frameRows.length > 0) {
           try { await insertSessionFrames(sessionRow.id, frameRows) } catch (err) { console.error('session_frames insert failed', err) }
@@ -532,7 +633,7 @@ export default function StudentClipPractice() {
 
       const stable = selectStableFrames(frameRows)
       const evalMetrics = stable.map((r) =>
-        calculateMetrics(r.landmarks, clip.camera_angle, compareVersion),
+        calculateMetrics(r.landmarks, clip.camera_angle, compareVersion, metricOpts),
       )
       const aggregated = aggregatePositionChecks(
         evalMetrics,
@@ -546,19 +647,61 @@ export default function StudentClipPractice() {
         return
       }
 
+      // Confidence notes: little stable material or few measurable metrics →
+      // the verdict is orientative, and we say so instead of pretending.
+      const stableSeconds = stable.length / fps
+      const expectedMetrics = clip.selected_metrics?.length
+        ? clip.selected_metrics.length
+        : (METRICS_BY_ANGLE[clip.camera_angle] ?? []).length
+      if (stableSeconds < 2) notes.push(t('confidenceShortHold'))
+      if (expectedMetrics > 0 && aggregated.length / expectedMetrics < 0.5) {
+        notes.push(t('confidenceFewMetrics'))
+      }
+      const lowConfidence = notes.length > 0 || angleMismatch
+
+      // Order the metric list the same way we pick the primary instruction:
+      // worst first, instructor-annotated zones before the rest, then by
+      // deviation magnitude.
+      const rank = { bad: 2, warn: 1, ok: 0 } as const
+      const ordered = [...aggregated].sort(
+        (a, b) =>
+          rank[b.status] - rank[a.status] ||
+          Number(focus.includes(b.id)) - Number(focus.includes(a.id)) ||
+          Math.abs(b.deviation) - Math.abs(a.deviation),
+      )
+
       setPreviewUrl(url)
-      setPositionChecks(aggregated)
-      setEvaluatedSeconds(Math.round(stable.length / fps))
-      setSummary(generateBaselineSummary(aggregated, tBaselineSummary))
+      setPositionChecks(ordered)
+      setEvaluatedSeconds(Math.round(stableSeconds))
+      setConfidenceNotes(notes)
+      setSummary(generateBaselineSummary(aggregated, tBaselineSummary, focus))
+      logAnalysisEvent({
+        source: 'practice', step: 'analyzed', clip_id: clip.id, student_id: student?.id ?? null,
+        duration_ms: performance.now() - tAnalysis,
+        detail: {
+          clip_type: 'position', frames: frameRows.length, sampled: totalFrames, fps, model_complexity: 1,
+          stable_seconds: Number(stableSeconds.toFixed(1)), metrics_evaluated: aggregated.length, expected_metrics: expectedMetrics,
+          compare_version: compareVersion, angle_mismatch: angleMismatch, low_confidence: lowConfidence,
+          focus: focus.length ? focus : null,
+          score_ok: aggregated.filter(c => c.status === 'ok').length, score_total: aggregated.length,
+        },
+      })
 
       if (student && clip) {
         const overall_score = Math.round(
           aggregated.filter(c => c.status === 'ok').length / aggregated.length * 100
         )
         // Real measured values + signed deviations, not zero placeholders.
-        const resultsMap = Object.fromEntries(
+        const resultsMap: Record<string, unknown> = Object.fromEntries(
           aggregated.map(c => [c.id, { value: c.value, deviation: c.deviation, status: c.status }])
         )
+        resultsMap._meta = {
+          confidence: lowConfidence ? 'low' : 'normal',
+          unreliable_reason: angleMismatch ? 'angle_mismatch' : null,
+          stable_seconds: Number(stableSeconds.toFixed(1)),
+          metrics_evaluated: aggregated.length,
+          expected_metrics: expectedMetrics,
+        }
         const { data: sessionRow, error: insErr } = await supabase.from('practice_sessions').insert({
           student_id: student.id,
           clip_id: clip.id,
@@ -572,6 +715,10 @@ export default function StudentClipPractice() {
 
         if (insErr) {
           console.error('practice_sessions insert failed', insErr)
+          logAnalysisEvent({
+            source: 'practice', step: 'save_failed', status: 'error', clip_id: clip.id, student_id: student.id,
+            detail: { error: insErr.message?.slice(0, 300) ?? 'unknown' },
+          })
           setError(t('saveFailed'))
         } else if (sessionRow?.id && frameRows.length > 0) {
           try { await insertSessionFrames(sessionRow.id, frameRows) } catch (err) { console.error('session_frames insert failed', err) }
@@ -850,10 +997,27 @@ export default function StudentClipPractice() {
                 </div>
               )}
 
-              {/* Swing mode: reps detected */}
+              {/* Low-confidence notes — the results stand, with honesty about
+                  how solid they are. */}
+              {confidenceNotes.length > 0 && (
+                <div className="bg-paper-2 border border-rule rounded-md px-4 py-3 mb-4">
+                  {confidenceNotes.map((n, i) => (
+                    <p key={i} className="text-muted-foreground text-xs leading-snug">{n}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Swing mode: reps detected + rep-to-rep consistency */}
               {swingPhaseChecks.length > 0 && repsCount > 0 && (
                 <p className="text-muted-foreground text-xs mb-3">
                   {t('repsDetected', { count: repsCount })}
+                  {consistencyLevel && (
+                    <> · {t(
+                      consistencyLevel === 'high' ? 'consistencyHigh'
+                      : consistencyLevel === 'medium' ? 'consistencyMedium'
+                      : 'consistencyLow'
+                    )}</>
+                  )}
                 </p>
               )}
 
@@ -965,7 +1129,7 @@ export default function StudentClipPractice() {
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => { setStage('input'); setPositionChecks([]); setSwingPhaseChecks([]); setRepsCount(0); setDetectedAngle(null); setSummary(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
+                  onClick={() => { setStage('input'); setPositionChecks([]); setSwingPhaseChecks([]); setRepsCount(0); setDetectedAngle(null); setConfidenceNotes([]); setConsistencyLevel(null); setSummary(''); setError(''); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
                   className="flex-1 bg-card border border-border text-muted-foreground font-semibold rounded-xl py-3 hover:bg-secondary transition-all text-sm"
                 >
                   {t('recordAgain')}
